@@ -44,6 +44,7 @@ public class UI {
         g2.setColor(Color.WHITE);
         g2.drawImage(keyImage, 115, 33, 20, 20, null);
         g2.drawString("Keys = " + gp.player.hasKey, 30, 50);
+        g2.drawString("Health = " + gp.player.health + "/" + gp.player.maxHealth, 30, 70);
         g2.drawString("Combat mode (Q): " + gp.player.combatState, 30, 30);
         g2.drawString("World position = x: " + gp.player.worldX + " y:" + gp.player.worldY, 400, 30);
 

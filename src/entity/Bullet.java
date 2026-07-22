@@ -16,12 +16,7 @@ public class Bullet extends Entity {
     public double distanceTraveled = 0;
     public double maxDistance; // pixels
 
-    public boolean alive = true;
-
     public int damage = 1;
-
-    public int solidAreaDefaultX;
-    public int solidAreaDefaultY;
 
     public BufferedImage image;
 
@@ -107,17 +102,20 @@ public class Bullet extends Entity {
         if (maxDistance > 0 && distanceTraveled >= maxDistance) {
             alive = false;
         }
+
+        if (isOutsideWorld()) {
+            alive = false;
+        }
     }
 
     public void draw(Graphics2D g2, int screenX, int screenY) {
+        Color oldColor = g2.getColor();
 
         if (image != null) {
             g2.drawImage(image, screenX, screenY, null);
         }
         else {
             // TEMP DEBUG BULLET (visual only)
-            Color oldColor = g2.getColor();
-
             g2.setColor(Color.YELLOW);
             g2.fillRect(
                     screenX,
@@ -125,9 +123,17 @@ public class Bullet extends Entity {
                     solidArea.width,
                     solidArea.height
             );
-
-            g2.setColor(oldColor);
         }
+
+        g2.setColor(Color.MAGENTA);
+        g2.drawRect(
+                screenX + solidArea.x,
+                screenY + solidArea.y,
+                solidArea.width,
+                solidArea.height
+        );
+
+        g2.setColor(oldColor);
     }
 
     public static class Builder {

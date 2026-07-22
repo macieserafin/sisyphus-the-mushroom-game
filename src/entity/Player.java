@@ -45,12 +45,17 @@ public class Player extends Entity {
     private final int MELEE_WINDUP_FRAMES = 6;
     private final int MELEE_STRIKE_FRAMES = 5;
     private final int MELEE_RECOVER_FRAMES = 10;
+    private final int MELEE_DAMAGE = 1;
 
     private boolean meleeAttackHeldLastFrame = false;
+    private boolean meleeDamageApplied = false;
 
     //PLAYER STATUS
     public int hasKey = 0;
-    public int health = 3;
+    private int hurtInvincibleCounter = 0;
+    private final int HURT_INVINCIBLE_FRAMES = 45;
+    private int hurtKnockbackCounter = 0;
+    private final int HURT_KNOCKBACK_FRAMES = 10;
 
 
 
@@ -67,7 +72,7 @@ public class Player extends Entity {
         solidAreaDefaultX = solidArea.x;
         solidAreaDefaultY = solidArea.y;
 
-        hitBox = new Rectangle(9 , 0, 29, 48);
+        hitBox = new Rectangle(7, -2, 33, 52);
 
         setDefaultValues();
         getPlayerImage();
@@ -82,6 +87,8 @@ public class Player extends Entity {
         worldYf = worldY;
 
         speed = 4;
+        maxHealth = 3;
+        health = maxHealth;
 
         direction = "idle";
         combatDirection = "idle";
@@ -132,6 +139,14 @@ public class Player extends Entity {
         if (shotCooldownCounter > 0) {
             shotCooldownCounter--;
         }
+        if (hurtInvincibleCounter > 0) {
+            hurtInvincibleCounter--;
+        }
+
+        boolean hurtKnockbackActive = hurtKnockbackCounter > 0;
+        if (hurtKnockbackActive) {
+            hurtKnockbackCounter--;
+        }
 
 
         if (keyH.shiftPressed) {
@@ -141,6 +156,11 @@ public class Player extends Entity {
         else {
             currentMaxSpeed = maxSpeed;
             currentAccel = accel;
+        }
+
+        if (hurtKnockbackActive) {
+            currentMaxSpeed = maxSpeed + 3.0;
+            currentAccel = 0;
         }
 
 
@@ -180,27 +200,28 @@ public class Player extends Entity {
         int npcIndex = gp.cChecker.checkEntity(this, gp.npc);
         interactNPC(npcIndex);
 
-
         // OPPOSITE DIRECTION BRAKING
 
-        if (keyH.leftPressed && !keyH.rightPressed) {
-            if (velX > 0) {
-                velX = 0;
+        if (!hurtKnockbackActive) {
+            if (keyH.leftPressed && !keyH.rightPressed) {
+                if (velX > 0) {
+                    velX = 0;
+                }
             }
-        }
-        else if (keyH.rightPressed && !keyH.leftPressed) {
-            if (velX < 0) {
-                velX = 0;
+            else if (keyH.rightPressed && !keyH.leftPressed) {
+                if (velX < 0) {
+                    velX = 0;
+                }
             }
-        }
-        if (keyH.upPressed && !keyH.downPressed) {
-            if (velY > 0) {
-                velY = 0;
+            if (keyH.upPressed && !keyH.downPressed) {
+                if (velY > 0) {
+                    velY = 0;
+                }
             }
-        }
-        else if (keyH.downPressed && !keyH.upPressed) {
-            if (velY < 0) {
-                velY = 0;
+            else if (keyH.downPressed && !keyH.upPressed) {
+                if (velY < 0) {
+                    velY = 0;
+                }
             }
         }
 
@@ -208,17 +229,19 @@ public class Player extends Entity {
         //APPLY ACCELERATION FROM INPUT
 
 
-        if (keyH.leftPressed && !keyH.rightPressed) {
-            velX -= currentAccel;
-        }
-        else if (keyH.rightPressed && !keyH.leftPressed) {
-            velX += currentAccel;
-        }
-        if (keyH.upPressed && !keyH.downPressed) {
-            velY -= currentAccel;
-        }
-        else if (keyH.downPressed && !keyH.upPressed) {
-            velY += currentAccel;
+        if (!hurtKnockbackActive) {
+            if (keyH.leftPressed && !keyH.rightPressed) {
+                velX -= currentAccel;
+            }
+            else if (keyH.rightPressed && !keyH.leftPressed) {
+                velX += currentAccel;
+            }
+            if (keyH.upPressed && !keyH.downPressed) {
+                velY -= currentAccel;
+            }
+            else if (keyH.downPressed && !keyH.upPressed) {
+                velY += currentAccel;
+            }
         }
 
 
@@ -532,7 +555,12 @@ public class Player extends Entity {
         int drawH = image.getHeight() * gp.scale;
 
         Point p = computeDrawPosition(drawW, drawH);
+        Composite oldComposite = g2.getComposite();
+        if (isHurtInvincible() && (hurtInvincibleCounter / 5) % 2 == 0) {
+            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
+        }
         g2.drawImage(image, p.x, p.y, drawW, drawH, null);
+        g2.setComposite(oldComposite);
 
 
         //dev
@@ -543,10 +571,28 @@ public class Player extends Entity {
         g2.setColor(Color.RED);
         g2.drawRect(screenX + hitBox.x, screenY + hitBox.y, hitBox.width, hitBox.height);
 
+        drawMeleeHitBox(g2);
 
 
 
 
+    }
+
+    private void drawMeleeHitBox(Graphics2D g2) {
+        if (!meleeAttacking || combatState != CombatState.MELEE || combatDirection.equals("idle")) {
+            return;
+        }
+
+        Rectangle attackBox = getMeleeAttackBox();
+        int screenAttackX = attackBox.x - worldX + screenX;
+        int screenAttackY = attackBox.y - worldY + screenY;
+
+        Color oldColor = g2.getColor();
+
+        g2.setColor(Color.ORANGE);
+        g2.drawRect(screenAttackX, screenAttackY, attackBox.width, attackBox.height);
+
+        g2.setColor(oldColor);
     }
 
     private Point computeDrawPosition(int drawW, int drawH) {
@@ -589,6 +635,7 @@ public class Player extends Entity {
     private void startMeleeAttack() {
         meleeAttacking = true;
         meleeFrame = 0;
+        meleeDamageApplied = false;
         gp.playSoundEffect(5);
 
         velX *= 0.4;
@@ -606,14 +653,79 @@ public class Player extends Entity {
 
         int total = MELEE_WINDUP_FRAMES + MELEE_STRIKE_FRAMES + MELEE_RECOVER_FRAMES;
 
-        // meleeDamage()
-        // int strikeStart = MELEE_WINDUP_FRAMES;
-        // int strikeEnd = MELEE_WINDUP_FRAMES + MELEE_STRIKE_FRAMES;
-        // if (meleeFrame == strikeStart) { meleeDamage(); }
+        int strikeStart = MELEE_WINDUP_FRAMES;
+        if (meleeFrame == strikeStart && !meleeDamageApplied) {
+            meleeDamage();
+            meleeDamageApplied = true;
+        }
 
         if (meleeFrame >= total) {
             stopMeleeAttack();
         }
     }
-}
 
+    private void meleeDamage() {
+        Rectangle attackBox = getMeleeAttackBox();
+
+        for (int i = 0; i < gp.enemy.length; i++) {
+            if (gp.enemy[i] != null && gp.enemy[i].alive) {
+                if (attackBox.intersects(gp.enemy[i].getWorldHitBox())) {
+                    gp.enemy[i].takeDamage(MELEE_DAMAGE);
+                }
+            }
+        }
+    }
+
+    private Rectangle getMeleeAttackBox() {
+        int reach = 36;
+        int size = 36;
+
+        int centerX = worldX + gp.tileSize / 2;
+        int centerY = worldY + gp.tileSize / 2;
+
+        switch (combatDirection) {
+            case "up":
+                return new Rectangle(centerX - size / 2, worldY - reach, size, reach);
+            case "down":
+                return new Rectangle(centerX - size / 2, worldY + gp.tileSize, size, reach);
+            case "left":
+                return new Rectangle(worldX - reach, centerY - size / 2, reach, size);
+            case "right":
+            default:
+                return new Rectangle(worldX + gp.tileSize, centerY - size / 2, reach, size);
+        }
+    }
+
+    @Override
+    public void takeDamage(int damage) {
+        if (isHurtInvincible()) {
+            return;
+        }
+
+        super.takeDamage(damage);
+        hurtInvincibleCounter = HURT_INVINCIBLE_FRAMES;
+    }
+
+    public boolean isHurtInvincible() {
+        return hurtInvincibleCounter > 0;
+    }
+
+    public void applyKnockbackFrom(int sourceWorldX, int sourceWorldY, double force) {
+        int playerCenterX = worldX + gp.tileSize / 2;
+        int playerCenterY = worldY + gp.tileSize / 2;
+
+        double dx = playerCenterX - sourceWorldX;
+        double dy = playerCenterY - sourceWorldY;
+        double length = Math.sqrt(dx * dx + dy * dy);
+
+        if (length == 0) {
+            dx = 1;
+            dy = 0;
+            length = 1;
+        }
+
+        velX = (dx / length) * force;
+        velY = (dy / length) * force;
+        hurtKnockbackCounter = HURT_KNOCKBACK_FRAMES;
+    }
+}

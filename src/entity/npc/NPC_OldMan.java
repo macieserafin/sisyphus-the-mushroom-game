@@ -1,15 +1,15 @@
-package entity;
+package entity.npc;
 
 import main.GamePanel;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Random;
 
-public class NPC_OldMan extends Entity {
+public class NPC_OldMan extends NPC {
     private int walkPixelsLeft = 0;
-
 
     public NPC_OldMan(GamePanel gp) {
         super(gp);
@@ -20,8 +20,11 @@ public class NPC_OldMan extends Entity {
     }
 
     public void setDefaultValues(){
-        speed = 1;
-        direction = "down";
+        setupNPCStats("Old Man", 1, "down");
+        setupCollisionAreas(
+                new Rectangle(0, 0, 48, 48),
+                new Rectangle(0, 0, 48, 48)
+        );
     }
 
     public void getNPCImage() {
@@ -34,10 +37,6 @@ public class NPC_OldMan extends Entity {
             left2 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("npc/oldman_left_2.png")));
             right1 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("npc/oldman_right_1.png")));
             right2 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("npc/oldman_right_2.png")));
-
-
-
-
         }catch(IOException e){
             e.printStackTrace();
         }
@@ -82,19 +81,13 @@ public class NPC_OldMan extends Entity {
     }
 
     public void setDialogue(){
-        dialogues[0] = "Get the fuck out of my house.";
-        dialogues[1] = "Get lost.";
-        dialogues[2] = "U smell like shit.";
-        dialogues[3] = "bgwoagubaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        setDialogueLine(0, "Get the fuck out of my house.");
+        setDialogueLine(1, "Get lost.");
+        setDialogueLine(2, "U smell like shit.");
+        setDialogueLine(3, "bgwoagubaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     }
 
     public void speak(){
         super.speak();
-
     }
-
-
-
-
-
 }

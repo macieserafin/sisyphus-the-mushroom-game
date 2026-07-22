@@ -3,6 +3,7 @@ package main;
 import entity.Bullet;
 
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -27,9 +28,28 @@ public class BulletManager {
             Bullet bullet = iterator.next();
 
             bullet.update(gp);
+            checkEnemyHit(bullet);
 
             if (!bullet.alive) {
                 iterator.remove();
+            }
+        }
+    }
+
+    private void checkEnemyHit(Bullet bullet) {
+        if (!bullet.alive) {
+            return;
+        }
+
+        Rectangle bulletBox = bullet.getWorldSolidArea();
+
+        for (int i = 0; i < gp.enemy.length; i++) {
+            if (gp.enemy[i] != null && gp.enemy[i].alive) {
+                if (bulletBox.intersects(gp.enemy[i].getWorldHitBox())) {
+                    gp.enemy[i].takeDamage(bullet.damage);
+                    bullet.alive = false;
+                    return;
+                }
             }
         }
     }

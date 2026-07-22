@@ -1,8 +1,9 @@
 package main;
 
-import entity.Entity;
-import entity.NPC_OldMan;
-import entity.Player;
+import entity.enemy.Enemy;
+import entity.enemy.Enemy_Slime;
+import entity.npc.NPC;
+import entity.npc.NPC_OldMan;
 import object.Boots;
 import object.Chest;
 import object.Door;
@@ -41,8 +42,33 @@ public class AssetSetter {
 
         public void setNPC(){
 
-            gp.npc[0] = new NPC_OldMan(gp);
-            gp.npc[0].worldX = 32 * gp.tileSize;
-            gp.npc[0].worldY = 20 * gp.tileSize;
+            spawnNPC(new NPC_OldMan(gp), 32, 20);
+        }
+
+        public void setEnemy(){
+
+            spawnEnemy(new Enemy_Slime(gp), 28, 15);
+        }
+
+        private void spawnEnemy(Enemy enemy, int col, int row) {
+            for (int i = 0; i < gp.enemy.length; i++) {
+                if (gp.enemy[i] == null) {
+                    gp.enemy[i] = enemy;
+                    gp.enemy[i].worldX = col * gp.tileSize;
+                    gp.enemy[i].worldY = row * gp.tileSize;
+                    return;
+                }
+            }
+        }
+
+        private void spawnNPC(NPC npc, int col, int row) {
+            for (int i = 0; i < gp.npc.length; i++) {
+                if (gp.npc[i] == null) {
+                    gp.npc[i] = npc;
+                    gp.npc[i].worldX = col * gp.tileSize;
+                    gp.npc[i].worldY = row * gp.tileSize;
+                    return;
+                }
+            }
         }
 }
