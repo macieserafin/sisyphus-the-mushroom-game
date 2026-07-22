@@ -189,17 +189,6 @@ public class Player extends Entity {
             }
         }
 
-        collisionOn = false;
-        gp.cChecker.checkTile(this);
-
-        //OBJECTS
-        int objIndex = gp.cChecker.checkObject(this, true);
-        pickUpObject(objIndex);
-
-        //CHECK NPC COLLISION
-        int npcIndex = gp.cChecker.checkEntity(this, gp.npc);
-        interactNPC(npcIndex);
-
         // OPPOSITE DIRECTION BRAKING
 
         if (!hurtKnockbackActive) {
@@ -367,19 +356,24 @@ public class Player extends Entity {
 
 
 
-        //APPLY MOVEMENT IF NO COLLISION
+        int nextWorldX = (int)Math.round(worldXf + velX);
+        int nextWorldY = (int)Math.round(worldYf + velY);
 
-        if (!collisionOn) {
-            worldXf += velX;
-            worldYf += velY;
+        int objIndex = gp.cChecker.checkObjectAtIndex(this, nextWorldX, nextWorldY, false);
+        int npcIndex = gp.cChecker.checkEntityAtIndex(this, gp.npc, nextWorldX, nextWorldY);
 
-            worldX = (int)Math.round(worldXf);
-            worldY = (int)Math.round(worldYf);
+        applySmoothCollisionMovement();
+
+        if (objIndex == 999) {
+            objIndex = gp.cChecker.checkObjectTouch(this);
         }
-        else {
-            velX *= 0.3;
-            velY *= 0.3;
+        pickUpObject(objIndex);
+
+        if (npcIndex == 999) {
+            npcIndex = gp.cChecker.checkEntityTouch(this, gp.npc);
         }
+        interactNPC(npcIndex);
+
 
 
         //SPRITE ANIMATION CONTROL
@@ -408,6 +402,32 @@ public class Player extends Entity {
         }
 
 
+    }
+
+    private void applySmoothCollisionMovement() {
+        collisionOn = false;
+
+        int nextWorldX = (int)Math.round(worldXf + velX);
+        if (!gp.cChecker.isPlayerPositionBlocked(this, nextWorldX, worldY)) {
+            worldXf += velX;
+            worldX = (int)Math.round(worldXf);
+        }
+        else {
+            collisionOn = true;
+            worldXf = worldX;
+            velX = 0;
+        }
+
+        int nextWorldY = (int)Math.round(worldYf + velY);
+        if (!gp.cChecker.isPlayerPositionBlocked(this, worldX, nextWorldY)) {
+            worldYf += velY;
+            worldY = (int)Math.round(worldYf);
+        }
+        else {
+            collisionOn = true;
+            worldYf = worldY;
+            velY = 0;
+        }
     }
 
     public void interactNPC(int i){

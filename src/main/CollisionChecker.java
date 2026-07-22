@@ -2,6 +2,8 @@ package main;
 
 import entity.Entity;
 
+import java.awt.*;
+
 public class CollisionChecker {
     GamePanel gp;
     public CollisionChecker(GamePanel gp) {
@@ -10,6 +12,124 @@ public class CollisionChecker {
 
     private boolean isOutsideMap(int col, int row) {
         return col < 0 || col >= gp.maxWorldCol || row < 0 || row >= gp.maxWorldRow;
+    }
+
+    private Rectangle getEntitySolidAreaAt(Entity entity, int worldX, int worldY) {
+        return new Rectangle(
+                worldX + entity.solidAreaDefaultX,
+                worldY + entity.solidAreaDefaultY,
+                entity.solidArea.width,
+                entity.solidArea.height
+        );
+    }
+
+    public boolean checkTileAt(Entity entity, int worldX, int worldY) {
+        Rectangle area = getEntitySolidAreaAt(entity, worldX, worldY);
+
+        int leftCol = Math.floorDiv(area.x, gp.tileSize);
+        int rightCol = Math.floorDiv(area.x + area.width - 1, gp.tileSize);
+        int topRow = Math.floorDiv(area.y, gp.tileSize);
+        int bottomRow = Math.floorDiv(area.y + area.height - 1, gp.tileSize);
+
+        if (isOutsideMap(leftCol, topRow) ||
+                isOutsideMap(rightCol, topRow) ||
+                isOutsideMap(leftCol, bottomRow) ||
+                isOutsideMap(rightCol, bottomRow)) {
+            return true;
+        }
+
+        return gp.tileM.tile[gp.tileM.mapTileNum[leftCol][topRow]].collision ||
+                gp.tileM.tile[gp.tileM.mapTileNum[rightCol][topRow]].collision ||
+                gp.tileM.tile[gp.tileM.mapTileNum[leftCol][bottomRow]].collision ||
+                gp.tileM.tile[gp.tileM.mapTileNum[rightCol][bottomRow]].collision;
+    }
+
+    public boolean checkObjectAt(Entity entity, int worldX, int worldY) {
+        return checkObjectAtIndex(entity, worldX, worldY, true) != 999;
+    }
+
+    public int checkObjectAtIndex(Entity entity, int worldX, int worldY, boolean collisionOnly) {
+        Rectangle entityArea = getEntitySolidAreaAt(entity, worldX, worldY);
+
+        for (int i = 0; i < gp.obj.length; i++) {
+            if (gp.obj[i] != null && (!collisionOnly || gp.obj[i].collision)) {
+                Rectangle objectArea = new Rectangle(
+                        gp.obj[i].worldX + gp.obj[i].solidAreaDefaultX,
+                        gp.obj[i].worldY + gp.obj[i].solidAreaDefaultY,
+                        gp.obj[i].solidArea.width,
+                        gp.obj[i].solidArea.height
+                );
+
+                if (entityArea.intersects(objectArea)) {
+                    return i;
+                }
+            }
+        }
+
+        return 999;
+    }
+
+    public boolean checkEntityAt(Entity entity, Entity[] target, int worldX, int worldY) {
+        return checkEntityAtIndex(entity, target, worldX, worldY) != 999;
+    }
+
+    public int checkEntityAtIndex(Entity entity, Entity[] target, int worldX, int worldY) {
+        Rectangle entityArea = getEntitySolidAreaAt(entity, worldX, worldY);
+
+        for (int i = 0; i < target.length; i++) {
+            if (target[i] != null && target[i] != entity) {
+                Rectangle targetArea = getEntitySolidAreaAt(target[i], target[i].worldX, target[i].worldY);
+
+                if (entityArea.intersects(targetArea)) {
+                    return i;
+                }
+            }
+        }
+
+        return 999;
+    }
+
+    public int checkObjectTouch(Entity entity) {
+        Rectangle entityArea = getEntitySolidAreaAt(entity, entity.worldX, entity.worldY);
+
+        for (int i = 0; i < gp.obj.length; i++) {
+            if (gp.obj[i] != null) {
+                Rectangle objectArea = new Rectangle(
+                        gp.obj[i].worldX + gp.obj[i].solidAreaDefaultX,
+                        gp.obj[i].worldY + gp.obj[i].solidAreaDefaultY,
+                        gp.obj[i].solidArea.width,
+                        gp.obj[i].solidArea.height
+                );
+
+                if (entityArea.intersects(objectArea)) {
+                    return i;
+                }
+            }
+        }
+
+        return 999;
+    }
+
+    public int checkEntityTouch(Entity entity, Entity[] target) {
+        Rectangle entityArea = getEntitySolidAreaAt(entity, entity.worldX, entity.worldY);
+
+        for (int i = 0; i < target.length; i++) {
+            if (target[i] != null && target[i] != entity) {
+                Rectangle targetArea = getEntitySolidAreaAt(target[i], target[i].worldX, target[i].worldY);
+
+                if (entityArea.intersects(targetArea)) {
+                    return i;
+                }
+            }
+        }
+
+        return 999;
+    }
+
+    public boolean isPlayerPositionBlocked(Entity entity, int worldX, int worldY) {
+        return checkTileAt(entity, worldX, worldY) ||
+                checkObjectAt(entity, worldX, worldY) ||
+                checkEntityAt(entity, gp.npc, worldX, worldY);
     }
 
     public void checkTile(Entity entity){
