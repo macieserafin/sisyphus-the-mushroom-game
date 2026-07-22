@@ -45,7 +45,7 @@ public class Player extends Entity {
     private final int MELEE_WINDUP_FRAMES = 6;
     private final int MELEE_STRIKE_FRAMES = 5;
     private final int MELEE_RECOVER_FRAMES = 10;
-    private final int MELEE_DAMAGE = 1;
+    private final int MELEE_DAMAGE = 3;
 
     private boolean meleeAttackHeldLastFrame = false;
     private boolean meleeDamageApplied = false;

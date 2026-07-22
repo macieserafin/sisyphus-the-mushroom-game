@@ -47,6 +47,22 @@ public class AssetSetter {
 
         public void setEnemy(){
 
+            spawnEnemy(new Enemy_Slime(gp), 4, 4);
+            spawnEnemy(new Enemy_Slime(gp), 12, 8);
+            spawnEnemy(new Enemy_Slime(gp), 18, 16);
+            spawnEnemy(new Enemy_Slime(gp), 8, 22);
+            spawnEnemy(new Enemy_Slime(gp), 15, 30);
+
+            spawnEnemy(new Enemy_Slime(gp), 10, 40);
+            spawnEnemy(new Enemy_Slime(gp), 20, 45);
+            spawnEnemy(new Enemy_Slime(gp), 31, 8);
+            spawnEnemy(new Enemy_Slime(gp), 38, 14);
+            spawnEnemy(new Enemy_Slime(gp), 45, 10);
+
+            spawnEnemy(new Enemy_Slime(gp), 39, 24);
+            spawnEnemy(new Enemy_Slime(gp), 47, 36);
+            spawnEnemy(new Enemy_Slime(gp), 42, 42);
+            spawnEnemy(new Enemy_Slime(gp), 34, 46);
             spawnEnemy(new Enemy_Slime(gp), 28, 15);
         }
 

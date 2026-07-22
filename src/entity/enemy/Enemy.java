@@ -10,7 +10,14 @@ public class Enemy extends Entity {
 
     public String name;
     public int attackDamage = 1;
-    private int walkPixelsLeft = 0;
+    protected double worldXf;
+    protected double worldYf;
+    protected double velX = 0;
+    protected double velY = 0;
+    private boolean floatingPositionInitialized = false;
+    private int patrolFramesLeft = 0;
+    private double patrolVelX = 0;
+    private double patrolVelY = 0;
     private int contactDamageCooldownCounter = 0;
     private final int contactDamageCooldownFrames = 60;
     private final Random random = new Random();
@@ -37,7 +44,11 @@ public class Enemy extends Entity {
 
     @Override
     public void update() {
-        super.update();
+        initializeFloatingPosition();
+        setAction();
+        applySmoothMovement();
+        updateSpriteDirection();
+        updateSpriteAnimation();
         updateContactDamage();
     }
 
@@ -63,36 +74,119 @@ public class Enemy extends Entity {
     }
 
     protected void patrolRandomly() {
-        if (walkPixelsLeft > 0) {
-            walkPixelsLeft -= speed;
-
-            if (walkPixelsLeft <= 0) {
-                walkPixelsLeft = 0;
-                direction = "idle";
-                actionLockCounter = 0;
-            }
+        if (patrolFramesLeft > 0) {
+            patrolFramesLeft--;
+            velX = patrolVelX;
+            velY = patrolVelY;
             return;
         }
 
-        actionLockCounter++;
+        if (random.nextInt(100) < 35) {
+            patrolVelX = 0;
+            patrolVelY = 0;
+            velX = 0;
+            velY = 0;
+            direction = "idle";
+            patrolFramesLeft = random.nextInt(45) + 30;
+            return;
+        }
 
-        if (actionLockCounter >= 90) {
-            if (random.nextInt(100) < 35) {
-                direction = "idle";
+        double angle = random.nextDouble() * Math.PI * 2;
+        patrolVelX = Math.cos(angle) * speed;
+        patrolVelY = Math.sin(angle) * speed;
+        velX = patrolVelX;
+        velY = patrolVelY;
+        patrolFramesLeft = random.nextInt(45) + 45;
+    }
+
+    protected void moveToward(int targetWorldX, int targetWorldY, double moveSpeed) {
+        int enemyCenterX = worldX + gp.tileSize / 2;
+        int enemyCenterY = worldY + gp.tileSize / 2;
+
+        double dx = targetWorldX - enemyCenterX;
+        double dy = targetWorldY - enemyCenterY;
+        double length = Math.sqrt(dx * dx + dy * dy);
+
+        if (length == 0) {
+            velX = 0;
+            velY = 0;
+            return;
+        }
+
+        velX = (dx / length) * moveSpeed;
+        velY = (dy / length) * moveSpeed;
+    }
+
+    protected void stopMoving() {
+        velX = 0;
+        velY = 0;
+        direction = "idle";
+    }
+
+    private void initializeFloatingPosition() {
+        if (!floatingPositionInitialized) {
+            worldXf = worldX;
+            worldYf = worldY;
+            floatingPositionInitialized = true;
+        }
+    }
+
+    private void applySmoothMovement() {
+        collisionOn = false;
+
+        int nextWorldX = (int)Math.round(worldXf + velX);
+        if (!isEnemyPositionBlocked(nextWorldX, worldY)) {
+            worldXf += velX;
+            worldX = (int)Math.round(worldXf);
+        }
+        else {
+            collisionOn = true;
+            worldXf = worldX;
+            velX = 0;
+        }
+
+        int nextWorldY = (int)Math.round(worldYf + velY);
+        if (!isEnemyPositionBlocked(worldX, nextWorldY)) {
+            worldYf += velY;
+            worldY = (int)Math.round(worldYf);
+        }
+        else {
+            collisionOn = true;
+            worldYf = worldY;
+            velY = 0;
+        }
+    }
+
+    private boolean isEnemyPositionBlocked(int nextWorldX, int nextWorldY) {
+        return gp.cChecker.checkTileAt(this, nextWorldX, nextWorldY) ||
+                gp.cChecker.checkObjectAt(this, nextWorldX, nextWorldY);
+    }
+
+    private void updateSpriteDirection() {
+        if (Math.abs(velX) < 0.05 && Math.abs(velY) < 0.05) {
+            direction = "idle";
+            return;
+        }
+
+        if (Math.abs(velX) > Math.abs(velY)) {
+            direction = velX > 0 ? "right" : "left";
+        }
+        else {
+            direction = velY > 0 ? "down" : "up";
+        }
+    }
+
+    private void updateSpriteAnimation() {
+        spriteCounter++;
+
+        if(spriteCounter > 12){
+            if(spriteNum == 1){
+                spriteNum = 2;
             }
-            else {
-                int dir = random.nextInt(4);
-
-                if (dir == 0) direction = "up";
-                if (dir == 1) direction = "down";
-                if (dir == 2) direction = "left";
-                if (dir == 3) direction = "right";
-
-                int tilesToWalk = random.nextInt(2) + 1;
-                walkPixelsLeft = tilesToWalk * gp.tileSize;
+            else if(spriteNum == 2){
+                spriteNum = 1;
             }
-
-            actionLockCounter = 0;
+            spriteCounter = 0;
         }
     }
 
