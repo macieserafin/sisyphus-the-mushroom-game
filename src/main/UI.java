@@ -46,7 +46,10 @@ public class UI {
         g2.drawString("Keys = " + gp.player.hasKey, 30, 50);
         g2.drawString("Health = " + gp.player.health + "/" + gp.player.maxHealth, 30, 70);
         g2.drawString("Combat mode (Q): " + gp.player.combatState, 30, 30);
-        g2.drawString("World position = x: " + gp.player.worldX + " y:" + gp.player.worldY, 400, 30);
+        Rectangle playerSolidArea = gp.player.getWorldSolidArea();
+        int playerTileCol = Math.floorDiv(playerSolidArea.x + playerSolidArea.width / 2, gp.tileSize);
+        int playerTileRow = Math.floorDiv(playerSolidArea.y + playerSolidArea.height / 2, gp.tileSize);
+        g2.drawString("Tile position = col: " + playerTileCol + " row: " + playerTileRow, 400, 30);
 
 
 

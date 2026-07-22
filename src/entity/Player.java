@@ -56,6 +56,9 @@ public class Player extends Entity {
     private final int HURT_INVINCIBLE_FRAMES = 45;
     private int hurtKnockbackCounter = 0;
     private final int HURT_KNOCKBACK_FRAMES = 10;
+    private final double ENTITY_HURT_KNOCKBACK_FORCE = 12.0;
+    private final double HURT_KNOCKBACK_MAX_SPEED = 12.0;
+    private final double HURT_KNOCKBACK_FRICTION = 0.84;
 
 
 
@@ -159,7 +162,7 @@ public class Player extends Entity {
         }
 
         if (hurtKnockbackActive) {
-            currentMaxSpeed = maxSpeed + 3.0;
+            currentMaxSpeed = HURT_KNOCKBACK_MAX_SPEED;
             currentAccel = 0;
         }
 
@@ -346,11 +349,17 @@ public class Player extends Entity {
         //APPLY FRICTION WHEN NO INPUT IS PRESENT
 
 
-        if (!keyH.leftPressed && !keyH.rightPressed) {
-            velX *= friction;
+        if (hurtKnockbackActive) {
+            velX *= HURT_KNOCKBACK_FRICTION;
+            velY *= HURT_KNOCKBACK_FRICTION;
         }
-        if (!keyH.upPressed && !keyH.downPressed) {
-            velY *= friction;
+        else {
+            if (!keyH.leftPressed && !keyH.rightPressed) {
+                velX *= friction;
+            }
+            if (!keyH.upPressed && !keyH.downPressed) {
+                velY *= friction;
+            }
         }
 
 
@@ -737,6 +746,16 @@ public class Player extends Entity {
 
     public int getHurtInvincibleFrames() {
         return HURT_INVINCIBLE_FRAMES;
+    }
+
+    public boolean takeDamageFromEntity(Entity source, int damage) {
+        if (isHurtInvincible()) {
+            return false;
+        }
+
+        takeDamage(damage);
+        applyKnockbackFrom(source.worldX + gp.tileSize / 2, source.worldY + gp.tileSize / 2, ENTITY_HURT_KNOCKBACK_FORCE);
+        return true;
     }
 
     public void applyKnockbackFrom(int sourceWorldX, int sourceWorldY, double force) {

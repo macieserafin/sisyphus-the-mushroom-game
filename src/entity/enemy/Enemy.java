@@ -82,10 +82,10 @@ public class Enemy extends Entity {
 
         if (contactDamageCooldownCounter == 0 &&
                 (touchedPlayerThisFrame || getWorldSolidArea().intersects(gp.player.getWorldHitBox()))) {
-            gp.player.takeDamage(attackDamage);
-            gp.player.applyKnockbackFrom(worldX + gp.tileSize / 2, worldY + gp.tileSize / 2, 6.0);
-            pauseMovement(gp.player.getHurtInvincibleFrames());
-            contactDamageCooldownCounter = contactDamageCooldownFrames;
+            if (gp.player.takeDamageFromEntity(this, attackDamage)) {
+                pauseMovement(gp.player.getHurtInvincibleFrames());
+                contactDamageCooldownCounter = contactDamageCooldownFrames;
+            }
         }
     }
 
