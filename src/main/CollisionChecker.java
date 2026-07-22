@@ -129,7 +129,15 @@ public class CollisionChecker {
     public boolean isPlayerPositionBlocked(Entity entity, int worldX, int worldY) {
         return checkTileAt(entity, worldX, worldY) ||
                 checkObjectAt(entity, worldX, worldY) ||
-                checkEntityAt(entity, gp.npc, worldX, worldY);
+                checkEntityAt(entity, gp.npc, worldX, worldY) ||
+                checkEntityAt(entity, gp.enemy, worldX, worldY);
+    }
+
+    public boolean checkPlayerAt(Entity entity, int worldX, int worldY) {
+        Rectangle entityArea = getEntitySolidAreaAt(entity, worldX, worldY);
+        Rectangle playerArea = getEntitySolidAreaAt(gp.player, gp.player.worldX, gp.player.worldY);
+
+        return entityArea.intersects(playerArea);
     }
 
     public void checkTile(Entity entity){

@@ -76,7 +76,23 @@ public class UI {
             drawDialogueScreen();
         }
 
+        if (gp.gameState == GameState.DEAD) {
+            drawDeathScreen();
+        }
 
+
+    }
+
+    public void drawDeathScreen() {
+        String text = "You died.";
+
+        g2.setFont(arial_40);
+        g2.setColor(Color.RED);
+
+        int x = getXForCenteredText(text);
+        int y = gp.screenHeight / 2;
+
+        g2.drawString(text, x, y);
     }
 
     public void drawDialogueScreen() {
@@ -110,5 +126,10 @@ public class UI {
         g2.setColor(c);
         g2.setStroke(new BasicStroke(5));
         g2.drawRoundRect(x+5, y+5, width-10, height-10, 25, 25);
+    }
+
+    public int getXForCenteredText(String text) {
+        int length = (int)g2.getFontMetrics().getStringBounds(text, g2).getWidth();
+        return gp.screenWidth / 2 - length / 2;
     }
 }

@@ -47,6 +47,7 @@ public class BulletManager {
             if (gp.enemy[i] != null && gp.enemy[i].alive) {
                 if (bulletBox.intersects(gp.enemy[i].getWorldHitBox())) {
                     gp.enemy[i].takeDamage(bullet.damage);
+                    gp.enemy[i].applyKnockbackFrom(bullet.worldX, bullet.worldY, 3.5);
                     bullet.alive = false;
                     return;
                 }

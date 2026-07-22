@@ -691,6 +691,7 @@ public class Player extends Entity {
             if (gp.enemy[i] != null && gp.enemy[i].alive) {
                 if (attackBox.intersects(gp.enemy[i].getWorldHitBox())) {
                     gp.enemy[i].takeDamage(MELEE_DAMAGE);
+                    gp.enemy[i].applyKnockbackFrom(worldX + gp.tileSize / 2, worldY + gp.tileSize / 2, 6.0);
                 }
             }
         }
@@ -724,10 +725,18 @@ public class Player extends Entity {
 
         super.takeDamage(damage);
         hurtInvincibleCounter = HURT_INVINCIBLE_FRAMES;
+
+        if (health == 0) {
+            gp.gameState = GameState.DEAD;
+        }
     }
 
     public boolean isHurtInvincible() {
         return hurtInvincibleCounter > 0;
+    }
+
+    public int getHurtInvincibleFrames() {
+        return HURT_INVINCIBLE_FRAMES;
     }
 
     public void applyKnockbackFrom(int sourceWorldX, int sourceWorldY, double force) {

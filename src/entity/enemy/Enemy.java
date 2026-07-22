@@ -18,6 +18,10 @@ public class Enemy extends Entity {
     private int patrolFramesLeft = 0;
     private double patrolVelX = 0;
     private double patrolVelY = 0;
+    private int recoilFramesLeft = 0;
+    private final int recoilDurationFrames = 12;
+    private int movementPauseFramesLeft = 0;
+    private boolean touchedPlayerThisFrame = false;
     private int contactDamageCooldownCounter = 0;
     private final int contactDamageCooldownFrames = 60;
     private final Random random = new Random();
@@ -45,7 +49,17 @@ public class Enemy extends Entity {
     @Override
     public void update() {
         initializeFloatingPosition();
-        setAction();
+        touchedPlayerThisFrame = false;
+        if (movementPauseFramesLeft > 0) {
+            movementPauseFramesLeft--;
+            stopMoving();
+        }
+        else if (recoilFramesLeft > 0) {
+            recoilFramesLeft--;
+        }
+        else {
+            setAction();
+        }
         applySmoothMovement();
         updateSpriteDirection();
         updateSpriteAnimation();
@@ -66,9 +80,11 @@ public class Enemy extends Entity {
             return;
         }
 
-        if (contactDamageCooldownCounter == 0 && getWorldSolidArea().intersects(gp.player.getWorldHitBox())) {
+        if (contactDamageCooldownCounter == 0 &&
+                (touchedPlayerThisFrame || getWorldSolidArea().intersects(gp.player.getWorldHitBox()))) {
             gp.player.takeDamage(attackDamage);
-            gp.player.applyKnockbackFrom(worldX + gp.tileSize / 2, worldY + gp.tileSize / 2, 7.0);
+            gp.player.applyKnockbackFrom(worldX + gp.tileSize / 2, worldY + gp.tileSize / 2, 6.0);
+            pauseMovement(gp.player.getHurtInvincibleFrames());
             contactDamageCooldownCounter = contactDamageCooldownFrames;
         }
     }
@@ -123,6 +139,41 @@ public class Enemy extends Entity {
         direction = "idle";
     }
 
+    public void applyKnockbackFrom(int sourceWorldX, int sourceWorldY, double force) {
+        applyKnockbackFrom(sourceWorldX, sourceWorldY, force, recoilDurationFrames);
+    }
+
+    public void applyKnockbackFrom(int sourceWorldX, int sourceWorldY, double force, int recoilFrames) {
+        int enemyCenterX = worldX + gp.tileSize / 2;
+        int enemyCenterY = worldY + gp.tileSize / 2;
+
+        double dx = enemyCenterX - sourceWorldX;
+        double dy = enemyCenterY - sourceWorldY;
+        double length = Math.sqrt(dx * dx + dy * dy);
+
+        if (length == 0) {
+            dx = 1;
+            dy = 0;
+            length = 1;
+        }
+
+        velX = (dx / length) * force;
+        velY = (dy / length) * force;
+        recoilFramesLeft = recoilFrames;
+        patrolFramesLeft = 0;
+    }
+
+    public void pauseMovement(int frames) {
+        movementPauseFramesLeft = frames;
+        recoilFramesLeft = 0;
+        patrolFramesLeft = 0;
+        stopMoving();
+    }
+
+    protected boolean isRecoiling() {
+        return recoilFramesLeft > 0;
+    }
+
     private void initializeFloatingPosition() {
         if (!floatingPositionInitialized) {
             worldXf = worldX;
@@ -158,6 +209,11 @@ public class Enemy extends Entity {
     }
 
     private boolean isEnemyPositionBlocked(int nextWorldX, int nextWorldY) {
+        if (gp.cChecker.checkPlayerAt(this, nextWorldX, nextWorldY)) {
+            touchedPlayerThisFrame = true;
+            return true;
+        }
+
         return gp.cChecker.checkTileAt(this, nextWorldX, nextWorldY) ||
                 gp.cChecker.checkObjectAt(this, nextWorldX, nextWorldY);
     }
