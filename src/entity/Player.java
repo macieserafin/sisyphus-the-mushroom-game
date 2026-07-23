@@ -42,13 +42,24 @@ public class Player extends Entity {
     private boolean meleeAttacking = false;
     private int meleeFrame = 0;
 
-    private final int MELEE_WINDUP_FRAMES = 6;
-    private final int MELEE_STRIKE_FRAMES = 5;
-    private final int MELEE_RECOVER_FRAMES = 10;
+    private final int MELEE_WINDUP_FRAMES = 3;
+    private final int MELEE_STRIKE_FRAMES = 7;
+    private final int MELEE_RECOVER_FRAMES = 7;
     private final int MELEE_DAMAGE = 3;
+    private final int MELEE_INPUT_BUFFER_FRAMES = 7;
+    private final int MELEE_COOLDOWN_FRAMES = 4;
+    private final int MELEE_REACH = 52;
+    private final int MELEE_SWING_WIDTH = 56;
+    private final int MELEE_OVERLAP = 14;
+    private final double MELEE_DASH_SPEED = 6.4;
+    private final double MELEE_DASH_MAX_SPEED = 6.8;
+    private final double MELEE_STRIKE_MAX_SPEED = 5.2;
 
-    private boolean meleeAttackHeldLastFrame = false;
-    private boolean meleeDamageApplied = false;
+    private String bufferedMeleeDirection = null;
+    private int meleeInputBufferCounter = 0;
+    private int meleeCooldownCounter = 0;
+    private boolean meleeAttackInputHeldLastFrame = false;
+    private boolean[] meleeHitEnemies = new boolean[0];
 
     //PLAYER STATUS
     public int hasKey = 0;
@@ -144,6 +155,9 @@ public class Player extends Entity {
         }
         if (hurtInvincibleCounter > 0) {
             hurtInvincibleCounter--;
+        }
+        if (meleeCooldownCounter > 0) {
+            meleeCooldownCounter--;
         }
 
         boolean hurtKnockbackActive = hurtKnockbackCounter > 0;
@@ -308,22 +322,27 @@ public class Player extends Entity {
         }
         if (combatState == CombatState.MELEE) {
 
-            boolean attackHeld =
-                    keyH.upShootPressed || keyH.downShootPressed || keyH.leftShootPressed || keyH.rightShootPressed;
-
-            boolean attackJustPressed = attackHeld && !meleeAttackHeldLastFrame;
-            meleeAttackHeldLastFrame = attackHeld;
+            String attackInputDirection = getAttackInputDirection();
+            boolean attackInputHeld = attackInputDirection != null;
+            boolean attackJustPressed = attackInputHeld && !meleeAttackInputHeldLastFrame;
+            meleeAttackInputHeldLastFrame = attackInputHeld;
 
             if (attackJustPressed) {
+                bufferedMeleeDirection = attackInputDirection;
+                meleeInputBufferCounter = MELEE_INPUT_BUFFER_FRAMES;
+            }
+            else if (meleeInputBufferCounter > 0) {
+                meleeInputBufferCounter--;
+            }
 
-                if (keyH.upShootPressed) combatDirection = "up";
-                else if (keyH.downShootPressed) combatDirection = "down";
-                else if (keyH.leftShootPressed) combatDirection = "left";
-                else combatDirection = "right";
-
-                if (!meleeAttacking) {
-                    startMeleeAttack();
-                }
+            if (!meleeAttacking &&
+                    meleeCooldownCounter == 0 &&
+                    meleeInputBufferCounter > 0 &&
+                    bufferedMeleeDirection != null) {
+                combatDirection = bufferedMeleeDirection;
+                bufferedMeleeDirection = null;
+                meleeInputBufferCounter = 0;
+                startMeleeAttack();
             }
             else if (!meleeAttacking) {
                 combatDirection = "idle";
@@ -331,9 +350,7 @@ public class Player extends Entity {
 
             if (meleeAttacking) {
                 updateMeleeAttack();
-                currentMaxSpeed = 1.2;
-                velX *= 0.85;
-                velY *= 0.85;
+                currentMaxSpeed = Math.max(currentMaxSpeed, getMeleeMaxSpeed());
             }
         }
 
@@ -352,6 +369,11 @@ public class Player extends Entity {
         if (hurtKnockbackActive) {
             velX *= HURT_KNOCKBACK_FRICTION;
             velY *= HURT_KNOCKBACK_FRICTION;
+        }
+        else if (meleeAttacking) {
+            double meleeDamping = getMeleeVelocityDamping();
+            velX *= meleeDamping;
+            velY *= meleeDamping;
         }
         else {
             if (!keyH.leftPressed && !keyH.rightPressed) {
@@ -664,16 +686,18 @@ public class Player extends Entity {
     private void startMeleeAttack() {
         meleeAttacking = true;
         meleeFrame = 0;
-        meleeDamageApplied = false;
+        resetMeleeHitEnemies();
         gp.playSoundEffect(5);
 
-        velX *= 0.4;
-        velY *= 0.4;
+        double[] dashVector = getDirectionVector(combatDirection);
+        velX = velX * 0.35 + dashVector[0] * MELEE_DASH_SPEED;
+        velY = velY * 0.35 + dashVector[1] * MELEE_DASH_SPEED;
     }
 
     private void stopMeleeAttack() {
         meleeAttacking = false;
         meleeFrame = 0;
+        meleeCooldownCounter = MELEE_COOLDOWN_FRAMES;
         combatDirection = "idle";
     }
 
@@ -682,10 +706,8 @@ public class Player extends Entity {
 
         int total = MELEE_WINDUP_FRAMES + MELEE_STRIKE_FRAMES + MELEE_RECOVER_FRAMES;
 
-        int strikeStart = MELEE_WINDUP_FRAMES;
-        if (meleeFrame == strikeStart && !meleeDamageApplied) {
+        if (isMeleeStrikeFrame()) {
             meleeDamage();
-            meleeDamageApplied = true;
         }
 
         if (meleeFrame >= total) {
@@ -695,34 +717,106 @@ public class Player extends Entity {
 
     private void meleeDamage() {
         Rectangle attackBox = getMeleeAttackBox();
+        resetMeleeHitEnemiesIfNeeded();
 
         for (int i = 0; i < gp.enemy.length; i++) {
             if (gp.enemy[i] != null && gp.enemy[i].alive) {
-                if (attackBox.intersects(gp.enemy[i].getWorldHitBox())) {
+                if (!meleeHitEnemies[i] && attackBox.intersects(gp.enemy[i].getWorldHitBox())) {
                     gp.enemy[i].takeDamage(MELEE_DAMAGE);
-                    gp.enemy[i].applyKnockbackFrom(worldX + gp.tileSize / 2, worldY + gp.tileSize / 2, 6.0);
+                    gp.enemy[i].applyKnockbackFrom(worldX + gp.tileSize / 2, worldY + gp.tileSize / 2, 8.0);
+                    meleeHitEnemies[i] = true;
                 }
             }
         }
     }
 
     private Rectangle getMeleeAttackBox() {
-        int reach = 36;
-        int size = 36;
+        int strikeFrame = Math.max(0, meleeFrame - MELEE_WINDUP_FRAMES);
+        int reach = MELEE_REACH;
+        int swingWidth = MELEE_SWING_WIDTH;
+
+        if (isMeleeStrikeFrame()) {
+            if (strikeFrame <= 1) {
+                reach -= 8;
+                swingWidth -= 8;
+            }
+            else if (strikeFrame >= MELEE_STRIKE_FRAMES - 2) {
+                reach -= 4;
+                swingWidth += 4;
+            }
+        }
 
         int centerX = worldX + gp.tileSize / 2;
         int centerY = worldY + gp.tileSize / 2;
 
         switch (combatDirection) {
             case "up":
-                return new Rectangle(centerX - size / 2, worldY - reach, size, reach);
+                return new Rectangle(centerX - swingWidth / 2, centerY - reach, swingWidth, reach + MELEE_OVERLAP);
             case "down":
-                return new Rectangle(centerX - size / 2, worldY + gp.tileSize, size, reach);
+                return new Rectangle(centerX - swingWidth / 2, centerY - MELEE_OVERLAP, swingWidth, reach + MELEE_OVERLAP);
             case "left":
-                return new Rectangle(worldX - reach, centerY - size / 2, reach, size);
+                return new Rectangle(centerX - reach, centerY - swingWidth / 2, reach + MELEE_OVERLAP, swingWidth);
             case "right":
             default:
-                return new Rectangle(worldX + gp.tileSize, centerY - size / 2, reach, size);
+                return new Rectangle(centerX - MELEE_OVERLAP, centerY - swingWidth / 2, reach + MELEE_OVERLAP, swingWidth);
+        }
+    }
+
+    private String getAttackInputDirection() {
+        if (keyH.upShootPressed) return "up";
+        if (keyH.downShootPressed) return "down";
+        if (keyH.leftShootPressed) return "left";
+        if (keyH.rightShootPressed) return "right";
+        return null;
+    }
+
+    private boolean isMeleeStrikeFrame() {
+        return meleeFrame >= MELEE_WINDUP_FRAMES &&
+                meleeFrame < MELEE_WINDUP_FRAMES + MELEE_STRIKE_FRAMES;
+    }
+
+    private double getMeleeMaxSpeed() {
+        if (meleeFrame <= MELEE_WINDUP_FRAMES + 1) {
+            return MELEE_DASH_MAX_SPEED;
+        }
+        if (isMeleeStrikeFrame()) {
+            return MELEE_STRIKE_MAX_SPEED;
+        }
+        return maxSpeed;
+    }
+
+    private double getMeleeVelocityDamping() {
+        if (meleeFrame <= MELEE_WINDUP_FRAMES + 1) {
+            return 0.94;
+        }
+        if (isMeleeStrikeFrame()) {
+            return 0.86;
+        }
+        return 0.72;
+    }
+
+    private double[] getDirectionVector(String direction) {
+        switch (direction) {
+            case "up":
+                return new double[]{0, -1};
+            case "down":
+                return new double[]{0, 1};
+            case "left":
+                return new double[]{-1, 0};
+            case "right":
+                return new double[]{1, 0};
+            default:
+                return new double[]{0, 0};
+        }
+    }
+
+    private void resetMeleeHitEnemies() {
+        meleeHitEnemies = new boolean[gp.enemy.length];
+    }
+
+    private void resetMeleeHitEnemiesIfNeeded() {
+        if (meleeHitEnemies.length != gp.enemy.length) {
+            resetMeleeHitEnemies();
         }
     }
 
