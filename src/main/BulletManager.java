@@ -20,6 +20,10 @@ public class BulletManager {
         bullets.add(bullet);
     }
 
+    public void clearBullets() {
+        bullets.clear();
+    }
+
     public void update() {
 
         Iterator<Bullet> iterator = bullets.iterator();

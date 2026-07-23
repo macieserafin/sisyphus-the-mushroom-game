@@ -7,7 +7,6 @@ import main.KeyHandler;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
 import entity.Bullet;
@@ -94,11 +93,7 @@ public class Player extends Entity {
 
     public void setDefaultValues(){
 
-        worldX = gp.tileSize * 23;
-        worldY = gp.tileSize * 21;
-
-        worldXf = worldX;
-        worldYf = worldY;
+        setWorldPosition(gp.tileSize * 23, gp.tileSize * 21);
 
         speed = 4;
         maxHealth = 3;
@@ -106,6 +101,16 @@ public class Player extends Entity {
 
         direction = "idle";
         combatDirection = "idle";
+    }
+
+    public void setWorldPosition(int worldX, int worldY) {
+        this.worldX = worldX;
+        this.worldY = worldY;
+        worldXf = worldX;
+        worldYf = worldY;
+        velX = 0;
+        velY = 0;
+        collisionOn = false;
     }
 
     public void getPlayerImage() {
@@ -478,38 +483,13 @@ public class Player extends Entity {
 
     public void pickUpObject(int i) {
         if(i != 999){
-            String objectName = gp.obj[i].name;
-
-            switch (objectName) {
-                case "Key":
-                    hasKey++;
-                    gp.obj[i] = null;
-                    gp.playSoundEffect(3);
-                    gp.ui.showMessage("You picked up key");
-                    break;
-
-                case "Door":
-                        if(hasKey > 0){
-                            gp.obj[i] = null;
-                            hasKey--;
-                            gp.playSoundEffect(2);
-                        }else gp.ui.showMessage("You need a key!");
-                        break;
-
-                case "Boots":
-                    maxSpeed += 3;
-                    gp.obj[i] = null;
-                    gp.playSoundEffect(4);
-
-                case "Chest":
-                    if(hasKey > 0){
-                        gp.obj[i] = null;
-                        hasKey--;
-                        gp.playSoundEffect(2);
-                    }
-            }
+            gp.obj[i].onPlayerTouch(gp, this, i);
         }
 
+    }
+
+    public void addMaxSpeed(double amount) {
+        maxSpeed += amount;
     }
 
 

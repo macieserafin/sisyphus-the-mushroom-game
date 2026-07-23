@@ -11,7 +11,7 @@ public class CollisionChecker {
     }
 
     private boolean isOutsideMap(int col, int row) {
-        return col < 0 || col >= gp.maxWorldCol || row < 0 || row >= gp.maxWorldRow;
+        return col < 0 || col >= gp.tileM.getWorldCols() || row < 0 || row >= gp.tileM.getWorldRows();
     }
 
     private Rectangle getEntitySolidAreaAt(Entity entity, int worldX, int worldY) {

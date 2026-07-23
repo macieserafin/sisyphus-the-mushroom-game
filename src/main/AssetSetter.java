@@ -8,6 +8,8 @@ import object.Boots;
 import object.Chest;
 import object.Door;
 import object.Key;
+import object.RunStartDoor;
+import object.SuperObject;
 
 public class AssetSetter {
 
@@ -18,52 +20,73 @@ public class AssetSetter {
 
         public void setObject(){
 
-            gp.obj[0] = new Key();
-            gp.obj[0].worldX = 23 * gp.tileSize;
-            gp.obj[0].worldY = 7 * gp.tileSize;
-
-            gp.obj[1] = new Key();
-            gp.obj[1].worldX = 35 * gp.tileSize;
-            gp.obj[1].worldY = 24 * gp.tileSize;
-
-            gp.obj[2] = new Chest();
-            gp.obj[2].worldX = 25 * gp.tileSize;
-            gp.obj[2].worldY = 10 * gp.tileSize;
-
-            gp.obj[3] = new Door();
-            gp.obj[3].worldX = 32 * gp.tileSize;
-            gp.obj[3].worldY = 23 * gp.tileSize;
-
-            gp.obj[4] = new Boots();
-            gp.obj[4].worldX = 34 * gp.tileSize;
-            gp.obj[4].worldY = 20 * gp.tileSize;
+            spawnObject(new Key(), 23, 7);
+            spawnObject(new Key(), 34, 23);
+            spawnObject(new Chest(), 25, 10);
+            spawnObject(new Door(false), 25, 11);
+            spawnObject(new Door(false), 30, 23);
+            spawnObject(new Door(false), 34, 34);
+            spawnObject(new Door(true), 20, 32);
+            spawnObject(new Door(false), 12, 34);
+            spawnObject(new Door(false), 16, 17);
+            spawnObject(new Boots(), 15, 29);
+            spawnObject(new RunStartDoor(), 12, 40);
 
         }
 
         public void setNPC(){
 
-            spawnNPC(new NPC_OldMan(gp), 32, 20);
+            spawnNPC(new NPC_OldMan(gp), 16, 31);
         }
 
         public void setEnemy(){
 
-            spawnEnemy(new Enemy_Slime(gp), 4, 4);
-            spawnEnemy(new Enemy_Slime(gp), 12, 8);
-            spawnEnemy(new Enemy_Slime(gp), 18, 16);
-            spawnEnemy(new Enemy_Slime(gp), 8, 22);
-            spawnEnemy(new Enemy_Slime(gp), 15, 30);
+            int[][] hubSlimeSpawns = {
+                    {14, 10}, {34, 11}, {18, 18}, {28, 17}, {15, 24},
+                    {36, 26}, {18, 36}, {27, 34}, {41, 36}, {10, 41}
+            };
 
-            spawnEnemy(new Enemy_Slime(gp), 10, 40);
-            spawnEnemy(new Enemy_Slime(gp), 20, 45);
-            spawnEnemy(new Enemy_Slime(gp), 31, 8);
-            spawnEnemy(new Enemy_Slime(gp), 38, 14);
-            spawnEnemy(new Enemy_Slime(gp), 45, 10);
+            for (int i = 0; i < hubSlimeSpawns.length; i++) {
+                spawnEnemy(new Enemy_Slime(gp), hubSlimeSpawns[i][0], hubSlimeSpawns[i][1]);
+            }
+        }
 
-            spawnEnemy(new Enemy_Slime(gp), 39, 24);
-            spawnEnemy(new Enemy_Slime(gp), 47, 36);
-            spawnEnemy(new Enemy_Slime(gp), 42, 42);
-            spawnEnemy(new Enemy_Slime(gp), 34, 46);
-            spawnEnemy(new Enemy_Slime(gp), 28, 15);
+        public void setRunFloorObject() {
+            spawnObject(new Boots(), 95, 181);
+            spawnObject(new Key(), 106, 178);
+            spawnObject(new Chest(), 100, 24);
+        }
+
+        public void setRunFloorEnemy() {
+            int[][] slimeSpawns = {
+                    {122, 22}, {97, 25}, {110, 31}, {149, 37}, {85, 38},
+                    {118, 39}, {74, 42}, {110, 42}, {154, 43}, {83, 45},
+                    {96, 56}, {145, 57}, {67, 59}, {108, 59}, {59, 62},
+                    {82, 62}, {51, 64}, {89, 64}, {113, 66}, {56, 69},
+                    {99, 73}, {126, 75}, {93, 78}, {105, 79}, {133, 81},
+                    {90, 87}, {122, 88}, {99, 93}, {107, 95}, {81, 96},
+                    {161, 99}, {128, 100}, {102, 101}, {137, 103}, {32, 104},
+                    {158, 106}, {147, 113}, {126, 115}, {43, 122}, {104, 124},
+                    {116, 127}, {37, 130}, {101, 131}, {114, 137}, {40, 139},
+                    {102, 143}, {82, 144}, {38, 146}, {145, 150}, {110, 153},
+                    {158, 153}, {36, 156}, {78, 160}, {71, 165}, {130, 166},
+                    {120, 175}, {86, 178}, {123, 183}, {86, 185}, {114, 185}
+            };
+
+            for (int i = 0; i < slimeSpawns.length; i++) {
+                spawnEnemy(new Enemy_Slime(gp), slimeSpawns[i][0], slimeSpawns[i][1]);
+            }
+        }
+
+        private void spawnObject(SuperObject object, int col, int row) {
+            for (int i = 0; i < gp.obj.length; i++) {
+                if (gp.obj[i] == null) {
+                    gp.obj[i] = object;
+                    gp.obj[i].worldX = col * gp.tileSize;
+                    gp.obj[i].worldY = row * gp.tileSize;
+                    return;
+                }
+            }
         }
 
         private void spawnEnemy(Enemy enemy, int col, int row) {

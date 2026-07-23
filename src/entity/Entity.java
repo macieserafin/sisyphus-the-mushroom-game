@@ -59,8 +59,8 @@ public class Entity {
 
     public boolean isOutsideWorld() {
         Rectangle bounds = getWorldSolidArea();
-        int worldWidth = gp.maxWorldCol * gp.tileSize;
-        int worldHeight = gp.maxWorldRow * gp.tileSize;
+        int worldWidth = gp.tileM.getWorldCols() * gp.tileSize;
+        int worldHeight = gp.tileM.getWorldRows() * gp.tileSize;
 
         return bounds.x + bounds.width < 0 ||
                 bounds.x >= worldWidth ||

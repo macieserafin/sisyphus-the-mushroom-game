@@ -8,6 +8,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class TileManager {
@@ -15,15 +17,18 @@ public class TileManager {
     GamePanel gp;
     public Tile[] tile;
     public int[][] mapTileNum;
+    private int worldCols;
+    private int worldRows;
 
     public TileManager(GamePanel gp) {
         this.gp = gp;
 
         tile = new Tile[10];
-        mapTileNum = new int[gp.maxWorldCol][gp.maxWorldRow];
+        mapTileNum = new int[0][0];
+        worldCols = 0;
+        worldRows = 0;
 
         getTileImage();
-        loadMap("maps/world01.txt");
     }
 
     public void getTileImage() {
@@ -58,34 +63,68 @@ public class TileManager {
     }
 
     public void loadMap(String filePath){
-        try{
-            InputStream is = getClass().getClassLoader().getResourceAsStream(filePath);
-            BufferedReader br = new BufferedReader(new InputStreamReader(is));
+        try {
+            InputStream is = Objects.requireNonNull(
+                    getClass().getClassLoader().getResourceAsStream(filePath),
+                    "Missing map file: " + filePath
+            );
 
-            int col = 0;
-            int row = 0;
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(is))) {
+                List<int[]> rows = new ArrayList<>();
+                int expectedCols = -1;
+                String line;
 
-            while(col < gp.maxWorldCol && row < gp.maxWorldRow){
-                String line = br.readLine();
+                while ((line = br.readLine()) != null) {
+                    if (line.trim().isEmpty()) {
+                        continue;
+                    }
 
-                while(col < gp.maxWorldCol){
-                    String numbers[] = line.split(" ");
+                    String[] numbers = line.trim().split("\\s+");
+                    if (expectedCols == -1) {
+                        expectedCols = numbers.length;
+                    }
+                    else if (numbers.length != expectedCols) {
+                        throw new IllegalArgumentException("Map rows must have the same length: " + filePath);
+                    }
 
-                    int num = Integer.parseInt(numbers[col]);
-
-                    mapTileNum[col][row] = num;
-                    col++;
+                    int[] rowTiles = new int[numbers.length];
+                    for (int col = 0; col < numbers.length; col++) {
+                        int num = Integer.parseInt(numbers[col]);
+                        if (num < 0 || num >= tile.length || tile[num] == null) {
+                            throw new IllegalArgumentException("Unknown tile id " + num + " in " + filePath);
+                        }
+                        rowTiles[col] = num;
+                    }
+                    rows.add(rowTiles);
                 }
-                if(col == gp.maxWorldCol){
-                    col = 0;
-                    row++;
+
+                if (rows.isEmpty()) {
+                    throw new IllegalArgumentException("Map file is empty: " + filePath);
+                }
+
+                worldRows = rows.size();
+                worldCols = expectedCols;
+                mapTileNum = new int[worldCols][worldRows];
+
+                for (int row = 0; row < worldRows; row++) {
+                    int[] rowTiles = rows.get(row);
+                    for (int col = 0; col < worldCols; col++) {
+                        mapTileNum[col][row] = rowTiles[col];
+                    }
                 }
             }
-            br.close();
 
         }catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public int getWorldCols() {
+        return worldCols;
+    }
+
+    public int getWorldRows() {
+        return worldRows;
     }
 
     public void draw(Graphics2D g2) {
@@ -93,7 +132,7 @@ public class TileManager {
         int worldCol = 0;
         int worldRow = 0;
 
-        while(worldCol < gp.maxWorldCol && worldRow < gp.maxWorldRow) {
+        while(worldCol < worldCols && worldRow < worldRows) {
 
             int tileNum = mapTileNum[worldCol][worldRow];
 
@@ -113,7 +152,7 @@ public class TileManager {
             worldCol++;
 
 
-            if(worldCol == gp.maxWorldCol) {
+            if(worldCol == worldCols) {
                 worldCol = 0;
                 worldRow++;
             }

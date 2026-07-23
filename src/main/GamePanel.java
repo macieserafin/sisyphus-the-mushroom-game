@@ -36,15 +36,16 @@ public class GamePanel extends JPanel implements Runnable {
     public AssetSetter aSetter = new AssetSetter(this);
     public UI ui = new UI(this);
     Thread gameThread;
-    TileManager tileM = new TileManager(this);
+    public TileManager tileM = new TileManager(this);
     public BulletManager bulletManager = new BulletManager(this);
+    public LevelManager levelManager = new LevelManager(this);
 
 
     //entity
     public Player player = new Player(this, keyH);
-    public SuperObject[] obj = new SuperObject[10]; //how many object u can display on the same time
+    public SuperObject[] obj = new SuperObject[30]; //how many object u can display on the same time
     public NPC[] npc = new NPC[10];
-    public Enemy[] enemy = new Enemy[20];
+    public Enemy[] enemy = new Enemy[80];
 
 
     //game state
@@ -59,9 +60,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void setupGame(){
-        aSetter.setObject();
-        aSetter.setNPC();
-        aSetter.setEnemy();
+        levelManager.loadHub();
 
         playMusic(0);
         gameState = GameState.PLAYING;

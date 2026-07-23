@@ -1,5 +1,6 @@
 package object;
 
+import entity.Player;
 import main.GamePanel;
 
 import java.awt.*;
@@ -26,5 +27,8 @@ public class SuperObject {
 
             g2.drawImage(image,screenX , screenY, gp.tileSize, gp.tileSize, null);
         }
+    }
+
+    public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
     }
 }
