@@ -18,6 +18,14 @@ public final class TransitionTarget {
         return new TransitionTarget(TransitionType.RUN_FLOOR);
     }
 
+    public static TransitionTarget bossArena() {
+        return new TransitionTarget(TransitionType.BOSS_ARENA);
+    }
+
+    public static TransitionTarget returnFromBoss() {
+        return new TransitionTarget(TransitionType.RETURN_FROM_BOSS);
+    }
+
     public TransitionType type() {
         return type;
     }

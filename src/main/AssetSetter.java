@@ -60,6 +60,11 @@ public class AssetSetter {
             spawnObject(new Boots(), 95, 181);
             spawnObject(new Key(), 106, 178);
             spawnObject(new Chest(), 100, 24);
+            spawnObject(new Portal(TransitionTarget.bossArena()), 100, 179);
+        }
+
+        public void setBossArenaObject() {
+            spawnObject(new Portal(TransitionTarget.returnFromBoss()), 12, 15);
         }
 
         public void setRunFloorEnemy() {
