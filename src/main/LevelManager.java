@@ -53,6 +53,23 @@ public class LevelManager {
         gp.ui.showMessage("Forest run started. Floor " + floorNumber);
     }
 
+    public void transitionTo(TransitionTarget target) {
+        if (target == null) {
+            throw new IllegalArgumentException("Transition target is required");
+        }
+
+        switch (target.type()) {
+            case HUB:
+                loadHub();
+                break;
+            case RUN_FLOOR:
+                startRun();
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported transition type: " + target.type());
+        }
+    }
+
     public void clearLevel() {
         clearObjects();
         clearNPCs();

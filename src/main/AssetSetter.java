@@ -10,7 +10,7 @@ import object.Boots;
 import object.Chest;
 import object.Door;
 import object.Key;
-import object.RunStartDoor;
+import object.Portal;
 import object.SuperObject;
 
 public class AssetSetter {
@@ -32,7 +32,7 @@ public class AssetSetter {
             spawnObject(new Door(false), 12, 34);
             spawnObject(new Door(false), 16, 17);
             spawnObject(new Boots(), 15, 29);
-            spawnObject(new RunStartDoor(), 12, 40);
+            spawnObject(new Portal(TransitionTarget.runFloor()), 12, 40);
 
         }
 
