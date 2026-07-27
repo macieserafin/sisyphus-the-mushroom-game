@@ -1,6 +1,8 @@
 package main;
 
 import entity.Bullet;
+import entity.combat.HitResult;
+import entity.enemy.Enemy;
 
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -32,7 +34,7 @@ public class BulletManager {
             Bullet bullet = iterator.next();
 
             bullet.update(gp);
-            checkEnemyHit(bullet);
+            resolveBulletHits(bullet);
 
             if (!bullet.alive) {
                 iterator.remove();
@@ -40,22 +42,26 @@ public class BulletManager {
         }
     }
 
-    private void checkEnemyHit(Bullet bullet) {
+    private void resolveBulletHits(Bullet bullet) {
         if (!bullet.alive) {
             return;
         }
 
         Rectangle bulletBox = bullet.getWorldSolidArea();
 
-        for (int i = 0; i < gp.enemy.length; i++) {
-            if (gp.enemy[i] != null && gp.enemy[i].alive) {
-                if (bulletBox.intersects(gp.enemy[i].getWorldHitBox())) {
-                    gp.enemy[i].takeDamage(bullet.damage);
-                    gp.enemy[i].applyKnockbackFrom(bullet.worldX, bullet.worldY, 3.5);
-                    bullet.alive = false;
+        for (Enemy enemy : gp.entities.enemies()) {
+            if (enemy.alive && bullet.canHit(enemy) && bulletBox.intersects(enemy.getWorldHitBox())) {
+                HitResult result = enemy.receiveHit(bullet.createHit());
+                bullet.reactToHitResult(result);
+                if (!bullet.alive || result != HitResult.IGNORED) {
                     return;
                 }
             }
+        }
+
+        if (bullet.alive && bullet.canHit(gp.player) && bulletBox.intersects(gp.player.getWorldHitBox())) {
+            HitResult result = gp.player.receiveHit(bullet.createHit());
+            bullet.reactToHitResult(result);
         }
     }
 

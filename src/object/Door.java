@@ -38,7 +38,7 @@ public class Door extends SuperObject {
             player.hasKey--;
         }
 
-        gp.obj[objectIndex] = null;
+        gp.entities.removeObject(this);
         gp.playSoundEffect(2);
     }
 

@@ -1,6 +1,8 @@
 package main;
 
 import entity.enemy.Enemy;
+import entity.enemy.Enemy_PhaseTest;
+import entity.enemy.Enemy_Reflector;
 import entity.enemy.Enemy_Slime;
 import entity.npc.NPC;
 import entity.npc.NPC_OldMan;
@@ -49,6 +51,9 @@ public class AssetSetter {
             for (int i = 0; i < hubSlimeSpawns.length; i++) {
                 spawnEnemy(new Enemy_Slime(gp), hubSlimeSpawns[i][0], hubSlimeSpawns[i][1]);
             }
+
+            // spawnEnemy(new Enemy_Reflector(gp), 23, 23);
+            spawnEnemy(new Enemy_PhaseTest(gp), 23, 25);
         }
 
         public void setRunFloorObject() {
@@ -78,36 +83,15 @@ public class AssetSetter {
             }
         }
 
-        private void spawnObject(SuperObject object, int col, int row) {
-            for (int i = 0; i < gp.obj.length; i++) {
-                if (gp.obj[i] == null) {
-                    gp.obj[i] = object;
-                    gp.obj[i].worldX = col * gp.tileSize;
-                    gp.obj[i].worldY = row * gp.tileSize;
-                    return;
-                }
-            }
+        private SuperObject spawnObject(SuperObject object, int col, int row) {
+            return gp.entities.addObject(object, col, row);
         }
 
-        private void spawnEnemy(Enemy enemy, int col, int row) {
-            for (int i = 0; i < gp.enemy.length; i++) {
-                if (gp.enemy[i] == null) {
-                    gp.enemy[i] = enemy;
-                    gp.enemy[i].worldX = col * gp.tileSize;
-                    gp.enemy[i].worldY = row * gp.tileSize;
-                    return;
-                }
-            }
+        private Enemy spawnEnemy(Enemy enemy, int col, int row) {
+            return gp.entities.addEnemy(enemy, col, row);
         }
 
-        private void spawnNPC(NPC npc, int col, int row) {
-            for (int i = 0; i < gp.npc.length; i++) {
-                if (gp.npc[i] == null) {
-                    gp.npc[i] = npc;
-                    gp.npc[i].worldX = col * gp.tileSize;
-                    gp.npc[i].worldY = row * gp.tileSize;
-                    return;
-                }
-            }
+        private NPC spawnNPC(NPC npc, int col, int row) {
+            return gp.entities.addNPC(npc, col, row);
         }
 }

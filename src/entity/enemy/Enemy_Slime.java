@@ -1,6 +1,7 @@
 package entity.enemy;
 
 import main.GamePanel;
+import main.Sound;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -24,7 +25,7 @@ public class Enemy_Slime extends Enemy {
 
     public void setDefaultValues() {
         direction = "idle";
-        setupEnemyStats("Slime", 3, patrolSpeed, 1);
+        setupEnemyStats("Slime", 10, patrolSpeed, 1);
         setupCollisionAreas(
                 new Rectangle(9, 29, 28, 20),
                 new Rectangle(6, 26, 34, 26)
@@ -92,4 +93,12 @@ public class Enemy_Slime extends Enemy {
 
         moveToward(playerCenterX, playerCenterY, rushSpeed);
     }
+
+    @Override
+    protected void onDeath() {
+        super.onDeath();
+        gp.playSoundEffect(Sound.SLIME_DEATH);
+    }
+
+
 }

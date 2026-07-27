@@ -1,6 +1,8 @@
 package entity;
 
 import main.GamePanel;
+import entity.combat.Hit;
+import entity.combat.HitResult;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -35,6 +37,10 @@ public class Entity {
 
     public Entity(GamePanel gp) {
         this.gp = gp;
+    }
+
+    public GamePanel gp() {
+        return gp;
     }
 
     public Rectangle getWorldSolidArea() {
@@ -77,6 +83,14 @@ public class Entity {
         }
     }
 
+    public HitResult receiveHit(Hit hit) {
+        if (!alive) {
+            return HitResult.IGNORED;
+        }
+        takeDamage(hit.damage());
+        return HitResult.APPLIED;
+    }
+
     public void draw(Graphics g2) {
         if (direction == null) direction = "down";
 
@@ -113,24 +127,26 @@ public class Entity {
                 g2.drawImage(image, screenX, screenY, gp.tileSize, gp.tileSize, null);
             }
 
-            Color oldColor = g2.getColor();
+            if (gp.debugSettings.isOverlayEnabled()) {
+                Color oldColor = g2.getColor();
 
-            g2.setColor(Color.GREEN);
-            g2.drawRect(
-                    screenX + solidArea.x,
-                    screenY + solidArea.y,
-                    solidArea.width,
-                    solidArea.height
-            );
+                g2.setColor(Color.GREEN);
+                g2.drawRect(
+                        screenX + solidArea.x,
+                        screenY + solidArea.y,
+                        solidArea.width,
+                        solidArea.height
+                );
 
-            Rectangle worldHitBox = getWorldHitBox();
-            int hitBoxScreenX = worldHitBox.x - gp.player.worldX + gp.player.screenX;
-            int hitBoxScreenY = worldHitBox.y - gp.player.worldY + gp.player.screenY;
+                Rectangle worldHitBox = getWorldHitBox();
+                int hitBoxScreenX = worldHitBox.x - gp.player.worldX + gp.player.screenX;
+                int hitBoxScreenY = worldHitBox.y - gp.player.worldY + gp.player.screenY;
 
-            g2.setColor(Color.RED);
-            g2.drawRect(hitBoxScreenX, hitBoxScreenY, worldHitBox.width, worldHitBox.height);
+                g2.setColor(Color.RED);
+                g2.drawRect(hitBoxScreenX, hitBoxScreenY, worldHitBox.width, worldHitBox.height);
 
-            g2.setColor(oldColor);
+                g2.setColor(oldColor);
+            }
         }
     }
 

@@ -1,8 +1,10 @@
 package main;
 
 import entity.Entity;
+import object.SuperObject;
 
 import java.awt.*;
+import java.util.List;
 
 public class CollisionChecker {
     GamePanel gp;
@@ -51,13 +53,15 @@ public class CollisionChecker {
     public int checkObjectAtIndex(Entity entity, int worldX, int worldY, boolean collisionOnly) {
         Rectangle entityArea = getEntitySolidAreaAt(entity, worldX, worldY);
 
-        for (int i = 0; i < gp.obj.length; i++) {
-            if (gp.obj[i] != null && (!collisionOnly || gp.obj[i].collision)) {
+        List<SuperObject> objects = gp.entities.objects();
+        for (int i = 0; i < objects.size(); i++) {
+            SuperObject object = objects.get(i);
+            if (!collisionOnly || object.collision) {
                 Rectangle objectArea = new Rectangle(
-                        gp.obj[i].worldX + gp.obj[i].solidAreaDefaultX,
-                        gp.obj[i].worldY + gp.obj[i].solidAreaDefaultY,
-                        gp.obj[i].solidArea.width,
-                        gp.obj[i].solidArea.height
+                        object.worldX + object.solidAreaDefaultX,
+                        object.worldY + object.solidAreaDefaultY,
+                        object.solidArea.width,
+                        object.solidArea.height
                 );
 
                 if (entityArea.intersects(objectArea)) {
@@ -69,16 +73,17 @@ public class CollisionChecker {
         return 999;
     }
 
-    public boolean checkEntityAt(Entity entity, Entity[] target, int worldX, int worldY) {
+    public boolean checkEntityAt(Entity entity, List<? extends Entity> target, int worldX, int worldY) {
         return checkEntityAtIndex(entity, target, worldX, worldY) != 999;
     }
 
-    public int checkEntityAtIndex(Entity entity, Entity[] target, int worldX, int worldY) {
+    public int checkEntityAtIndex(Entity entity, List<? extends Entity> target, int worldX, int worldY) {
         Rectangle entityArea = getEntitySolidAreaAt(entity, worldX, worldY);
 
-        for (int i = 0; i < target.length; i++) {
-            if (target[i] != null && target[i] != entity) {
-                Rectangle targetArea = getEntitySolidAreaAt(target[i], target[i].worldX, target[i].worldY);
+        for (int i = 0; i < target.size(); i++) {
+            Entity other = target.get(i);
+            if (other != entity) {
+                Rectangle targetArea = getEntitySolidAreaAt(other, other.worldX, other.worldY);
 
                 if (entityArea.intersects(targetArea)) {
                     return i;
@@ -92,30 +97,31 @@ public class CollisionChecker {
     public int checkObjectTouch(Entity entity) {
         Rectangle entityArea = getEntitySolidAreaAt(entity, entity.worldX, entity.worldY);
 
-        for (int i = 0; i < gp.obj.length; i++) {
-            if (gp.obj[i] != null) {
+        List<SuperObject> objects = gp.entities.objects();
+        for (int i = 0; i < objects.size(); i++) {
+            SuperObject object = objects.get(i);
                 Rectangle objectArea = new Rectangle(
-                        gp.obj[i].worldX + gp.obj[i].solidAreaDefaultX,
-                        gp.obj[i].worldY + gp.obj[i].solidAreaDefaultY,
-                        gp.obj[i].solidArea.width,
-                        gp.obj[i].solidArea.height
+                        object.worldX + object.solidAreaDefaultX,
+                        object.worldY + object.solidAreaDefaultY,
+                        object.solidArea.width,
+                        object.solidArea.height
                 );
 
                 if (entityArea.intersects(objectArea)) {
                     return i;
                 }
-            }
         }
 
         return 999;
     }
 
-    public int checkEntityTouch(Entity entity, Entity[] target) {
+    public int checkEntityTouch(Entity entity, List<? extends Entity> target) {
         Rectangle entityArea = getEntitySolidAreaAt(entity, entity.worldX, entity.worldY);
 
-        for (int i = 0; i < target.length; i++) {
-            if (target[i] != null && target[i] != entity) {
-                Rectangle targetArea = getEntitySolidAreaAt(target[i], target[i].worldX, target[i].worldY);
+        for (int i = 0; i < target.size(); i++) {
+            Entity other = target.get(i);
+            if (other != entity) {
+                Rectangle targetArea = getEntitySolidAreaAt(other, other.worldX, other.worldY);
 
                 if (entityArea.intersects(targetArea)) {
                     return i;
@@ -129,8 +135,8 @@ public class CollisionChecker {
     public boolean isPlayerPositionBlocked(Entity entity, int worldX, int worldY) {
         return checkTileAt(entity, worldX, worldY) ||
                 checkObjectAt(entity, worldX, worldY) ||
-                checkEntityAt(entity, gp.npc, worldX, worldY) ||
-                checkEntityAt(entity, gp.enemy, worldX, worldY);
+                checkEntityAt(entity, gp.entities.npcs(), worldX, worldY) ||
+                checkEntityAt(entity, gp.entities.enemies(), worldX, worldY);
     }
 
     public boolean checkPlayerAt(Entity entity, int worldX, int worldY) {
@@ -200,15 +206,16 @@ public class CollisionChecker {
     public int checkObject(Entity entity, boolean player) {
         int index = 999;
 
-        for (int i = 0; i < gp.obj.length; i++) {
+        List<SuperObject> objects = gp.entities.objects();
+        for (int i = 0; i < objects.size(); i++) {
 
-            if (gp.obj[i] != null) {
+            SuperObject object = objects.get(i);
 
                 entity.solidArea.x = entity.worldX + entity.solidAreaDefaultX;
                 entity.solidArea.y = entity.worldY + entity.solidAreaDefaultY;
 
-                gp.obj[i].solidArea.x = gp.obj[i].worldX + gp.obj[i].solidAreaDefaultX;
-                gp.obj[i].solidArea.y = gp.obj[i].worldY + gp.obj[i].solidAreaDefaultY;
+                object.solidArea.x = object.worldX + object.solidAreaDefaultX;
+                object.solidArea.y = object.worldY + object.solidAreaDefaultY;
 
                 switch (entity.direction) {
                     case "up":    entity.solidArea.y -= entity.speed; break;
@@ -217,8 +224,8 @@ public class CollisionChecker {
                     case "right": entity.solidArea.x += entity.speed; break;
                 }
 
-                if (entity.solidArea.intersects(gp.obj[i].solidArea)) {
-                    if (gp.obj[i].collision) {
+                if (entity.solidArea.intersects(object.solidArea)) {
+                    if (object.collision) {
                         entity.collisionOn = true;
                     }
                     if (player) {
@@ -228,45 +235,8 @@ public class CollisionChecker {
 
                 entity.solidArea.x = entity.solidAreaDefaultX;
                 entity.solidArea.y = entity.solidAreaDefaultY;
-                gp.obj[i].solidArea.x = gp.obj[i].solidAreaDefaultX;
-                gp.obj[i].solidArea.y = gp.obj[i].solidAreaDefaultY;
-            }
-        }
-
-        return index;
-    }
-
-    public int checkEntity(Entity entity, Entity[] target) {
-        int index = 999;
-
-        for (int i = 0; i < target.length; i++) {
-
-            if (target[i] != null) {
-
-                entity.solidArea.x = entity.worldX + entity.solidAreaDefaultX;
-                entity.solidArea.y = entity.worldY + entity.solidAreaDefaultY;
-
-                target[i].solidArea.x = target[i].worldX + target[i].solidAreaDefaultX;
-                target[i].solidArea.y = target[i].worldY + target[i].solidAreaDefaultY;
-
-                switch (entity.direction) {
-                    case "up":    entity.solidArea.y -= entity.speed; break;
-                    case "down":  entity.solidArea.y += entity.speed; break;
-                    case "left":  entity.solidArea.x -= entity.speed; break;
-                    case "right": entity.solidArea.x += entity.speed; break;
-                }
-
-                if (entity.solidArea.intersects(target[i].solidArea)) {
-                        entity.collisionOn = true;
-                        index = i;
-
-                }
-
-                entity.solidArea.x = entity.solidAreaDefaultX;
-                entity.solidArea.y = entity.solidAreaDefaultY;
-                target[i].solidArea.x = target[i].solidAreaDefaultX;
-                target[i].solidArea.y = target[i].solidAreaDefaultY;
-            }
+                object.solidArea.x = object.solidAreaDefaultX;
+                object.solidArea.y = object.solidAreaDefaultY;
         }
 
         return index;

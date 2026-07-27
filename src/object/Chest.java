@@ -23,7 +23,7 @@ public class Chest extends SuperObject {
     @Override
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
         if(player.hasKey > 0){
-            gp.obj[objectIndex] = null;
+            gp.entities.removeObject(this);
             player.hasKey--;
             gp.playSoundEffect(2);
         }

@@ -1,7 +1,5 @@
 package main;
 
-import java.util.Arrays;
-
 public class LevelManager {
 
     private static final String HUB_MAP_PATH = "maps/world01.txt";
@@ -63,15 +61,15 @@ public class LevelManager {
     }
 
     public void clearObjects() {
-        Arrays.fill(gp.obj, null);
+        gp.entities.clearObjects();
     }
 
     public void clearNPCs() {
-        Arrays.fill(gp.npc, null);
+        gp.entities.clearNPCs();
     }
 
     public void clearEnemies() {
-        Arrays.fill(gp.enemy, null);
+        gp.entities.clearEnemies();
     }
 
     public void clearBullets() {

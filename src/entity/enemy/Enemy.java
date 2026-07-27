@@ -1,12 +1,16 @@
 package entity.enemy;
 
 import entity.Entity;
+import entity.combat.Hit;
+import entity.combat.HitResult;
 import main.GamePanel;
+import main.Sound;
 
 import java.awt.*;
 import java.util.Random;
 
 public class Enemy extends Entity {
+    private static final int DAMAGE_FLASH_FRAMES = 7;
 
     public String name;
     public int attackDamage = 1;
@@ -24,6 +28,8 @@ public class Enemy extends Entity {
     private boolean touchedPlayerThisFrame = false;
     private int contactDamageCooldownCounter = 0;
     private final int contactDamageCooldownFrames = 60;
+    private int damageFlashFramesLeft = 0;
+    private boolean deathHandled = false;
     private final Random random = new Random();
 
     public Enemy(GamePanel gp) {
@@ -48,6 +54,10 @@ public class Enemy extends Entity {
 
     @Override
     public void update() {
+        if (!alive) {
+            handleDeathOnce();
+            return;
+        }
         initializeFloatingPosition();
         touchedPlayerThisFrame = false;
         if (movementPauseFramesLeft > 0) {
@@ -74,6 +84,9 @@ public class Enemy extends Entity {
     protected void updateContactDamage() {
         if (contactDamageCooldownCounter > 0) {
             contactDamageCooldownCounter--;
+        }
+        if (damageFlashFramesLeft > 0) {
+            damageFlashFramesLeft--;
         }
 
         if (!gp.player.alive || gp.player.isHurtInvincible()) {
@@ -170,6 +183,41 @@ public class Enemy extends Entity {
         stopMoving();
     }
 
+    @Override
+    public void takeDamage(int damage) {
+        super.takeDamage(damage);
+        damageFlashFramesLeft = DAMAGE_FLASH_FRAMES;
+    }
+
+    @Override
+    public HitResult receiveHit(Hit hit) {
+        if (!alive) {
+            return HitResult.IGNORED;
+        }
+
+        takeDamage(hit.damage());
+        if (hit.knockbackForce() > 0) {
+            applyKnockbackFrom(hit.sourceWorldX(), hit.sourceWorldY(), hit.knockbackForce());
+        }
+        return HitResult.APPLIED;
+    }
+
+    public void handleDeathOnce() {
+        if (deathHandled) {
+            return;
+        }
+        deathHandled = true;
+        onDeath();
+    }
+
+    public boolean isReadyForRemoval() {
+        return !alive && deathHandled;
+    }
+
+    protected void onDeath() {
+        gp.playSoundEffect(Sound.PLAYER_HAPPY);
+    }
+
     protected boolean isRecoiling() {
         return recoilFramesLeft > 0;
     }
@@ -249,7 +297,28 @@ public class Enemy extends Entity {
     @Override
     public void draw(Graphics g2) {
         super.draw(g2);
+        drawDamageFlash(g2);
         drawHealthBar(g2);
+    }
+
+    private void drawDamageFlash(Graphics g2) {
+        if (damageFlashFramesLeft <= 0 || !alive) {
+            return;
+        }
+
+        int screenX = worldX - gp.player.worldX + gp.player.screenX;
+        int screenY = worldY - gp.player.worldY + gp.player.screenY;
+
+        Graphics2D g2d = (Graphics2D) g2;
+        Composite oldComposite = g2d.getComposite();
+        Color oldColor = g2d.getColor();
+
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.42f));
+        g2d.setColor(Color.WHITE);
+        g2d.fillRect(screenX, screenY, gp.tileSize, gp.tileSize);
+
+        g2d.setComposite(oldComposite);
+        g2d.setColor(oldColor);
     }
 
     protected void drawHealthBar(Graphics g2) {

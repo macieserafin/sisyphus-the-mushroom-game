@@ -2,14 +2,12 @@ package main;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.util.ArrayDeque;
-import java.util.Deque;
 
 public class KeyHandler implements KeyListener {
     public boolean upPressed, downPressed, leftPressed, rightPressed;
     public boolean upShootPressed, downShootPressed, leftShootPressed, rightShootPressed;
     public boolean shiftPressed, spacePressed, enterPressed;
-    public boolean qPressed, pPressed;
+    public boolean qPressed, pPressed, onePressed, twoPressed;
 
     GamePanel gp;
 
@@ -63,6 +61,15 @@ public class KeyHandler implements KeyListener {
             if (code == KeyEvent.VK_Q) {
                 qPressed = true;
             }
+            if (code == KeyEvent.VK_1) {
+                onePressed = true;
+            }
+            if (code == KeyEvent.VK_2) {
+                twoPressed = true;
+            }
+            if (code == KeyEvent.VK_F3) {
+                gp.debugSettings.toggleOverlay();
+            }
 
             if (code == KeyEvent.VK_P) {
                 pPressed = true;
@@ -86,6 +93,11 @@ public class KeyHandler implements KeyListener {
         else if(gp.gameState == GameState.DIALOGUE) {
             if (code == KeyEvent.VK_ENTER) {
                 gp.gameState = GameState.PLAYING;
+            }
+        }
+        else if(gp.gameState == GameState.DEAD) {
+            if (code == KeyEvent.VK_ENTER) {
+                gp.restartAfterDeath();
             }
         }
 
@@ -135,5 +147,31 @@ public class KeyHandler implements KeyListener {
         if (code == KeyEvent.VK_P) {
             pPressed = false;
         }
+        if (code == KeyEvent.VK_1) {
+            onePressed = false;
+        }
+        if (code == KeyEvent.VK_2) {
+            twoPressed = false;
+        }
+        if (code == KeyEvent.VK_ENTER) {
+            enterPressed = false;
+        }
+    }
+
+    public void clearGameplayInput() {
+        upPressed = false;
+        downPressed = false;
+        leftPressed = false;
+        rightPressed = false;
+        upShootPressed = false;
+        downShootPressed = false;
+        leftShootPressed = false;
+        rightShootPressed = false;
+        shiftPressed = false;
+        spacePressed = false;
+        enterPressed = false;
+        qPressed = false;
+        onePressed = false;
+        twoPressed = false;
     }
 }

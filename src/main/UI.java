@@ -45,11 +45,20 @@ public class UI {
         g2.drawImage(keyImage, 115, 33, 20, 20, null);
         g2.drawString("Keys = " + gp.player.hasKey, 30, 50);
         g2.drawString("Health = " + gp.player.health + "/" + gp.player.maxHealth, 30, 70);
-        g2.drawString("Combat mode (Q): " + gp.player.combatState, 30, 30);
-        Rectangle playerSolidArea = gp.player.getWorldSolidArea();
-        int playerTileCol = Math.floorDiv(playerSolidArea.x + playerSolidArea.width / 2, gp.tileSize);
-        int playerTileRow = Math.floorDiv(playerSolidArea.y + playerSolidArea.height / 2, gp.tileSize);
-        g2.drawString("Tile position = col: " + playerTileCol + " row: " + playerTileRow, 400, 30);
+        g2.drawString("Tryb walki (Q): " + gp.player.combatState, 30, 90);
+        g2.drawString("Bron: " + gp.player.currentWeaponName(), 30, 110);
+        if (gp.player.combatState.name().equals("MELEE")) {
+            g2.drawString(gp.player.meleeSlotLabel(0) + "   " + gp.player.meleeSlotLabel(1), 30, 130);
+        }
+        else {
+            g2.drawString(gp.player.rangedSlotLabel(0) + "   " + gp.player.rangedSlotLabel(1), 30, 130);
+        }
+        if (gp.debugSettings.isOverlayEnabled()) {
+            Rectangle playerSolidArea = gp.player.getWorldSolidArea();
+            int playerTileCol = Math.floorDiv(playerSolidArea.x + playerSolidArea.width / 2, gp.tileSize);
+            int playerTileRow = Math.floorDiv(playerSolidArea.y + playerSolidArea.height / 2, gp.tileSize);
+            g2.drawString("Tile position = col: " + playerTileCol + " row: " + playerTileRow, 400, 30);
+        }
 
 
 
@@ -88,6 +97,7 @@ public class UI {
 
     public void drawDeathScreen() {
         String text = "You died.";
+        String prompt = "Continue? Press ENTER";
 
         g2.setFont(arial_40);
         g2.setColor(Color.RED);
@@ -96,6 +106,11 @@ public class UI {
         int y = gp.screenHeight / 2;
 
         g2.drawString(text, x, y);
+
+        g2.setFont(consolas_18);
+        g2.setColor(Color.WHITE);
+        x = getXForCenteredText(prompt);
+        g2.drawString(prompt, x, y + 35);
     }
 
     public void drawDialogueScreen() {

@@ -1,6 +1,5 @@
 package main;
 
-import entity.Entity;
 import entity.Player;
 import entity.enemy.Enemy;
 import entity.npc.NPC;
@@ -9,6 +8,7 @@ import tile.TileManager;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 
 public class GamePanel extends JPanel implements Runnable {
 
@@ -37,15 +37,15 @@ public class GamePanel extends JPanel implements Runnable {
     public UI ui = new UI(this);
     Thread gameThread;
     public TileManager tileM = new TileManager(this);
+    public WorldEntities entities = new WorldEntities(this);
     public BulletManager bulletManager = new BulletManager(this);
     public LevelManager levelManager = new LevelManager(this);
+    public DebugSettings debugSettings = new DebugSettings();
+    private int hitStopFrames = 0;
 
 
     //entity
     public Player player = new Player(this, keyH);
-    public SuperObject[] obj = new SuperObject[30]; //how many object u can display on the same time
-    public NPC[] npc = new NPC[10];
-    public Enemy[] enemy = new Enemy[80];
 
 
     //game state
@@ -62,7 +62,7 @@ public class GamePanel extends JPanel implements Runnable {
     public void setupGame(){
         levelManager.loadHub();
 
-        playMusic(0);
+        playMusic(Sound.BACKGROUND);
         gameState = GameState.PLAYING;
     }
 
@@ -102,7 +102,9 @@ public class GamePanel extends JPanel implements Runnable {
             }
 
             if (timer >= 1000000000) {
-                System.out.println("FPS: " + FPS);
+                if (debugSettings.isOverlayEnabled()) {
+                    System.out.println("FPS: " + FPS);
+                }
                 drawCount = 0;
                 timer = 0;
             }
@@ -111,25 +113,33 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void update() {
         if (gameState == GameState.PLAYING) {
+            if (hitStopFrames > 0) {
+                hitStopFrames--;
+                return;
+            }
+
             player.update();
             bulletManager.update();
 
-            for(int i = 0; i < npc.length; i++) {
-                if(npc[i] != null) {
-                    npc[i].update();
-                }
+            List<NPC> npcs = entities.npcs();
+            for(int i = 0; i < npcs.size(); i++) {
+                NPC npc = npcs.get(i);
+                npc.update();
             }
 
-            for(int i = 0; i < enemy.length; i++) {
-                if(enemy[i] != null) {
-                    if(enemy[i].alive) {
-                        enemy[i].update();
-                    }
-                    else {
-                        enemy[i] = null;
-                    }
+            List<Enemy> enemies = entities.enemies();
+            int enemyCount = enemies.size();
+            for(int i = 0; i < enemyCount; i++) {
+                Enemy enemy = enemies.get(i);
+                if(enemy.alive) {
+                    enemy.update();
+                }
+                else {
+                    enemy.handleDeathOnce();
+                    entities.markDeadEnemyCleanupNeeded();
                 }
             }
+            entities.cleanupDeadEnemies();
         }
         if (gameState == GameState.PAUSED) {
             /// ///////
@@ -147,20 +157,14 @@ public class GamePanel extends JPanel implements Runnable {
 
         bulletManager.draw(g2);
 
-        for(int i = 0; i < obj.length; i++) {
-            if(obj[i] != null) {
-                obj[i].draw(g2, this);
-            }
+        for(SuperObject object : entities.objects()) {
+            object.draw(g2, this);
         }
-        for(int i = 0; i < npc.length; i++) {
-            if(npc[i] != null) {
-                npc[i].draw(g2);
-            }
+        for(NPC npc : entities.npcs()) {
+            npc.draw(g2);
         }
-        for(int i = 0; i < enemy.length; i++) {
-            if(enemy[i] != null) {
-                enemy[i].draw(g2);
-            }
+        for(Enemy enemy : entities.enemies()) {
+            enemy.draw(g2);
         }
 
         player.draw(g2);
@@ -181,7 +185,18 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void playSoundEffect(int i) {
-        se.setFile(i);
-        se.play();
+        se.playEffect(i);
+    }
+
+    public void restartAfterDeath() {
+        keyH.clearGameplayInput();
+        hitStopFrames = 0;
+        player.setDefaultValues();
+        levelManager.loadHub();
+        gameState = GameState.PLAYING;
+    }
+
+    public void startHitStop(int frames) {
+        hitStopFrames = Math.max(hitStopFrames, frames);
     }
 }
