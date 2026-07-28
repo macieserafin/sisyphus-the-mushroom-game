@@ -1,5 +1,7 @@
 package main;
 
+import entity.enemy.Enemy;
+
 public class LevelManager {
 
     private static final String HUB_MAP_PATH = "maps/world01.txt";
@@ -19,6 +21,7 @@ public class LevelManager {
     private int bossReturnWorldY = 0;
     private boolean bossReturnPositionSaved = false;
     private boolean bossDefeated = false;
+    private Enemy activeBoss;
 
     public LevelManager(GamePanel gp) {
         this.gp = gp;
@@ -28,6 +31,7 @@ public class LevelManager {
         runActive = false;
         floorNumber = 0;
         clearLevel();
+        activeBoss = null;
         gp.tileM.loadMap(HUB_MAP_PATH);
         gp.player.setWorldPosition(
                 HUB_PLAYER_SPAWN_COL * gp.tileSize,
@@ -54,6 +58,7 @@ public class LevelManager {
 
     private void loadManualRunFloor(boolean showMessage) {
         clearLevel();
+        activeBoss = null;
         gp.tileM.loadMap(RUN_FLOOR_MAP_PATH);
         gp.player.setWorldPosition(
                 RUN_PLAYER_SPAWN_COL * gp.tileSize,
@@ -78,7 +83,7 @@ public class LevelManager {
                 BOSS_ARENA_PLAYER_SPAWN_COL * gp.tileSize,
                 BOSS_ARENA_PLAYER_SPAWN_ROW * gp.tileSize
         );
-        gp.aSetter.setBossArenaEnemy();
+        activeBoss = gp.aSetter.setBossArenaEnemy();
         gp.ui.showMessage("Boss arena");
     }
 
@@ -88,6 +93,7 @@ public class LevelManager {
         }
 
         bossDefeated = true;
+        activeBoss = null;
         gp.aSetter.setBossArenaRewardObject();
         gp.ui.showMessage("Boss defeated");
     }
@@ -107,12 +113,24 @@ public class LevelManager {
         floorNumber = 0;
         bossReturnPositionSaved = false;
         bossDefeated = false;
+        activeBoss = null;
 
         gp.keyH.clearGameplayInput();
         gp.player.setDefaultValues();
         loadHub();
         gp.gameState = GameState.PLAYING;
         gp.ui.showMessage("Run finished");
+    }
+
+    public void goToNextFloor() {
+        runActive = true;
+        floorNumber++;
+        bossReturnPositionSaved = false;
+        bossDefeated = false;
+        activeBoss = null;
+
+        gp.keyH.clearGameplayInput();
+        loadManualRunFloor();
     }
 
     public void transitionTo(TransitionTarget target) {
@@ -133,12 +151,23 @@ public class LevelManager {
             case RETURN_FROM_BOSS:
                 returnFromBossArena();
                 break;
+            case NEXT_FLOOR:
+                goToNextFloor();
+                break;
             case FINISH_RUN:
                 finishRun();
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported transition type: " + target.type());
         }
+    }
+
+    public Enemy getActiveBoss() {
+        if (activeBoss == null || !activeBoss.alive) {
+            return null;
+        }
+
+        return activeBoss;
     }
 
     public void clearLevel() {

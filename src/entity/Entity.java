@@ -20,6 +20,10 @@ public class Entity {
     public int spriteCounter = 0;
     public int spriteNum = 1;
     public Rectangle solidArea = new Rectangle(0 , 0, 48, 48);;
+    protected int drawWidth;
+    protected int drawHeight;
+    protected int drawOffsetX = 0;
+    protected int drawOffsetY = 0;
 
     public int solidAreaDefaultX, solidAreaDefaultY;
     public boolean collisionOn = false;
@@ -37,6 +41,8 @@ public class Entity {
 
     public Entity(GamePanel gp) {
         this.gp = gp;
+        drawWidth = gp.tileSize;
+        drawHeight = gp.tileSize;
     }
 
     public GamePanel gp() {
@@ -74,6 +80,25 @@ public class Entity {
                 bounds.y >= worldHeight;
     }
 
+    protected void setupDrawArea(int drawWidth, int drawHeight, int drawOffsetX, int drawOffsetY) {
+        if (drawWidth <= 0 || drawHeight <= 0) {
+            throw new IllegalArgumentException("Entity draw size must be positive");
+        }
+
+        this.drawWidth = drawWidth;
+        this.drawHeight = drawHeight;
+        this.drawOffsetX = drawOffsetX;
+        this.drawOffsetY = drawOffsetY;
+    }
+
+    protected int getDrawScreenX() {
+        return worldX - gp.player.worldX + gp.player.screenX + drawOffsetX;
+    }
+
+    protected int getDrawScreenY() {
+        return worldY - gp.player.worldY + gp.player.screenY + drawOffsetY;
+    }
+
     public void takeDamage(int damage) {
         health -= damage;
 
@@ -98,11 +123,13 @@ public class Entity {
 
         int screenX = worldX - gp.player.worldX + gp.player.screenX;
         int screenY = worldY - gp.player.worldY + gp.player.screenY;
+        int drawScreenX = getDrawScreenX();
+        int drawScreenY = getDrawScreenY();
 
-        if (worldX + gp.tileSize > gp.player.worldX - gp.player.screenX &&
-                worldX - gp.tileSize < gp.player.worldX + gp.player.screenX &&
-                worldY + gp.tileSize > gp.player.worldY - gp.player.screenY &&
-                worldY - gp.tileSize < gp.player.worldY + gp.player.screenY) {
+        if (drawScreenX + drawWidth > 0 &&
+                drawScreenX < gp.screenWidth &&
+                drawScreenY + drawHeight > 0 &&
+                drawScreenY < gp.screenHeight) {
 
             switch (direction) {
                 case "idle":
@@ -124,7 +151,7 @@ public class Entity {
             }
 
             if (image != null) {
-                g2.drawImage(image, screenX, screenY, gp.tileSize, gp.tileSize, null);
+                g2.drawImage(image, drawScreenX, drawScreenY, drawWidth, drawHeight, null);
             }
 
             if (gp.debugSettings.isOverlayEnabled()) {

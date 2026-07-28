@@ -306,8 +306,8 @@ public class Enemy extends Entity {
             return;
         }
 
-        int screenX = worldX - gp.player.worldX + gp.player.screenX;
-        int screenY = worldY - gp.player.worldY + gp.player.screenY;
+        int screenX = getDrawScreenX();
+        int screenY = getDrawScreenY();
 
         Graphics2D g2d = (Graphics2D) g2;
         Composite oldComposite = g2d.getComposite();
@@ -315,7 +315,7 @@ public class Enemy extends Entity {
 
         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.42f));
         g2d.setColor(Color.WHITE);
-        g2d.fillRect(screenX, screenY, gp.tileSize, gp.tileSize);
+        g2d.fillRect(screenX, screenY, drawWidth, drawHeight);
 
         g2d.setComposite(oldComposite);
         g2d.setColor(oldColor);
@@ -326,19 +326,20 @@ public class Enemy extends Entity {
             return;
         }
 
-        int screenX = worldX - gp.player.worldX + gp.player.screenX;
-        int screenY = worldY - gp.player.worldY + gp.player.screenY;
-        int barWidth = 32;
+        int screenX = getDrawScreenX();
+        int screenY = getDrawScreenY();
+        int barWidth = Math.max(32, drawWidth - 16);
         int barHeight = 4;
         int filledWidth = barWidth * health / maxHealth;
+        int barX = screenX + (drawWidth - barWidth) / 2;
 
         Color oldColor = g2.getColor();
 
         g2.setColor(Color.RED);
-        g2.fillRect(screenX + 8, screenY - 8, barWidth, barHeight);
+        g2.fillRect(barX, screenY - 8, barWidth, barHeight);
 
         g2.setColor(Color.GREEN);
-        g2.fillRect(screenX + 8, screenY - 8, filledWidth, barHeight);
+        g2.fillRect(barX, screenY - 8, filledWidth, barHeight);
 
         g2.setColor(oldColor);
     }

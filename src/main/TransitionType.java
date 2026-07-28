@@ -5,5 +5,6 @@ public enum TransitionType {
     RUN_FLOOR,
     BOSS_ARENA,
     RETURN_FROM_BOSS,
+    NEXT_FLOOR,
     FINISH_RUN
 }

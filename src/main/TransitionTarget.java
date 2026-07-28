@@ -26,6 +26,10 @@ public final class TransitionTarget {
         return new TransitionTarget(TransitionType.RETURN_FROM_BOSS);
     }
 
+    public static TransitionTarget nextFloor() {
+        return new TransitionTarget(TransitionType.NEXT_FLOOR);
+    }
+
     public static TransitionTarget finishRun() {
         return new TransitionTarget(TransitionType.FINISH_RUN);
     }

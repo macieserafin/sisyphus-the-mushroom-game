@@ -68,8 +68,8 @@ public class AssetSetter {
             spawnObject(new Portal(TransitionTarget.finishRun()), 12, 15);
         }
 
-        public void setBossArenaEnemy() {
-            spawnEnemy(new Enemy_SlimeKing(gp), 12, 8);
+        public Enemy setBossArenaEnemy() {
+            return spawnEnemy(new Enemy_SlimeKing(gp), 12, 8);
         }
 
         public void setRunFloorEnemy() {

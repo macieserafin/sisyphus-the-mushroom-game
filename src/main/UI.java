@@ -1,5 +1,6 @@
 package main;
 
+import entity.enemy.Enemy;
 import object.Key;
 
 import java.awt.*;
@@ -60,6 +61,7 @@ public class UI {
             g2.drawString("Tile position = col: " + playerTileCol + " row: " + playerTileRow, 400, 30);
         }
 
+        drawBossHealthBar();
 
 
         if (messageOn) {
@@ -93,6 +95,41 @@ public class UI {
         }
 
 
+    }
+
+    private void drawBossHealthBar() {
+        Enemy boss = gp.levelManager.getActiveBoss();
+        if (boss == null || boss.maxHealth <= 0) {
+            return;
+        }
+
+        int barWidth = 360;
+        int barHeight = 14;
+        int x = gp.screenWidth / 2 - barWidth / 2;
+        int y = 24;
+        int filledWidth = barWidth * boss.health / boss.maxHealth;
+
+        Color oldColor = g2.getColor();
+        Font oldFont = g2.getFont();
+
+        g2.setFont(consolas_18);
+        g2.setColor(Color.WHITE);
+        g2.drawString(boss.name, getXForCenteredText(boss.name), y - 6);
+
+        g2.setColor(Color.DARK_GRAY);
+        g2.fillRect(x - 2, y - 2, barWidth + 4, barHeight + 4);
+
+        g2.setColor(Color.RED);
+        g2.fillRect(x, y, barWidth, barHeight);
+
+        g2.setColor(Color.GREEN);
+        g2.fillRect(x, y, filledWidth, barHeight);
+
+        g2.setColor(Color.WHITE);
+        g2.drawRect(x, y, barWidth, barHeight);
+
+        g2.setFont(oldFont);
+        g2.setColor(oldColor);
     }
 
     public void drawDeathScreen() {
