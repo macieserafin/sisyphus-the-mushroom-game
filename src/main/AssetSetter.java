@@ -4,6 +4,7 @@ import entity.enemy.Enemy;
 import entity.enemy.Enemy_PhaseTest;
 import entity.enemy.Enemy_Reflector;
 import entity.enemy.Enemy_Slime;
+import entity.enemy.Enemy_SlimeKing;
 import entity.npc.NPC;
 import entity.npc.NPC_OldMan;
 import object.Boots;
@@ -63,8 +64,12 @@ public class AssetSetter {
             spawnObject(new Portal(TransitionTarget.bossArena()), 100, 179);
         }
 
-        public void setBossArenaObject() {
-            spawnObject(new Portal(TransitionTarget.returnFromBoss()), 12, 15);
+        public void setBossArenaRewardObject() {
+            spawnObject(new Portal(TransitionTarget.finishRun()), 12, 15);
+        }
+
+        public void setBossArenaEnemy() {
+            spawnEnemy(new Enemy_SlimeKing(gp), 12, 8);
         }
 
         public void setRunFloorEnemy() {

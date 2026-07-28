@@ -18,6 +18,7 @@ public class LevelManager {
     private int bossReturnWorldX = 0;
     private int bossReturnWorldY = 0;
     private boolean bossReturnPositionSaved = false;
+    private boolean bossDefeated = false;
 
     public LevelManager(GamePanel gp) {
         this.gp = gp;
@@ -69,6 +70,7 @@ public class LevelManager {
         bossReturnWorldX = gp.player.worldX;
         bossReturnWorldY = gp.player.worldY + gp.tileSize;
         bossReturnPositionSaved = true;
+        bossDefeated = false;
 
         clearLevel();
         gp.tileM.loadMap(BOSS_ARENA_MAP_PATH);
@@ -76,8 +78,18 @@ public class LevelManager {
                 BOSS_ARENA_PLAYER_SPAWN_COL * gp.tileSize,
                 BOSS_ARENA_PLAYER_SPAWN_ROW * gp.tileSize
         );
-        gp.aSetter.setBossArenaObject();
+        gp.aSetter.setBossArenaEnemy();
         gp.ui.showMessage("Boss arena");
+    }
+
+    public void onBossDefeated() {
+        if (bossDefeated) {
+            return;
+        }
+
+        bossDefeated = true;
+        gp.aSetter.setBossArenaRewardObject();
+        gp.ui.showMessage("Boss defeated");
     }
 
     public void returnFromBossArena() {
@@ -88,6 +100,19 @@ public class LevelManager {
         }
 
         gp.ui.showMessage("Returned to forest floor");
+    }
+
+    public void finishRun() {
+        runActive = false;
+        floorNumber = 0;
+        bossReturnPositionSaved = false;
+        bossDefeated = false;
+
+        gp.keyH.clearGameplayInput();
+        gp.player.setDefaultValues();
+        loadHub();
+        gp.gameState = GameState.PLAYING;
+        gp.ui.showMessage("Run finished");
     }
 
     public void transitionTo(TransitionTarget target) {
@@ -107,6 +132,9 @@ public class LevelManager {
                 break;
             case RETURN_FROM_BOSS:
                 returnFromBossArena();
+                break;
+            case FINISH_RUN:
+                finishRun();
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported transition type: " + target.type());
