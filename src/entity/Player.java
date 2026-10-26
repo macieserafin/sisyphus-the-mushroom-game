@@ -155,18 +155,26 @@ public class Player extends Entity {
         }
 
         double[] moveInput = getMoveInputVector();
+        if (!gp.prologueTutorialManager.canMove()) {
+            moveInput[0] = 0;
+            moveInput[1] = 0;
+        }
         boolean movingInput = vectorLength(moveInput[0], moveInput[1]) > 0;
-        boolean attackInput = hasAttackInput();
 
         if (keyH.qPressed) {
-            combatState = combatState.next();
-            keyH.qPressed = false;
-            meleeAttackInputHeldLastFrame = false;
-            bufferedMeleeDirection = null;
-            meleeInputBufferCounter = 0;
+            if (gp.prologueTutorialManager.canSwitchCombatMode()) {
+                combatState = combatState.next();
+                keyH.qPressed = false;
+                meleeAttackInputHeldLastFrame = false;
+                bufferedMeleeDirection = null;
+                meleeInputBufferCounter = 0;
+            } else {
+                keyH.qPressed = false;
+            }
         }
         updateWeaponSwitchInput();
 
+        boolean attackInput = hasAllowedAttackInput();
         updateCombat(attackInput);
 
         double currentMaxSpeed = getCurrentMovementMaxSpeed(attackInput, hurtKnockbackActive);
@@ -207,6 +215,12 @@ public class Player extends Entity {
     }
 
     private void updateWeaponSwitchInput() {
+        if (!gp.prologueTutorialManager.canSwitchWeaponSlot()) {
+            keyH.onePressed = false;
+            keyH.twoPressed = false;
+            return;
+        }
+
         if (keyH.onePressed) {
             selectWeaponSlot(0);
             keyH.onePressed = false;
@@ -477,7 +491,6 @@ public class Player extends Entity {
         if(i != 999){
             if(gp.keyH.enterPressed)
             {
-                gp.gameState = GameState.DIALOGUE;
                 gp.entities.npcs().get(i).speak();
             }
 
@@ -685,6 +698,22 @@ public class Player extends Entity {
 
     private boolean hasAttackInput() {
         return keyH.upShootPressed || keyH.downShootPressed || keyH.leftShootPressed || keyH.rightShootPressed;
+    }
+
+    private boolean hasAllowedAttackInput() {
+        if (!hasAttackInput()) {
+            return false;
+        }
+
+        if (combatState == CombatState.RANGE) {
+            return gp.prologueTutorialManager.canUseRangedAttack();
+        }
+
+        if (combatState == CombatState.MELEE) {
+            return gp.prologueTutorialManager.canUseMeleeAttack();
+        }
+
+        return false;
     }
 
     private String getAttackInputDirection() {

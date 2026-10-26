@@ -1,10 +1,20 @@
 package main;
 
+import dialogue.DialogueManager;
 import entity.Player;
 import entity.enemy.Enemy;
 import entity.npc.NPC;
+import level.AssetSetter;
+import level.LevelManager;
 import object.SuperObject;
+import story.PrologueTutorialManager;
+import story.StoryFlags;
+import story.StorySequenceManager;
+import story.StorySequences;
 import tile.TileManager;
+import world.BulletManager;
+import world.CollisionChecker;
+import world.WorldEntities;
 
 import javax.swing.*;
 import java.awt.*;
@@ -30,11 +40,16 @@ public class GamePanel extends JPanel implements Runnable {
 
     public KeyHandler keyH = new KeyHandler(this);
     Sound music = new Sound();
+    Sound cutsceneMusic = new Sound();
     Sound se = new Sound();
 
     public CollisionChecker cChecker = new CollisionChecker(this);
     public AssetSetter aSetter = new AssetSetter(this);
     public UI ui = new UI(this);
+    public DialogueManager dialogueManager = new DialogueManager(this);
+    public StoryFlags storyFlags = new StoryFlags();
+    public StorySequenceManager storySequenceManager = new StorySequenceManager(this);
+    public PrologueTutorialManager prologueTutorialManager = new PrologueTutorialManager(this);
     Thread gameThread;
     public TileManager tileM = new TileManager(this);
     public WorldEntities entities = new WorldEntities(this);
@@ -60,10 +75,15 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void setupGame(){
-        levelManager.loadHub();
+        levelManager.loadPrologue();
 
-        playMusic(Sound.BACKGROUND);
         gameState = GameState.PLAYING;
+
+        if (!storyFlags.isIntroCutsceneCompleted()) {
+            storySequenceManager.start(StorySequences.openingIntro(this));
+        } else {
+            playMusic(Sound.BACKGROUND);
+        }
     }
 
     public void startGameThread() {
@@ -112,14 +132,31 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        dialogueManager.update();
+        storySequenceManager.update();
+
+        if (storySequenceManager.isActive()) {
+            return;
+        }
+
         if (gameState == GameState.PLAYING) {
             if (hitStopFrames > 0) {
                 hitStopFrames--;
                 return;
             }
 
+            prologueTutorialManager.update();
+            if (storySequenceManager.isActive()) {
+                return;
+            }
             player.update();
+            if (storySequenceManager.isActive()) {
+                return;
+            }
             bulletManager.update();
+            if (storySequenceManager.isActive()) {
+                return;
+            }
 
             List<NPC> npcs = entities.npcs();
             for(int i = 0; i < npcs.size(); i++) {
@@ -141,17 +178,22 @@ public class GamePanel extends JPanel implements Runnable {
             }
             entities.cleanupDeadEnemies();
         }
-        if (gameState == GameState.PAUSED) {
-            /// ///////
-        }
-
-
     }
 
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
 
         Graphics2D g2 = (Graphics2D) g;
+        g2.setRenderingHint(
+                RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+        );
+
+        if (gameState == GameState.CUTSCENE || storySequenceManager.isVisualNovelSequenceActive()) {
+            ui.draw(g2);
+            g2.dispose();
+            return;
+        }
 
         tileM.draw(g2);
 
@@ -185,7 +227,35 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void playSoundEffect(int i) {
+        if (gameState == GameState.CUTSCENE) {
+            return;
+        }
         se.playEffect(i);
+    }
+
+    public void enterCutsceneMode() {
+        keyH.clearGameplayInput();
+        music.stop();
+        se.stopAllEffects();
+        gameState = GameState.CUTSCENE;
+
+        if (cutsceneMusic.hasResource(Sound.CUTSCENE_MUSIC)) {
+            cutsceneMusic.setFile(Sound.CUTSCENE_MUSIC);
+            cutsceneMusic.play();
+            cutsceneMusic.loop();
+        }
+    }
+
+    public void exitCutsceneMode(GameState nextState) {
+        keyH.clearGameplayInput();
+        cutsceneMusic.stop();
+        gameState = nextState == null || nextState == GameState.CUTSCENE
+                ? GameState.PLAYING
+                : nextState;
+
+        if (gameState == GameState.PLAYING) {
+            playMusic(Sound.BACKGROUND);
+        }
     }
 
     public void restartAfterDeath() {
