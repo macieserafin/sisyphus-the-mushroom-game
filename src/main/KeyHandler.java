@@ -92,7 +92,15 @@ public class KeyHandler implements KeyListener {
         }
         else if(gp.gameState == GameState.DIALOGUE) {
             if (code == KeyEvent.VK_ENTER) {
-                gp.gameState = GameState.PLAYING;
+                gp.dialogueManager.advanceBlocking();
+            }
+        }
+        else if(gp.gameState == GameState.CUTSCENE) {
+            if (code == KeyEvent.VK_ESCAPE) {
+                gp.storySequenceManager.skipActiveSequence();
+            }
+            else if (code == KeyEvent.VK_ENTER) {
+                gp.dialogueManager.advanceBlocking();
             }
         }
         else if(gp.gameState == GameState.DEAD) {

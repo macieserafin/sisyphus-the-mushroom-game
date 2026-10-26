@@ -36,9 +36,6 @@ public class Entity {
 
     public int actionLockCounter = 0;
 
-    protected String[] dialogues = new String[20];
-    protected int dialogueIndex = 0;
-
     public Entity(GamePanel gp) {
         this.gp = gp;
         drawWidth = gp.tileSize;
@@ -179,15 +176,10 @@ public class Entity {
 
     public void setAction(){}
     public void speak(){
-        gp.ui.currentDialogue = dialogues[dialogueIndex];
-        if (gp.ui.currentDialogue == null) {
-            gp.ui.currentDialogue = "";
-        }
-        dialogueIndex++;
-        if (dialogueIndex >= dialogues.length) {
-            dialogueIndex = 0;
-        }
+        facePlayer();
+    }
 
+    protected void facePlayer() {
         switch(gp.player.direction) {
             case "up":
                 direction = "down";

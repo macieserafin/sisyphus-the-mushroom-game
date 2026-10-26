@@ -81,6 +81,7 @@ public class NPC_OldMan extends NPC {
     }
 
     public void setDialogue(){
+        setDialogueAccentColor(new Color(210, 230, 180));
         setDialogueLine(0, "Get the fuck out of my house.");
         setDialogueLine(1, "Get lost.");
         setDialogueLine(2, "U smell like shit.");

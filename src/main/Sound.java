@@ -22,6 +22,7 @@ public class Sound {
     public static final int POWERUP_KEY = 10;
     public static final int SLIME_DEATH = 11;
     public static final int PLAYER_DEATH = 12;
+    public static final int CUTSCENE_MUSIC = 13;
 
     private static final int EFFECT_VOICES = 12;
 
@@ -45,7 +46,12 @@ public class Sound {
         soundURL[POWERUP_KEY] = getClass().getResource("/sounds/powerup1.wav");
         soundURL[SLIME_DEATH] = getClass().getResource("/sounds/slimedeath.wav");
         soundURL[PLAYER_DEATH] = getClass().getResource("/sounds/playerdeath.wav");
+        soundURL[CUTSCENE_MUSIC] = getClass().getResource("/sounds/cutscene.wav");
 
+    }
+
+    public boolean hasResource(int i) {
+        return i >= 0 && i < soundURL.length && soundURL[i] != null;
     }
 
     public void setFile(int i) {
@@ -106,6 +112,18 @@ public class Sound {
         effect.stop();
         effect.setFramePosition(0);
         effect.start();
+    }
+
+    public void stopAllEffects() {
+        for (int soundIndex = 0; soundIndex < effectClips.length; soundIndex++) {
+            for (int voice = 0; voice < effectClips[soundIndex].length; voice++) {
+                Clip effect = effectClips[soundIndex][voice];
+                if (effect != null) {
+                    effect.stop();
+                    effect.setFramePosition(0);
+                }
+            }
+        }
     }
 
     private Clip getEffectClipForPlayback(int i) {
