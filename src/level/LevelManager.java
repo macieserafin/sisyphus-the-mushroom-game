@@ -1,14 +1,19 @@
-package main;
+package level;
 
 import entity.enemy.Enemy;
+import main.GamePanel;
+import main.GameState;
 
 public class LevelManager {
 
     private static final String HUB_MAP_PATH = "maps/world01.txt";
+    private static final String PROLOGUE_MAP_PATH = "maps/prologue_void.txt";
     private static final String RUN_FLOOR_MAP_PATH = "maps/run_forest_test.txt";
     private static final String BOSS_ARENA_MAP_PATH = "maps/boss_slime_arena.txt";
     private static final int HUB_PLAYER_SPAWN_COL = 23;
     private static final int HUB_PLAYER_SPAWN_ROW = 21;
+    private static final int PROLOGUE_PLAYER_SPAWN_COL = 12;
+    private static final int PROLOGUE_PLAYER_SPAWN_ROW = 13;
     private static final int RUN_PLAYER_SPAWN_COL = 100;
     private static final int RUN_PLAYER_SPAWN_ROW = 182;
     private static final int BOSS_ARENA_PLAYER_SPAWN_COL = 12;
@@ -27,6 +32,21 @@ public class LevelManager {
         this.gp = gp;
     }
 
+    public void loadPrologue() {
+        runActive = false;
+        floorNumber = 0;
+        bossReturnPositionSaved = false;
+        bossDefeated = false;
+        clearLevel();
+        activeBoss = null;
+        gp.keyH.clearGameplayInput();
+        gp.tileM.loadMap(PROLOGUE_MAP_PATH);
+        gp.player.setWorldPosition(
+                PROLOGUE_PLAYER_SPAWN_COL * gp.tileSize,
+                PROLOGUE_PLAYER_SPAWN_ROW * gp.tileSize
+        );
+    }
+
     public void loadHub() {
         runActive = false;
         floorNumber = 0;
@@ -40,6 +60,31 @@ public class LevelManager {
         gp.aSetter.setObject();
         gp.aSetter.setNPC();
         gp.aSetter.setEnemy();
+    }
+
+    public void loadStoryLobby() {
+        runActive = false;
+        floorNumber = 0;
+        bossReturnPositionSaved = false;
+        bossDefeated = false;
+        clearLevel();
+        activeBoss = null;
+        gp.keyH.clearGameplayInput();
+        gp.tileM.loadMap(HUB_MAP_PATH);
+        gp.player.setDefaultValues();
+        gp.player.setWorldPosition(
+                HUB_PLAYER_SPAWN_COL * gp.tileSize,
+                HUB_PLAYER_SPAWN_ROW * gp.tileSize
+        );
+        gp.aSetter.setNPC();
+        gp.ui.showMessage("You wake up somewhere almost safe.");
+    }
+
+    public void finishPrologueBytEncounter() {
+        gp.storyFlags.completePrologueBytEncounter();
+        gp.keyH.clearGameplayInput();
+        gp.player.setDefaultValues();
+        loadHub();
     }
 
     public void startRun() {
@@ -85,6 +130,23 @@ public class LevelManager {
         );
         activeBoss = gp.aSetter.setBossArenaEnemy();
         gp.ui.showMessage("Boss arena");
+    }
+
+    public void enterPrologueBytArena() {
+        runActive = false;
+        floorNumber = 0;
+        bossReturnPositionSaved = false;
+        bossDefeated = false;
+
+        clearLevel();
+        gp.keyH.clearGameplayInput();
+        gp.tileM.loadMap(BOSS_ARENA_MAP_PATH);
+        gp.player.setWorldPosition(
+                BOSS_ARENA_PLAYER_SPAWN_COL * gp.tileSize,
+                BOSS_ARENA_PLAYER_SPAWN_ROW * gp.tileSize
+        );
+        activeBoss = gp.aSetter.setPrologueBytArenaEnemy();
+        gp.ui.showMessage("BYT");
     }
 
     public void onBossDefeated() {

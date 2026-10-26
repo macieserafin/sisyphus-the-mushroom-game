@@ -1,8 +1,8 @@
 package object;
 
 import entity.Player;
+import level.TransitionTarget;
 import main.GamePanel;
-import main.TransitionTarget;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;

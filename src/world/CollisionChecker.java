@@ -1,6 +1,7 @@
-package main;
+package world;
 
 import entity.Entity;
+import main.GamePanel;
 import object.SuperObject;
 
 import java.awt.*;

@@ -1,18 +1,20 @@
-package main;
+package world;
 
 import entity.Bullet;
 import entity.combat.HitResult;
 import entity.enemy.Enemy;
+import main.GamePanel;
 
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 public class BulletManager {
 
-    private GamePanel gp;
-    private ArrayList<Bullet> bullets = new ArrayList<Bullet>();
+    private final GamePanel gp;
+    private final List<Bullet> bullets = new ArrayList<>();
 
     public BulletManager(GamePanel gp) {
         this.gp = gp;
@@ -27,7 +29,6 @@ public class BulletManager {
     }
 
     public void update() {
-
         Iterator<Bullet> iterator = bullets.iterator();
 
         while (iterator.hasNext()) {
@@ -66,10 +67,7 @@ public class BulletManager {
     }
 
     public void draw(Graphics2D g2) {
-
-        for (int i = 0; i < bullets.size(); i++) {
-            Bullet bullet = bullets.get(i);
-
+        for (Bullet bullet : bullets) {
             int screenX = bullet.worldX - gp.player.worldX + gp.player.screenX;
             int screenY = bullet.worldY - gp.player.worldY + gp.player.screenY;
 

@@ -1,7 +1,8 @@
-package main;
+package world;
 
 import entity.enemy.Enemy;
 import entity.npc.NPC;
+import main.GamePanel;
 import object.SuperObject;
 
 import java.util.ArrayList;
