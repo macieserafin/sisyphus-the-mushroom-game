@@ -4,13 +4,13 @@ import entity.Bullet;
 import entity.Entity;
 import entity.MovementImpulse;
 import entity.combat.Faction;
-import main.BulletManager;
+import world.BulletManager;
 
 public class Pistol implements RangedWeapon {
     private static final double MOVEMENT_MULTIPLIER = 0.9;
     private static final double RECOIL = 0.42;
     private static final double RECOIL_MAX_SPEED = 5.0;
-    private static final int DEFAULT_SHOT_COOLDOWN_FRAMES = 12;
+    private static final int DEFAULT_SHOT_COOLDOWN_FRAMES = 24;
     private static final double DEFAULT_BULLET_SPEED = 10;
     private static final int BULLET_RANGE_TILES = 5;
     private static final int BULLET_DAMAGE = 3;

@@ -2,7 +2,7 @@ package entity.weapon;
 
 import entity.Entity;
 import entity.MovementImpulse;
-import main.BulletManager;
+import world.BulletManager;
 
 public interface RangedWeapon {
     String displayName();

@@ -4,13 +4,13 @@ import entity.Bullet;
 import entity.Entity;
 import entity.MovementImpulse;
 import entity.combat.Faction;
-import main.BulletManager;
+import world.BulletManager;
 
 public class Shotgun implements RangedWeapon {
     private static final double MOVEMENT_MULTIPLIER = 0.82;
-    private static final double RECOIL = 1.15;
+    private static final double RECOIL = 6;
     private static final double RECOIL_MAX_SPEED = 6.2;
-    private static final int BULLET_RANGE_TILES = 4;
+    private static final int BULLET_RANGE_TILES = 3;
     private static final int BULLET_DAMAGE = 2;
     private static final double BULLET_SPAWN_OFFSET = 25.0;
     private static final double SPREAD_RADIANS = Math.toRadians(10);
