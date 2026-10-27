@@ -6,5 +6,6 @@ public enum GameState {
     DIALOGUE,
     CUTSCENE,
     DEAD,
-    MENU
+    MENU,
+    MOD_MENU
 }

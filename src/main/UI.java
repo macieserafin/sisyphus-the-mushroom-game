@@ -111,7 +111,9 @@ public class UI {
 
         drawBlink();
         drawDialogueOverlay();
-
+        if (gp.gameState == GameState.MOD_MENU) {
+            gp.modMenu.draw(this.g2);
+        }
 
 
 

@@ -41,6 +41,15 @@ public class KeyHandler implements KeyListener {
             return;
         }
 
+        if (code == KeyEvent.VK_F1 && gp.gameState == GameState.PLAYING) {
+            gp.modMenu.open();
+            return;
+        }
+        if (gp.gameState == GameState.MOD_MENU) {
+            gp.modMenu.keyPressed(code);
+            return;
+        }
+
         if(gp.gameState == GameState.PLAYING){
             if (code == KeyEvent.VK_W) {
                 upPressed = true;

@@ -77,6 +77,7 @@ public class GamePanel extends JPanel implements Runnable {
     public DialogueManager dialogueManager = new DialogueManager(this);
     public StoryFlags storyFlags = new StoryFlags();
     public QuestLog questLog = new QuestLog();
+    public ModMenu modMenu = new ModMenu(this);
     public StorySequenceManager storySequenceManager = new StorySequenceManager(this);
     public PrologueTutorialManager prologueTutorialManager = new PrologueTutorialManager(this);
     Thread gameThread;
