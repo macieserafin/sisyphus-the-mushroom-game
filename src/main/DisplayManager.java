@@ -3,9 +3,7 @@ package main;
 import javax.swing.*;
 import java.awt.*;
 
-/** Switches the game window between windowed, borderless full window and exclusive full screen. */
 public class DisplayManager {
-
     public enum Mode {
         WINDOWED("Windowed"),
         BORDERLESS("Borderless"),
@@ -45,7 +43,6 @@ public class DisplayManager {
         SwingUtilities.invokeLater(() -> apply(next));
     }
 
-    // Must run on the event thread: decorations can only change while the frame is not displayable.
     private void apply(Mode next) {
         Window window = SwingUtilities.getWindowAncestor(gp);
         if (!(window instanceof JFrame frame)) {

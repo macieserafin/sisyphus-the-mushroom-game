@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 public class UI {
-
     GamePanel gp;
     Graphics2D g2;
     Font arial_40;
@@ -25,7 +24,6 @@ public class UI {
     BufferedImage keyImage;
     private Hud hud;
 
-    // Compact dialogue box: about a fifth of the screen, centred above the bottom edge.
     private static final int DIALOGUE_WIDTH = 600;
     private static final int DIALOGUE_HEIGHT = 120;
     private static final int DIALOGUE_BOTTOM_MARGIN = 18;
@@ -38,7 +36,6 @@ public class UI {
 
     private int blinkClose, blinkHold, blinkOpen;
     private int blinkTick = -1;
-
 
     public UI(GamePanel gp) {
         this.gp = gp;
@@ -81,7 +78,6 @@ public class UI {
 
         drawBossHealthBar();
 
-
         if (messageOn) {
             drawMessageToast();
 
@@ -92,7 +88,6 @@ public class UI {
                 messageOn = false;
             }
         }
-
 
         if (gp.gameState == GameState.DEAD) {
             drawDeathScreen();
@@ -106,7 +101,6 @@ public class UI {
         if (gp.gameState == GameState.PAUSED) {
             gp.pauseMenu.draw(this.g2);
         }
-
 
     }
 
@@ -358,14 +352,12 @@ public class UI {
         g2.setColor(oldColor);
     }
 
-    /** Speaker name on a plate that sits across the top edge of a dialogue frame. */
     private void drawNamePlate(int x, int y, String name) {
         int width = UiSkin.PixelFont.width(name, 2) + 42;
         width += (UiSkin.P - width % UiSkin.P) % UiSkin.P;
         UiSkin.plaque(g2, x, y, width, 30, name, UiSkin.GLOW);
     }
 
-    /** Small dim plate with a key name, right-aligned to rightX. */
     private void drawKeyHint(int rightX, int y, String key) {
         int width = UiSkin.PixelFont.width(key, 1) + 24;
         width += (UiSkin.P - width % UiSkin.P) % UiSkin.P;
@@ -413,7 +405,6 @@ public class UI {
         g2.setColor(UiSkin.TEXT);
         drawWrappedText(gp.dialogueManager.visibleText(), textX, textY, textWidth, lineHeight * 3, lineHeight);
 
-        // sits across the bottom edge so it never covers the text
         if (line.mode() == DialogueLine.Mode.BLOCKING) {
             drawKeyHint(x + width - 24, y + height - 12, "ENTER");
         }

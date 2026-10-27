@@ -3,7 +3,6 @@ package main;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 
-/** Settings panel shared by the title screen and the pause menu. */
 public class OptionsMenu {
     private static final int DISPLAY = 0, BACK = 1, ITEM_COUNT = 2;
 
@@ -19,7 +18,6 @@ public class OptionsMenu {
         selected = DISPLAY;
     }
 
-    /** Handles one key; returns true when the player leaves the options. */
     public boolean handle(int code) {
         switch (code) {
             case KeyEvent.VK_ESCAPE:
@@ -56,7 +54,6 @@ public class OptionsMenu {
         return false;
     }
 
-    /** Draws the panel with its top edge at y. */
     public void draw(Graphics2D g2, int y) {
         int width = 402;
         int rowH = 36;

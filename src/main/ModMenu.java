@@ -7,9 +7,7 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.function.Supplier;
 
-/** Prototype mod menu (F1): grants weapons, healing, power-ups and keys for testing. */
 public class ModMenu {
-
     private record Item(Supplier<String> label, Runnable action) {
     }
 
@@ -62,8 +60,6 @@ public class ModMenu {
         }
     }
 
-    // ---- actions ------------------------------------------------------------------------------
-
     private void heal() {
         gp.player.health = gp.player.maxHealth;
         feedback = "Healed";
@@ -111,8 +107,6 @@ public class ModMenu {
         String name = slotLabel.substring(slotLabel.indexOf(' ') + 1);
         return (owned ? "[x] " : "[ ] ") + kind + ": " + (owned ? name : "(none)");
     }
-
-    // ---- drawing ------------------------------------------------------------------------------
 
     public void draw(Graphics2D g2) {
         Object oldAa = g2.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);

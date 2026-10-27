@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Random;
 
 public class GamePanel extends JPanel implements Runnable {
-
 // SCREEN SETTINGS
 
     public final int originalTitleSize = 16; //16x16 tile default
@@ -45,8 +44,6 @@ public class GamePanel extends JPanel implements Runnable {
 
     int FPS = 60;
 
-    // The game loop, painting (Swing thread) and key handling (Swing thread) all touch the same
-    // game state; holding this lock keeps them from seeing each other half-way through a change.
     public final Object frameLock = new Object();
 
     public KeyHandler keyH = new KeyHandler(this);
@@ -91,10 +88,8 @@ public class GamePanel extends JPanel implements Runnable {
     public DebugSettings debugSettings = new DebugSettings();
     private int hitStopFrames = 0;
 
-
     //entity
     public Player player = new Player(this, keyH);
-
 
     //game state
     public GameState gameState;
@@ -133,7 +128,6 @@ public class GamePanel extends JPanel implements Runnable {
 
     @Override
     public void run() {
-
         double drawInterval = 1000000000 / FPS;
         double delta = 0;
         long lastTime = System.nanoTime();
@@ -142,7 +136,6 @@ public class GamePanel extends JPanel implements Runnable {
         int drawCount = 0;
 
         while(gameThread != null) {
-
             currentTime = System.nanoTime();
 
             delta += (currentTime - lastTime) / drawInterval;
@@ -150,7 +143,6 @@ public class GamePanel extends JPanel implements Runnable {
             lastTime = currentTime;
 
             if (delta >= 1) {
-
                 // 1 UPDATE: update information such as character positions
                 synchronized (frameLock) {
                     update();
@@ -265,7 +257,6 @@ public class GamePanel extends JPanel implements Runnable {
         super.paintComponent(g);
 
         Graphics2D g2 = (Graphics2D) g;
-        // The game is drawn at its native size and scaled to fill the window, keeping the 4:3 frame.
         double viewScale = Math.min(getWidth() / (double) screenWidth, getHeight() / (double) screenHeight);
         if (viewScale <= 0) {
             return;
@@ -336,7 +327,6 @@ public class GamePanel extends JPanel implements Runnable {
         playAreaMusic();
     }
 
-    /** Drops the current game completely; Start Game on the title screen begins a fresh one. */
     public void returnToTitle() {
         storySequenceManager.cancel();
         dialogueManager.clear();

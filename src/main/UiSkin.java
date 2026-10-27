@@ -5,14 +5,7 @@ import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Pixel-art UI pieces in the dark fly-agaric palette: red speckled frames with cream spots,
- * dark charcoal insides. Everything is built on a small grid (one art pixel = {@link #P} screen
- * pixels), cached, and scaled up with nearest-neighbour so the edges stay crisp.
- */
 public final class UiSkin {
-
-    /** Screen pixels per art pixel. */
     public static final int P = 3;
 
     public static final Color CREAM = new Color(0xE8D8B0);
@@ -28,7 +21,6 @@ public final class UiSkin {
     private static final int INSET_DARK = 0x0F0A0C;
     private static final int INSET_LIGHT = 0x4A383B;
 
-    /** Colours for a framed piece: the band around the edge and the spots on it. */
     public record Palette(int light, int mid, int dark, int speck, int spot, int spotShade, int fill) {
     }
 
@@ -41,15 +33,11 @@ public final class UiSkin {
     private UiSkin() {
     }
 
-    // ---- framed panels ------------------------------------------------------------------------
-
-    /** Big panel: thick speckled red band, mushroom-spot rivets in the corners, dark inside. */
     public static void frame(Graphics2D g2, int x, int y, int w, int h) {
         int aw = art(w), ah = art(h);
         blit(g2, cached("frame", aw, ah, RED, () -> buildFrame(aw, ah, RED, 3, true)), x, y);
     }
 
-    /** Pill-shaped label plate, like a title header; text is centred on it. */
     public static void plaque(Graphics2D g2, int x, int y, int w, int h, String text, Palette palette) {
         int aw = art(w), ah = art(h);
         blit(g2, cached("plaque", aw, ah, palette, () -> buildFrame(aw, ah, palette, 2, false)), x, y);
@@ -62,32 +50,26 @@ public final class UiSkin {
         }
     }
 
-    /** Title plate centred on cx, sized to its text; meant to sit across the top edge of a frame. */
     public static void header(Graphics2D g2, int cx, int y, String text) {
         int w = PixelFont.width(text, 2) + 36;
         w += (P - w % P) % P;
         plaque(g2, cx - w / 2, y, w, 27, text, RED);
     }
 
-    /** Sunken well for slots, the minimap or a portrait. */
     public static void inset(Graphics2D g2, int x, int y, int w, int h) {
         int aw = art(w), ah = art(h);
         blit(g2, cached("inset", aw, ah, RED, () -> buildInset(aw, ah)), x, y);
     }
 
-    /** Round button / medallion; diameter in screen pixels. */
     public static void badge(Graphics2D g2, int x, int y, int diameter, Palette palette) {
         int ad = art(diameter);
         blit(g2, cached("badge", ad, ad, palette, () -> buildBadge(ad, palette)), x, y);
     }
 
-    /** A thin horizontal divider with a spot in the middle. */
     public static void divider(Graphics2D g2, int x, int y, int w) {
         int aw = art(w);
         blit(g2, cached("divider", aw, 3, RED, () -> buildDivider(aw)), x, y);
     }
-
-    // ---- sprites ------------------------------------------------------------------------------
 
     private static final String[] HEART = {
             ".ooo...ooo.",
@@ -111,7 +93,6 @@ public final class UiSkin {
                 'o', OUTLINE, 'h', 0xF08C80, 'r', 0xC8282E, 'd', 0x7A1418)))
                 : cached("heart", 0, 0, RED, () -> sprite(HEART, Map.of(
                 'o', OUTLINE, 'h', 0x4A3034, 'r', 0x34232A, 'd', 0x261A1E)));
-        // soft drop shadow so the hearts read on bright ground without a panel
         Composite old = g2.getComposite();
         g2.setComposite(AlphaComposite.SrcOver.derive(0.45f));
         g2.drawImage(cached("heart", 2, 0, RED, () -> sprite(HEART, Map.of(
@@ -234,7 +215,6 @@ public final class UiSkin {
             })
     );
 
-    /** Draws an icon centred on (cx, cy); dim icons are drawn in muted colours. */
     public static void icon(Graphics2D g2, Icon icon, int cx, int cy, int scale, boolean bright) {
         String[] rows = ICONS.get(icon);
         BufferedImage img = cached("icon" + icon, bright ? 1 : 0, 0, RED, () -> sprite(rows, bright
@@ -246,8 +226,6 @@ public final class UiSkin {
         int h = img.getHeight() * scale;
         g2.drawImage(img, cx - w / 2, cy - h / 2, w, h, null);
     }
-
-    // ---- builders -----------------------------------------------------------------------------
 
     private static BufferedImage buildFrame(int aw, int ah, Palette p, int band, boolean rivets) {
         BufferedImage img = new BufferedImage(aw, ah, BufferedImage.TYPE_INT_ARGB);
@@ -301,7 +279,6 @@ public final class UiSkin {
         return img;
     }
 
-    /** A cream mushroom-cap spot with a dark rim and a highlight. */
     private static void spot(BufferedImage img, int cx, int cy, Palette p) {
         for (int dy = -2; dy <= 2; dy++) {
             for (int dx = -2; dx <= 2; dx++) {
@@ -415,8 +392,6 @@ public final class UiSkin {
         return img;
     }
 
-    // ---- helpers ------------------------------------------------------------------------------
-
     private interface Builder {
         BufferedImage build();
     }
@@ -465,9 +440,6 @@ public final class UiSkin {
         return r << 16 | g << 8 | b;
     }
 
-    // ---- pixel font ---------------------------------------------------------------------------
-
-    /** 5x7 capitals for headers and labels; lower case and Polish letters map to plain capitals. */
     public static final class PixelFont {
         private static final Map<Character, String[]> GLYPHS = new HashMap<>();
 
@@ -552,13 +524,11 @@ public final class UiSkin {
             return text.isEmpty() ? 0 : (text.length() * 6 - 1) * scale;
         }
 
-        /** Draws text with its top-left at (x, y) and a one-pixel dark shadow. */
         public static void draw(Graphics2D g2, String text, int x, int y, int scale, Color color) {
             drawGlyphs(g2, text, x + scale, y + scale, scale, new Color(OUTLINE));
             drawGlyphs(g2, text, x, y, scale, color);
         }
 
-        /** Big title text: a solid dark outline all round plus a deeper drop shadow. */
         public static void drawOutlined(Graphics2D g2, String text, int x, int y, int scale, Color color, Color shadow) {
             drawGlyphs(g2, text, x + scale, y + scale * 2, scale, shadow);
             Color outline = new Color(OUTLINE);

@@ -10,7 +10,6 @@ public class CombatLoadout {
             new Shotgun()
     };
 
-    // Weapons the player actually holds; the rest of the slots are locked until something grants them.
     private final boolean[] meleeOwned = {true, false};
     private final boolean[] rangedOwned = {true, false};
 
@@ -36,7 +35,6 @@ public class CombatLoadout {
         return rangedOwned[validSlot(slot, rangedWeapons.length)];
     }
 
-    /** Taking away the weapon in hand falls back to slot 1, which is always kept. */
     public void setMeleeOwned(int slot, boolean owned) {
         meleeOwned[validSlot(slot, meleeWeapons.length)] = owned || slot == 0;
         if (!meleeOwned[meleeSlot]) {

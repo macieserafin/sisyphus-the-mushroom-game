@@ -152,7 +152,6 @@ public class StorySequenceManager {
                 if (currentStep.action() != null) {
                     currentStep.action().run();
                 }
-                // The action may have ended this sequence or started another one; only move on in our own.
                 if (activeSequence == sequence) {
                     advanceStep();
                 }

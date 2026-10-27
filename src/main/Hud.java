@@ -11,9 +11,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
-/** In-game overlay: hearts, combat mode + weapon, minimap and quest panel. */
 public class Hud {
-
     private static final int MARGIN = 12;
     private static final int BADGE_SIZE = 60;
     private static final int MINIMAP_SIZE = 120;
@@ -52,13 +50,10 @@ public class Hud {
         g2.setColor(oldColor);
     }
 
-    // ---- hearts, combat mode and weapon -------------------------------------------------------
-
     private void drawStatus(Graphics2D g2, int x, int y) {
         boolean melee = gp.player.combatState == CombatState.MELEE;
         boolean locked = gp.player.isWeaponsLocked();
 
-        // medallion with the weapon in hand
         UiSkin.badge(g2, x, y, BADGE_SIZE, locked ? UiSkin.DIM : UiSkin.RED);
         UiSkin.icon(g2, iconFor(melee, melee ? meleeSlot() : rangedSlot()),
                 x + BADGE_SIZE / 2, y + BADGE_SIZE / 2, 3, !locked);
@@ -66,7 +61,6 @@ public class Hud {
             UiSkin.icon(g2, UiSkin.Icon.LOCK, x + BADGE_SIZE - 10, y + BADGE_SIZE - 10, 2, true);
         }
 
-        // hearts: one per point of health, no bar
         int heartsX = x + BADGE_SIZE + 8;
         int max = Math.max(0, gp.player.maxHealth);
         int hp = Math.max(0, Math.min(gp.player.health, max));
@@ -74,7 +68,6 @@ public class Hud {
             UiSkin.heart(g2, heartsX + i * (UiSkin.HEART_W + 3), y + 2, i < hp);
         }
 
-        // mode tabs: the active one glows, the other is dimmed
         int tabY = y + 36;
         UiSkin.plaque(g2, heartsX, tabY, 84, 27, "MELEE", melee ? UiSkin.GLOW : UiSkin.DIM);
         UiSkin.plaque(g2, heartsX + 87, tabY, 84, 27, "RANGE", melee ? UiSkin.DIM : UiSkin.GLOW);
@@ -102,8 +95,6 @@ public class Hud {
         }
         return slot == 0 ? UiSkin.Icon.PISTOL : UiSkin.Icon.SHOTGUN;
     }
-
-    // ---- minimap ------------------------------------------------------------------------------
 
     private int drawMinimap(Graphics2D g2, int x, int y) {
         int panelH = RIGHT_PANEL_WIDTH;
@@ -144,7 +135,6 @@ public class Hud {
             }
         }
 
-        // player: white dot with a dark outline so it reads on any terrain
         int px = gp.player.worldX + gp.tileSize / 2;
         int py = gp.player.worldY + gp.tileSize / 2;
         g2.setColor(Color.BLACK);
@@ -160,7 +150,6 @@ public class Hud {
         g2.fillRect(dx, dy, size, size);
     }
 
-    /** One pixel per map cell; rebuilt only when a different map has been loaded. */
     private void refreshMinimapImage() {
         int[][] ground = gp.tileM.mapTileNum;
         int[][] objects = gp.tileM.objectTileNum;
@@ -208,8 +197,6 @@ public class Hud {
         }
         return tileColors[id];
     }
-
-    // ---- quests -------------------------------------------------------------------------------
 
     private void drawQuests(Graphics2D g2, int x, int y) {
         List<QuestLog.Quest> quests = gp.questLog.active();

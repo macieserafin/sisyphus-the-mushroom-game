@@ -4,10 +4,6 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/**
- * ESC pause menu: resume, options, back to the title screen.
- * Keys are queued like in {@link TitleMenu}, so the actions run inside the game loop.
- */
 public class PauseMenu {
     private static final String[] ITEMS = {"Resume", "Options", "Back to title"};
     private static final int RESUME = 0, OPTIONS = 1, TITLE = 2;

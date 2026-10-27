@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Active quests shown in the HUD quest panel. */
 public class QuestLog {
-
     public record Quest(String id, String title, String description) {
     }
 

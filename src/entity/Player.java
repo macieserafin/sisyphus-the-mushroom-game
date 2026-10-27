@@ -75,7 +75,6 @@ public class Player extends Entity {
     private int startingMeleeSlot = 0;
     private int startingRangedSlot = 0;
 
-    // Weapons cannot be used in the village; the mod menu can override that for testing.
     private boolean weaponsLockedByArea = false;
     private boolean weaponLockOverride = false;
 
@@ -595,7 +594,6 @@ public class Player extends Entity {
     }
 
     public void interactNPC(int i){
-
         if (gp.keyH.enterPressed) {
             if (i != 999) {
                 gp.entities.npcs().get(i).speak();
@@ -949,7 +947,6 @@ public class Player extends Entity {
         syncWeaponsToLoadout();
     }
 
-    /** Back to the starting kit: short sword and pistol only. */
     public void resetLoadout() {
         combatLoadout.resetOwnership();
         startingMeleeSlot = 0;

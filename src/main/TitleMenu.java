@@ -152,7 +152,6 @@ public class TitleMenu {
         int y = 312;
         for (int i = 0; i < ITEMS.length; i++) {
             boolean active = i == selected;
-            // the chosen button leans out a little, like the staggered buttons of a fantasy menu
             int x = left + (active ? 12 : 0);
             UiSkin.plaque(g2, x + badge - 15, y + 12, plaqueW, 33, labels[i], active ? UiSkin.GLOW : UiSkin.DIM);
             UiSkin.badge(g2, x, y, badge, active ? UiSkin.RED : UiSkin.DIM);
