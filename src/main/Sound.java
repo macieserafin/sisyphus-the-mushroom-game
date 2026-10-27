@@ -56,7 +56,7 @@ public class Sound {
         return i >= 0 && i < soundURL.length && soundURL[i] != null;
     }
 
-    public void setFile(int i) {
+    public synchronized void setFile(int i) {
         closeClip();
 
         if (i < 0 || i >= soundURL.length) {
@@ -79,7 +79,7 @@ public class Sound {
         }
     }
 
-    public void play() {
+    public synchronized void play() {
         if (clip == null) {
             System.err.println("Cannot play audio: no clip loaded.");
             return;
@@ -89,7 +89,7 @@ public class Sound {
 
     }
 
-    public void loop() {
+    public synchronized void loop() {
         if (clip == null) {
             System.err.println("Cannot loop audio: no clip loaded.");
             return;
@@ -97,7 +97,7 @@ public class Sound {
         clip.loop(Clip.LOOP_CONTINUOUSLY);
 
     }
-    public void stop() {
+    public synchronized void stop() {
         if (clip == null) {
             return;
         }
@@ -173,7 +173,7 @@ public class Sound {
         }
     }
 
-    private void closeClip() {
+    private synchronized void closeClip() {
         if (clip != null) {
             clip.stop();
             clip.close();

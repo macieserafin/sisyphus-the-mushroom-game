@@ -23,7 +23,12 @@ public class KeyHandler implements KeyListener {
 
     @Override
     public void keyPressed(KeyEvent e) {
-        int code = e.getKeyCode();
+        synchronized (gp.frameLock) {
+            handleKeyPressed(e.getKeyCode());
+        }
+    }
+
+    private void handleKeyPressed(int code) {
 
         if (gp.gameState == GameState.MENU) {
             gp.titleMenu.keyPressed(code);

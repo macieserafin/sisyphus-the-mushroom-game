@@ -44,6 +44,10 @@ public class GamePanel extends JPanel implements Runnable {
 
     int FPS = 60;
 
+    // The game loop, painting (Swing thread) and key handling (Swing thread) all touch the same
+    // game state; holding this lock keeps them from seeing each other half-way through a change.
+    public final Object frameLock = new Object();
+
     public KeyHandler keyH = new KeyHandler(this);
     Sound music = new Sound();
     Sound cutsceneMusic = new Sound();
@@ -142,7 +146,9 @@ public class GamePanel extends JPanel implements Runnable {
             if (delta >= 1) {
 
                 // 1 UPDATE: update information such as character positions
-                update();
+                synchronized (frameLock) {
+                    update();
+                }
 
                 // 2 DRAW: draw the screen with the updated information
                 repaint();
@@ -239,6 +245,12 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void paintComponent(Graphics g) {
+        synchronized (frameLock) {
+            paintFrame(g);
+        }
+    }
+
+    private void paintFrame(Graphics g) {
         super.paintComponent(g);
 
         Graphics2D g2 = (Graphics2D) g;

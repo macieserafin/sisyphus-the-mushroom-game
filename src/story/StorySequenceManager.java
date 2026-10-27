@@ -148,10 +148,14 @@ public class StorySequenceManager {
                 waitFramesLeft = currentStep.frames();
                 break;
             case ACTION:
+                StorySequence sequence = activeSequence;
                 if (currentStep.action() != null) {
                     currentStep.action().run();
                 }
-                advanceStep();
+                // The action may have ended this sequence or started another one; only move on in our own.
+                if (activeSequence == sequence) {
+                    advanceStep();
+                }
                 break;
             default:
                 break;
@@ -216,6 +220,9 @@ public class StorySequenceManager {
     }
 
     private void advanceStep() {
+        if (activeSequence == null) {
+            return;
+        }
         currentStepIndex++;
         if (currentStepIndex >= activeSequence.stepCount()) {
             finishSequence();
