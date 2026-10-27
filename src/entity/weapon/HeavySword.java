@@ -27,7 +27,7 @@ public class HeavySword implements MeleeWeapon {
 
     @Override
     public String displayName() {
-        return "Ciezki miecz";
+        return "Heavy Sword";
     }
 
     @Override

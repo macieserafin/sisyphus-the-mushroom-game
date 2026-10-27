@@ -21,7 +21,7 @@ public class Pistol implements RangedWeapon {
 
     @Override
     public String displayName() {
-        return "Pistolet";
+        return "Pistol";
     }
 
     @Override

@@ -27,7 +27,7 @@ public class Sword implements MeleeWeapon {
 
     @Override
     public String displayName() {
-        return "Lekki miecz";
+        return "Short Sword";
     }
 
     @Override
