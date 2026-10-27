@@ -1,8 +1,9 @@
 package entity.weapon;
 
+import entity.Direction8;
 import entity.MovementImpulse;
 
-import java.awt.Rectangle;
+import java.awt.Shape;
 
 public class Sword implements MeleeWeapon {
     private static final int WINDUP_FRAMES = 3;
@@ -91,16 +92,15 @@ public class Sword implements MeleeWeapon {
         return RECOVERY_DAMPING;
     }
 
-    public MovementImpulse impulseFor(String direction) {
-        double[] attackVector = directionVector(direction);
+    public MovementImpulse impulseFor(Direction8 direction) {
         return new MovementImpulse(
-                attackVector[0] * IMPULSE,
-                attackVector[1] * IMPULSE,
+                direction.unitX * IMPULSE,
+                direction.unitY * IMPULSE,
                 IMPULSE_MAX_SPEED
         );
     }
 
-    public Rectangle attackBox(String direction, int frame, int centerX, int centerY) {
+    public Shape attackArea(Direction8 direction, int frame, int centerX, int centerY) {
         int strikeFrame = Math.max(0, frame - WINDUP_FRAMES);
         int reach = REACH;
         int swingWidth = SWING_WIDTH;
@@ -115,31 +115,6 @@ public class Sword implements MeleeWeapon {
             }
         }
 
-        switch (direction) {
-            case "up":
-                return new Rectangle(centerX - swingWidth / 2, centerY - reach, swingWidth, reach + OVERLAP);
-            case "down":
-                return new Rectangle(centerX - swingWidth / 2, centerY - OVERLAP, swingWidth, reach + OVERLAP);
-            case "left":
-                return new Rectangle(centerX - reach, centerY - swingWidth / 2, reach + OVERLAP, swingWidth);
-            case "right":
-            default:
-                return new Rectangle(centerX - OVERLAP, centerY - swingWidth / 2, reach + OVERLAP, swingWidth);
-        }
-    }
-
-    private double[] directionVector(String direction) {
-        switch (direction) {
-            case "up":
-                return new double[]{0, -1};
-            case "down":
-                return new double[]{0, 1};
-            case "left":
-                return new double[]{-1, 0};
-            case "right":
-                return new double[]{1, 0};
-            default:
-                return new double[]{0, 0};
-        }
+        return MeleeWeapon.swingArea(direction, centerX, centerY, OVERLAP, reach, swingWidth);
     }
 }

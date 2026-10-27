@@ -9,13 +9,14 @@ import entity.combat.HitType;
 import entity.enemy.Enemy;
 import entity.npc.NPC;
 import object.SuperObject;
-import entity.anim.AnimationPlayer;
+import entity.anim.PlayerAnimator;
 import entity.anim.SpriteSheet;
 import entity.weapon.CombatLoadout;
 import entity.weapon.MeleeWeapon;
 import entity.weapon.RangedWeapon;
 
 import java.awt.*;
+import java.awt.geom.AffineTransform;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -33,6 +34,8 @@ public class Player extends Entity {
     private static final double HURT_KNOCKBACK_MAX_SPEED = 12.0;
     private static final double HURT_KNOCKBACK_DAMPING = 0.84;
     private static final double INTERACT_RANGE_TILES = 1.3;
+    private static final int AIM_CHORD_TICKS = 2;
+    private static final double FACING_HYSTERESIS_RADIANS = Math.toRadians(10);
 
     KeyHandler keyH;
 
@@ -48,7 +51,12 @@ public class Player extends Entity {
     private double worldXf;
     private double worldYf;
 
-    public String combatDirection;
+    private Direction8 facing = Direction8.S;
+    private boolean moving;
+    private Direction8 aim;
+    private Direction8 heldAim;
+    private Direction8 lastAim;
+    private int aimHeldTicks;
 
     private int shotCooldownCounter = 0;
 
@@ -59,7 +67,7 @@ public class Player extends Entity {
 
     private boolean meleeAttacking = false;
     private int meleeFrame = 0;
-    private String bufferedMeleeDirection = null;
+    private boolean meleeAttackBuffered = false;
     private int meleeInputBufferCounter = 0;
     private int meleeCooldownCounter = 0;
     private boolean meleeAttackInputHeldLastFrame = false;
@@ -81,9 +89,7 @@ public class Player extends Entity {
     private int scriptedDrawOffsetX = 0;
     private int scriptedDrawOffsetY = 0;
 
-    private final SpriteSheet idleSheet = SpriteSheet.load("player/anim/player_idle");
-    private final SpriteSheet walkSheet = SpriteSheet.load("player/anim/player_walk");
-    private final AnimationPlayer locomotion = new AnimationPlayer();
+    private final PlayerAnimator animator = new PlayerAnimator();
 
     public Player(GamePanel gp, KeyHandler keyH) {
         super(gp);
@@ -112,7 +118,7 @@ public class Player extends Entity {
         hasKey = 0;
 
         direction = "idle";
-        combatDirection = "idle";
+        resetFacingAndAim();
         combatState = CombatState.RANGE;
         meleeWeapon = combatLoadout.selectMeleeSlot(startingMeleeSlot);
         rangedWeapon = combatLoadout.selectRangedSlot(startingRangedSlot);
@@ -121,12 +127,12 @@ public class Player extends Entity {
         hurtKnockbackCounter = 0;
         meleeAttacking = false;
         meleeFrame = 0;
-        bufferedMeleeDirection = null;
+        meleeAttackBuffered = false;
         meleeInputBufferCounter = 0;
         meleeCooldownCounter = 0;
         meleeAttackInputHeldLastFrame = false;
         resetMeleeHitEnemies();
-        locomotion.restart(idleSheet);
+        animator.reset();
         endScriptedHold();
     }
 
@@ -183,10 +189,19 @@ public class Player extends Entity {
         hurtKnockbackCounter = 0;
         meleeAttacking = false;
         meleeFrame = 0;
-        bufferedMeleeDirection = null;
+        meleeAttackBuffered = false;
         meleeInputBufferCounter = 0;
         direction = "idle";
-        combatDirection = "idle";
+        resetFacingAndAim();
+    }
+
+    private void resetFacingAndAim() {
+        facing = Direction8.S;
+        moving = false;
+        aim = null;
+        heldAim = null;
+        lastAim = null;
+        aimHeldTicks = 0;
     }
 
     public void endScriptedHold() {
@@ -227,7 +242,8 @@ public class Player extends Entity {
         if (scriptedHold) {
             velX = 0;
             velY = 0;
-            updateLocomotionAnimation();
+            moving = false;
+            updateAnimation();
             return;
         }
 
@@ -250,13 +266,14 @@ public class Player extends Entity {
                 combatState = combatState.next();
                 keyH.qPressed = false;
                 meleeAttackInputHeldLastFrame = false;
-                bufferedMeleeDirection = null;
+                meleeAttackBuffered = false;
                 meleeInputBufferCounter = 0;
             } else {
                 keyH.qPressed = false;
             }
         }
         updateWeaponSwitchInput();
+        updateAimInput();
 
         boolean attackInput = hasAllowedAttackInput();
         updateCombat(attackInput);
@@ -273,9 +290,9 @@ public class Player extends Entity {
         }
 
         clampVelocity(getCurrentVelocityCap(currentMaxSpeed, attackInput, hurtKnockbackActive));
-        updateDirectionFromVelocity();
+        updateFacingFromVelocity();
         resolveInteractionsAfterMovement();
-        updateLocomotionAnimation();
+        updateAnimation();
     }
 
     private void tickTimers() {
@@ -332,29 +349,30 @@ public class Player extends Entity {
     }
 
     private void updateRangedCombat(boolean attackInput) {
-        String shootDirection = getAttackInputDirection();
         meleeAttackInputHeldLastFrame = false;
 
-        if (!attackInput || shootDirection == null) {
-            combatDirection = "idle";
+        if (!attackInput || heldAim == null) {
+            aim = null;
             return;
         }
 
-        combatDirection = shootDirection;
+        aim = heldAim;
+        if (!isAimSettled()) {
+            return;
+        }
 
         if (shotCooldownCounter == 0) {
-            fireBullet(shootDirection);
+            fireBullet(aim);
             shotCooldownCounter = rangedWeapon.shotCooldownFrames();
         }
     }
 
     private void updateMeleeInputBuffer(boolean attackInput) {
-        String attackInputDirection = getAttackInputDirection();
         boolean attackJustPressed = attackInput && !meleeAttackInputHeldLastFrame;
         meleeAttackInputHeldLastFrame = attackInput;
 
-        if (attackJustPressed && attackInputDirection != null) {
-            bufferedMeleeDirection = attackInputDirection;
+        if (attackJustPressed && heldAim != null) {
+            meleeAttackBuffered = true;
             meleeInputBufferCounter = meleeWeapon.inputBufferFrames();
         } else if (meleeInputBufferCounter > 0) {
             meleeInputBufferCounter--;
@@ -363,14 +381,31 @@ public class Player extends Entity {
         if (!meleeAttacking &&
                 meleeCooldownCounter == 0 &&
                 meleeInputBufferCounter > 0 &&
-                bufferedMeleeDirection != null) {
-            combatDirection = bufferedMeleeDirection;
-            bufferedMeleeDirection = null;
+                meleeAttackBuffered &&
+                isAimSettled()) {
+            aim = heldAim != null ? heldAim : lastAim;
+            meleeAttackBuffered = false;
             meleeInputBufferCounter = 0;
             startMeleeAttack();
         } else if (!meleeAttacking) {
-            combatDirection = "idle";
+            aim = null;
         }
+    }
+
+    private void updateAimInput() {
+        int x = (keyH.rightShootPressed ? 1 : 0) - (keyH.leftShootPressed ? 1 : 0);
+        int y = (keyH.downShootPressed ? 1 : 0) - (keyH.upShootPressed ? 1 : 0);
+        heldAim = Direction8.fromVector(x, y);
+        if (heldAim != null) {
+            aimHeldTicks++;
+            lastAim = heldAim;
+        } else {
+            aimHeldTicks = 0;
+        }
+    }
+
+    private boolean isAimSettled() {
+        return heldAim == null || heldAim.isDiagonal() || aimHeldTicks > AIM_CHORD_TICKS;
     }
 
     private double[] getMoveInputVector() {
@@ -483,16 +518,10 @@ public class Player extends Entity {
         return cap;
     }
 
-    private void updateDirectionFromVelocity() {
-        if (Math.abs(velX) < STOP_EPSILON && Math.abs(velY) < STOP_EPSILON) {
-            direction = "idle";
-            return;
-        }
-
-        if (Math.abs(velX) > Math.abs(velY)) {
-            direction = velX > 0 ? "right" : "left";
-        } else {
-            direction = velY > 0 ? "down" : "up";
+    private void updateFacingFromVelocity() {
+        moving = Math.abs(velX) >= STOP_EPSILON || Math.abs(velY) >= STOP_EPSILON;
+        if (moving) {
+            facing = Direction8.fromVector(velX, velY, facing, FACING_HYSTERESIS_RADIANS);
         }
     }
 
@@ -516,16 +545,25 @@ public class Player extends Entity {
         interactNPC(npcIndex);
     }
 
-    private void updateLocomotionAnimation() {
-        locomotion.play("idle".equals(direction) ? idleSheet : walkSheet, true);
-        locomotion.update();
+    private void updateAnimation() {
+        animator.locomote(moving, vectorLength(velX, velY) / gp.scale, facing);
+        if (aim == null) {
+            animator.clearPose();
+        } else if (combatState == CombatState.RANGE) {
+            animator.holdPose(PlayerAnimator.State.SHOOT, rangedWeapon.animations().shoot(), 0, aim);
+        } else if (combatState == CombatState.MELEE && meleeAttacking) {
+            int poseFrame = meleeWeapon.useStrikeSprite(meleeFrame) ? 1 : 0;
+            animator.holdPose(PlayerAnimator.State.ATTACK, meleeWeapon.animations().attack(), poseFrame, aim);
+        } else {
+            animator.clearPose();
+        }
     }
 
     private double vectorLength(double x, double y) {
         return Math.sqrt(x * x + y * y);
     }
 
-    private void fireBullet(String shootDirection) {
+    private void fireBullet(Direction8 shootDirection) {
         addMovementImpulse(rangedWeapon.fire(
                 gp.tileSize,
                 gp.bulletManager,
@@ -633,7 +671,7 @@ public class Player extends Entity {
             return;
         }
 
-        SpriteSheet.Frame frame = currentFrame();
+        SpriteSheet.Frame frame = animator.frame();
         int footX = screenX + gp.tileSize / 2 + scriptedDrawOffsetX;
         int footY = screenY + gp.tileSize + scriptedDrawOffsetY;
 
@@ -655,41 +693,17 @@ public class Player extends Entity {
         }
     }
 
-    private SpriteSheet.Frame currentFrame() {
-        if ("idle".equals(combatDirection)) {
-            SpriteSheet.Frame frame = locomotion.currentFrame(Direction8.fromLegacyName(direction));
-            return frame != null ? frame : idleSheet.frame(Direction8.S, 0);
-        }
-
-        Direction8 aim = Direction8.fromLegacyName(combatDirection);
-        if (combatState == CombatState.RANGE) {
-            SpriteSheet shoot = rangedWeapon.animations().shoot();
-            if (shoot != null) {
-                return shoot.frame(aim, 0);
-            }
-        } else if (combatState == CombatState.MELEE && meleeAttacking) {
-            SpriteSheet attack = meleeWeapon.animations().attack();
-            if (attack != null) {
-                return attack.frame(aim, meleeWeapon.useStrikeSprite(meleeFrame) ? 1 : 0);
-            }
-        }
-        return idleSheet.frame(Direction8.S, 0);
-    }
-
     private void drawMeleeHitBox(Graphics2D g2) {
-        if (!meleeAttacking || combatState != CombatState.MELEE || combatDirection.equals("idle")) {
+        if (!meleeAttacking || combatState != CombatState.MELEE || aim == null) {
             return;
         }
 
-        Rectangle attackBox = getMeleeAttackBox();
-        int screenAttackX = attackBox.x - worldX + screenX;
-        int screenAttackY = attackBox.y - worldY + screenY;
+        Shape onScreen = AffineTransform.getTranslateInstance(screenX - worldX, screenY - worldY)
+                .createTransformedShape(getMeleeAttackArea());
 
         Color oldColor = g2.getColor();
-
         g2.setColor(Color.ORANGE);
-        g2.drawRect(screenAttackX, screenAttackY, attackBox.width, attackBox.height);
-
+        g2.draw(onScreen);
         g2.setColor(oldColor);
     }
 
@@ -699,14 +713,14 @@ public class Player extends Entity {
         resetMeleeHitEnemies();
         gp.playSoundEffect(Sound.SWORD);
 
-        addMovementImpulse(meleeWeapon.impulseFor(combatDirection));
+        addMovementImpulse(meleeWeapon.impulseFor(aim));
     }
 
     private void stopMeleeAttack() {
         meleeAttacking = false;
         meleeFrame = 0;
         meleeCooldownCounter = meleeWeapon.cooldownFrames();
-        combatDirection = "idle";
+        aim = null;
     }
 
     private void updateMeleeAttack() {
@@ -730,13 +744,13 @@ public class Player extends Entity {
     }
 
     private void meleeDamage() {
-        Rectangle attackBox = getMeleeAttackBox();
+        Shape attackArea = getMeleeAttackArea();
         resetMeleeHitEnemiesIfNeeded();
 
         boolean hitSomething = false;
         for (Enemy enemy : gp.entities.enemies()) {
             if (enemy.alive) {
-                if (!meleeHitEnemies.contains(enemy) && attackBox.intersects(enemy.getWorldHitBox())) {
+                if (!meleeHitEnemies.contains(enemy) && attackArea.intersects(enemy.getWorldHitBox())) {
                     Hit hit = new Hit(
                             meleeWeapon.damage(),
                             HitType.MELEE,
@@ -760,10 +774,10 @@ public class Player extends Entity {
         }
     }
 
-    private Rectangle getMeleeAttackBox() {
+    private Shape getMeleeAttackArea() {
         int centerX = worldX + gp.tileSize / 2;
         int centerY = worldY + gp.tileSize / 2;
-        return meleeWeapon.attackBox(combatDirection, meleeFrame, centerX, centerY);
+        return meleeWeapon.attackArea(aim, meleeFrame, centerX, centerY);
     }
 
     private boolean hasAttackInput() {
@@ -784,14 +798,6 @@ public class Player extends Entity {
         }
 
         return false;
-    }
-
-    private String getAttackInputDirection() {
-        if (keyH.upShootPressed) return "up";
-        if (keyH.downShootPressed) return "down";
-        if (keyH.leftShootPressed) return "left";
-        if (keyH.rightShootPressed) return "right";
-        return null;
     }
 
     private boolean isMeleeStrikeFrame() {
@@ -1005,14 +1011,12 @@ public class Player extends Entity {
         hurtKnockbackCounter = 0;
         meleeAttacking = false;
         meleeFrame = 0;
-        bufferedMeleeDirection = null;
+        meleeAttackBuffered = false;
         meleeInputBufferCounter = 0;
         meleeCooldownCounter = 0;
         meleeAttackInputHeldLastFrame = false;
         direction = "idle";
-        combatDirection = "idle";
-        spriteCounter = 0;
-        spriteNum = 1;
+        resetFacingAndAim();
         gp.keyH.clearGameplayInput();
         gp.playSoundEffect(Sound.PLAYER_DEATH);
         gp.onPlayerDied();

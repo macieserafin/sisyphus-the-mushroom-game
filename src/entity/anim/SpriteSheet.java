@@ -23,6 +23,7 @@ public final class SpriteSheet {
     public final int frameCount;
     public final int frameTicks;
     public final boolean loop;
+    public final double distancePerFrame;
 
     private final BufferedImage[][] frames;
 
@@ -36,6 +37,7 @@ public final class SpriteSheet {
         frameCount = intProp(props, "frames");
         frameTicks = Math.max(1, intProp(props, "frameTicks"));
         loop = Boolean.parseBoolean(props.getProperty("loop", "true").trim());
+        distancePerFrame = Double.parseDouble(props.getProperty("distancePerFrame", "0").trim());
 
         if (directions != 1 && directions != 5 && directions != 8) {
             throw new IllegalStateException(name + ": directions must be 1, 5 or 8, was " + directions);

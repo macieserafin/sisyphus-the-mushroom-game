@@ -1,6 +1,7 @@
 package entity.weapon;
 
 import entity.Bullet;
+import entity.Direction8;
 import entity.Entity;
 import entity.MovementImpulse;
 import entity.combat.Faction;
@@ -49,9 +50,9 @@ public class Pistol implements RangedWeapon {
             Entity owner,
             int shooterWorldX,
             int shooterWorldY,
-            String direction
+            Direction8 direction
     ) {
-        double[] shotVector = directionVector(direction);
+        double[] shotVector = {direction.unitX, direction.unitY};
         double bulletHalfSize = Bullet.DEFAULT_SIZE / 2.0;
         double startX = shooterWorldX + (tileSize / 2.0) - bulletHalfSize + shotVector[0] * BULLET_SPAWN_OFFSET;
         double startY = shooterWorldY + (tileSize / 2.0) - bulletHalfSize + shotVector[1] * BULLET_SPAWN_OFFSET;
@@ -89,20 +90,5 @@ public class Pistol implements RangedWeapon {
             throw new IllegalArgumentException("Cooldown reduction must be positive: " + frames);
         }
         shotCooldownFrames = Math.max(1, shotCooldownFrames - frames);
-    }
-
-    private double[] directionVector(String direction) {
-        switch (direction) {
-            case "up":
-                return new double[]{0, -1};
-            case "down":
-                return new double[]{0, 1};
-            case "left":
-                return new double[]{-1, 0};
-            case "right":
-                return new double[]{1, 0};
-            default:
-                return new double[]{0, 0};
-        }
     }
 }

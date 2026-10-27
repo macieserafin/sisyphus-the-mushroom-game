@@ -1,8 +1,9 @@
 package entity.weapon;
 
+import entity.Direction8;
 import entity.MovementImpulse;
 
-import java.awt.Rectangle;
+import java.awt.Shape;
 
 public class HeavySword implements MeleeWeapon {
     private static final int WINDUP_FRAMES = 6;
@@ -103,33 +104,12 @@ public class HeavySword implements MeleeWeapon {
     }
 
     @Override
-    public MovementImpulse impulseFor(String direction) {
-        double[] vector = directionVector(direction);
-        return new MovementImpulse(vector[0] * IMPULSE, vector[1] * IMPULSE, IMPULSE_MAX_SPEED);
+    public MovementImpulse impulseFor(Direction8 direction) {
+        return new MovementImpulse(direction.unitX * IMPULSE, direction.unitY * IMPULSE, IMPULSE_MAX_SPEED);
     }
 
     @Override
-    public Rectangle attackBox(String direction, int frame, int centerX, int centerY) {
-        switch (direction) {
-            case "up":
-                return new Rectangle(centerX - SWING_WIDTH / 2, centerY - REACH, SWING_WIDTH, REACH + OVERLAP);
-            case "down":
-                return new Rectangle(centerX - SWING_WIDTH / 2, centerY - OVERLAP, SWING_WIDTH, REACH + OVERLAP);
-            case "left":
-                return new Rectangle(centerX - REACH, centerY - SWING_WIDTH / 2, REACH + OVERLAP, SWING_WIDTH);
-            case "right":
-            default:
-                return new Rectangle(centerX - OVERLAP, centerY - SWING_WIDTH / 2, REACH + OVERLAP, SWING_WIDTH);
-        }
-    }
-
-    private double[] directionVector(String direction) {
-        switch (direction) {
-            case "up": return new double[]{0, -1};
-            case "down": return new double[]{0, 1};
-            case "left": return new double[]{-1, 0};
-            case "right": return new double[]{1, 0};
-            default: return new double[]{0, 0};
-        }
+    public Shape attackArea(Direction8 direction, int frame, int centerX, int centerY) {
+        return MeleeWeapon.swingArea(direction, centerX, centerY, OVERLAP, REACH, SWING_WIDTH);
     }
 }

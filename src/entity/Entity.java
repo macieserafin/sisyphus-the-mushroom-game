@@ -197,19 +197,15 @@ public class Entity {
     }
 
     protected void facePlayer() {
-        switch(gp.player.direction) {
-            case "up":
-                direction = "down";
-                break;
-            case "down":
-                direction = "up";
-                break;
-            case "left":
-                direction = "right";
-                break;
-            case "right":
-                direction = "left";
-                break;
+        Direction8 towardPlayer = Direction8.cardinalFromVector(gp.player.worldX - worldX, gp.player.worldY - worldY);
+        if (towardPlayer == null) {
+            return;
+        }
+        switch (towardPlayer) {
+            case N: direction = "up"; break;
+            case S: direction = "down"; break;
+            case W: direction = "left"; break;
+            default: direction = "right"; break;
         }
     }
 

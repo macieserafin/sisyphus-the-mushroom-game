@@ -1,6 +1,7 @@
 package entity.weapon;
 
 import entity.Bullet;
+import entity.Direction8;
 import entity.Entity;
 import entity.MovementImpulse;
 import entity.combat.Faction;
@@ -44,8 +45,8 @@ public class Shotgun implements RangedWeapon {
     }
 
     @Override
-    public MovementImpulse fire(int tileSize, BulletManager bulletManager, Runnable shotSound, Entity owner, int shooterWorldX, int shooterWorldY, String direction) {
-        double[] baseVector = directionVector(direction);
+    public MovementImpulse fire(int tileSize, BulletManager bulletManager, Runnable shotSound, Entity owner, int shooterWorldX, int shooterWorldY, Direction8 direction) {
+        double[] baseVector = {direction.unitX, direction.unitY};
         for (int i = -1; i <= 1; i++) {
             double[] vector = rotate(baseVector[0], baseVector[1], i * SPREAD_RADIANS);
             double bulletHalfSize = Bullet.DEFAULT_SIZE / 2.0;
@@ -81,16 +82,6 @@ public class Shotgun implements RangedWeapon {
             throw new IllegalArgumentException("Cooldown reduction must be positive: " + frames);
         }
         shotCooldownFrames = Math.max(1, shotCooldownFrames - frames);
-    }
-
-    private double[] directionVector(String direction) {
-        switch (direction) {
-            case "up": return new double[]{0, -1};
-            case "down": return new double[]{0, 1};
-            case "left": return new double[]{-1, 0};
-            case "right": return new double[]{1, 0};
-            default: return new double[]{0, 0};
-        }
     }
 
     private double[] rotate(double x, double y, double radians) {
