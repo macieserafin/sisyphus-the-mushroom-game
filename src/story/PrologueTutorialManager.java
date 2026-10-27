@@ -234,8 +234,7 @@ public class PrologueTutorialManager {
             return false;
         }
 
-        int tileNum = gp.tileM.mapTileNum[col][row];
-        return !gp.tileM.tile[tileNum].collision;
+        return !gp.tileM.isCollision(col, row);
     }
 
     private boolean hasObjectAt(int col, int row) {

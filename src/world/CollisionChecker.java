@@ -41,10 +41,10 @@ public class CollisionChecker {
             return true;
         }
 
-        return gp.tileM.tile[gp.tileM.mapTileNum[leftCol][topRow]].collision ||
-                gp.tileM.tile[gp.tileM.mapTileNum[rightCol][topRow]].collision ||
-                gp.tileM.tile[gp.tileM.mapTileNum[leftCol][bottomRow]].collision ||
-                gp.tileM.tile[gp.tileM.mapTileNum[rightCol][bottomRow]].collision;
+        return gp.tileM.isCollision(leftCol, topRow) ||
+                gp.tileM.isCollision(rightCol, topRow) ||
+                gp.tileM.isCollision(leftCol, bottomRow) ||
+                gp.tileM.isCollision(rightCol, bottomRow);
     }
 
     public boolean checkObjectAt(Entity entity, int worldX, int worldY) {
@@ -158,7 +158,7 @@ public class CollisionChecker {
         int entityTopRow = entityTopWorldY/gp.tileSize;
         int entityBottomRow = entityBottomWorldY/gp.tileSize;
 
-        int tileNum1, tileNum2;
+        boolean blocked1, blocked2;
 
         switch(entity.direction) {
             case "up":
@@ -167,9 +167,9 @@ public class CollisionChecker {
                     entity.collisionOn = true;
                     break;
                 }
-                tileNum1 = gp.tileM.mapTileNum[entityLeftCol][entityTopRow];
-                tileNum2 = gp.tileM.mapTileNum[entityRightCol][entityTopRow];
-                if(gp.tileM.tile[tileNum1].collision || gp.tileM.tile[tileNum2].collision)entity.collisionOn = true;
+                blocked1 = gp.tileM.isCollision(entityLeftCol, entityTopRow);
+                blocked2 = gp.tileM.isCollision(entityRightCol, entityTopRow);
+                if(blocked1 || blocked2)entity.collisionOn = true;
                 break;
                 case "down":
                     entityBottomRow = (entityBottomWorldY + entity.speed)/gp.tileSize;
@@ -177,9 +177,9 @@ public class CollisionChecker {
                         entity.collisionOn = true;
                         break;
                     }
-                    tileNum1 = gp.tileM.mapTileNum[entityLeftCol][entityBottomRow];
-                    tileNum2 = gp.tileM.mapTileNum[entityRightCol][entityBottomRow];
-                    if(gp.tileM.tile[tileNum1].collision || gp.tileM.tile[tileNum2].collision)entity.collisionOn = true;
+                    blocked1 = gp.tileM.isCollision(entityLeftCol, entityBottomRow);
+                    blocked2 = gp.tileM.isCollision(entityRightCol, entityBottomRow);
+                    if(blocked1 || blocked2)entity.collisionOn = true;
                     break;
                     case "left":
                         entityLeftCol = (entityLeftWorldX - entity.speed)/gp.tileSize;
@@ -187,9 +187,9 @@ public class CollisionChecker {
                             entity.collisionOn = true;
                             break;
                         }
-                        tileNum1 = gp.tileM.mapTileNum[entityLeftCol][entityTopRow];
-                        tileNum2 = gp.tileM.mapTileNum[entityLeftCol][entityBottomRow];
-                        if(gp.tileM.tile[tileNum1].collision || gp.tileM.tile[tileNum2].collision)entity.collisionOn = true;
+                        blocked1 = gp.tileM.isCollision(entityLeftCol, entityTopRow);
+                        blocked2 = gp.tileM.isCollision(entityLeftCol, entityBottomRow);
+                        if(blocked1 || blocked2)entity.collisionOn = true;
                         break;
                         case "right":
                             entityRightCol = (entityRightWorldX + entity.speed)/gp.tileSize;
@@ -197,9 +197,9 @@ public class CollisionChecker {
                                 entity.collisionOn = true;
                                 break;
                             }
-                            tileNum1 = gp.tileM.mapTileNum[entityRightCol][entityTopRow];
-                            tileNum2 = gp.tileM.mapTileNum[entityRightCol][entityBottomRow];
-                            if(gp.tileM.tile[tileNum1].collision || gp.tileM.tile[tileNum2].collision)entity.collisionOn = true;
+                            blocked1 = gp.tileM.isCollision(entityRightCol, entityTopRow);
+                            blocked2 = gp.tileM.isCollision(entityRightCol, entityBottomRow);
+                            if(blocked1 || blocked2)entity.collisionOn = true;
                             break;
         }
     }
