@@ -75,6 +75,10 @@ public class Player extends Entity {
     private int startingMeleeSlot = 0;
     private int startingRangedSlot = 0;
 
+    // Weapons cannot be used in the village; the mod menu can override that for testing.
+    private boolean weaponsLockedByArea = false;
+    private boolean weaponLockOverride = false;
+
     private boolean scriptedHold = false;
     private boolean scriptedHidden = false;
     private int scriptedDrawOffsetX = 0;
@@ -157,14 +161,18 @@ public class Player extends Entity {
 
     /** Picks the next starting melee weapon and equips it right away. Returns its name. */
     public String cycleStartingMeleeWeapon() {
-        startingMeleeSlot = (startingMeleeSlot + 1) % combatLoadout.meleeWeaponCount();
+        do {
+            startingMeleeSlot = (startingMeleeSlot + 1) % combatLoadout.meleeWeaponCount();
+        } while (!combatLoadout.ownsMelee(startingMeleeSlot));
         setMeleeWeapon(combatLoadout.selectMeleeSlot(startingMeleeSlot));
         return combatLoadout.meleeWeaponName(startingMeleeSlot);
     }
 
     /** Picks the next starting ranged weapon and equips it right away. Returns its name. */
     public String cycleStartingRangedWeapon() {
-        startingRangedSlot = (startingRangedSlot + 1) % combatLoadout.rangedWeaponCount();
+        do {
+            startingRangedSlot = (startingRangedSlot + 1) % combatLoadout.rangedWeaponCount();
+        } while (!combatLoadout.ownsRanged(startingRangedSlot));
         setRangedWeapon(combatLoadout.selectRangedSlot(startingRangedSlot));
         return combatLoadout.rangedWeaponName(startingRangedSlot);
     }
@@ -328,6 +336,10 @@ public class Player extends Entity {
     }
 
     private void selectWeaponSlot(int slot) {
+        boolean owned = combatState == CombatState.MELEE ? combatLoadout.ownsMelee(slot) : combatLoadout.ownsRanged(slot);
+        if (!owned) {
+            return;
+        }
         if (combatState == CombatState.MELEE) {
             if (meleeAttacking) {
                 return;
@@ -837,7 +849,7 @@ public class Player extends Entity {
     }
 
     private boolean hasAllowedAttackInput() {
-        if (!hasAttackInput()) {
+        if (!hasAttackInput() || isWeaponsLocked()) {
             return false;
         }
 
@@ -893,6 +905,67 @@ public class Player extends Entity {
         }
         this.rangedWeapon = rangedWeapon;
         shotCooldownCounter = 0;
+    }
+
+    public boolean isWeaponsLocked() {
+        return weaponsLockedByArea && !weaponLockOverride;
+    }
+
+    public void setWeaponsLockedByArea(boolean locked) {
+        weaponsLockedByArea = locked;
+    }
+
+    public boolean isWeaponLockOverridden() {
+        return weaponLockOverride;
+    }
+
+    public void toggleWeaponLockOverride() {
+        weaponLockOverride = !weaponLockOverride;
+    }
+
+    public int currentMeleeSlot() {
+        return combatLoadout.currentMeleeSlot();
+    }
+
+    public int currentRangedSlot() {
+        return combatLoadout.currentRangedSlot();
+    }
+
+    public boolean ownsMeleeSlot(int slot) {
+        return combatLoadout.ownsMelee(slot);
+    }
+
+    public boolean ownsRangedSlot(int slot) {
+        return combatLoadout.ownsRanged(slot);
+    }
+
+    public void setMeleeSlotOwned(int slot, boolean owned) {
+        combatLoadout.setMeleeOwned(slot, owned);
+        syncWeaponsToLoadout();
+    }
+
+    public void setRangedSlotOwned(int slot, boolean owned) {
+        combatLoadout.setRangedOwned(slot, owned);
+        syncWeaponsToLoadout();
+    }
+
+    /** Back to the starting kit: short sword and pistol only. */
+    public void resetLoadout() {
+        combatLoadout.resetOwnership();
+        startingMeleeSlot = 0;
+        startingRangedSlot = 0;
+        syncWeaponsToLoadout();
+    }
+
+    private void syncWeaponsToLoadout() {
+        if (!combatLoadout.ownsRanged(startingRangedSlot)) {
+            startingRangedSlot = 0;
+        }
+        if (!combatLoadout.ownsMelee(startingMeleeSlot)) {
+            startingMeleeSlot = 0;
+        }
+        setMeleeWeapon(combatLoadout.currentMeleeWeapon());
+        setRangedWeapon(combatLoadout.currentRangedWeapon());
     }
 
     public RangedWeapon currentRangedWeapon() {

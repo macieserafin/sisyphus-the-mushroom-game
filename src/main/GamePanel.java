@@ -381,6 +381,7 @@ public class GamePanel extends JPanel implements Runnable {
         hitStopFrames = 0;
         keyH.clearGameplayInput();
         player.setDefaultValues();
+        player.resetLoadout();
         gameState = GameState.PLAYING;
         levelManager.loadHub();
         ui.showMessage("Prologue skipped");

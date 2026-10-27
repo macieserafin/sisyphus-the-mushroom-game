@@ -31,6 +31,8 @@ public class LevelManager {
     }
 
     public void loadPrologue() {
+        gp.player.resetLoadout();
+        gp.player.setWeaponsLockedByArea(false);
         runActive = false;
         floorNumber = 0;
         bossReturnPositionSaved = false;
@@ -55,6 +57,7 @@ public class LevelManager {
     }
 
     public void loadHubAt(int col, int row) {
+        gp.player.setWeaponsLockedByArea(true);
         runActive = false;
         floorNumber = 0;
         clearLevel();
@@ -68,6 +71,7 @@ public class LevelManager {
     }
 
     public void enterInterior(Interior interior) {
+        gp.player.setWeaponsLockedByArea(true);
         clearLevel();
         activeBoss = null;
         gp.keyH.clearGameplayInput();
@@ -78,6 +82,7 @@ public class LevelManager {
     }
 
     public void loadStoryLobby() {
+        gp.player.setWeaponsLockedByArea(true);
         runActive = false;
         floorNumber = 0;
         bossReturnPositionSaved = false;
@@ -97,6 +102,7 @@ public class LevelManager {
     }
 
     public void finishPrologueBytEncounter() {
+        gp.player.resetLoadout();
         gp.storyFlags.completePrologueBytEncounter();
         gp.keyH.clearGameplayInput();
         gp.player.setDefaultValues();
@@ -119,6 +125,7 @@ public class LevelManager {
     }
 
     private void loadManualRunFloor(boolean showMessage) {
+        gp.player.setWeaponsLockedByArea(false);
         clearLevel();
         activeBoss = null;
         gp.tileM.loadMap(RUN_FLOOR_MAP_PATH);
@@ -134,6 +141,7 @@ public class LevelManager {
     }
 
     public void enterBossArena() {
+        gp.player.setWeaponsLockedByArea(false);
         bossReturnWorldX = gp.player.worldX;
         bossReturnWorldY = gp.player.worldY + gp.tileSize;
         bossReturnPositionSaved = true;
@@ -151,6 +159,7 @@ public class LevelManager {
     }
 
     public void enterPrologueBytArena() {
+        gp.player.setWeaponsLockedByArea(false);
         runActive = false;
         floorNumber = 0;
         bossReturnPositionSaved = false;
