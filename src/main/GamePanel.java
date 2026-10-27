@@ -12,6 +12,7 @@ import level.AssetSetter;
 import level.LevelManager;
 import object.SuperObject;
 import story.PrologueTutorialManager;
+import story.QuestLog;
 import story.StoryFlags;
 import story.StorySequenceManager;
 import story.StorySequences;
@@ -75,6 +76,7 @@ public class GamePanel extends JPanel implements Runnable {
     public TitleMenu titleMenu = new TitleMenu(this);
     public DialogueManager dialogueManager = new DialogueManager(this);
     public StoryFlags storyFlags = new StoryFlags();
+    public QuestLog questLog = new QuestLog();
     public StorySequenceManager storySequenceManager = new StorySequenceManager(this);
     public PrologueTutorialManager prologueTutorialManager = new PrologueTutorialManager(this);
     Thread gameThread;

@@ -23,13 +23,20 @@ public class UI {
     Font arial_40;
     Font consolas_18;
     BufferedImage keyImage;
+    private Hud hud;
+
+    public String pauseMessage = "";
+
+    // Compact dialogue box: about a fifth of the screen, centred above the bottom edge.
+    private static final int DIALOGUE_WIDTH = 600;
+    private static final int DIALOGUE_HEIGHT = 120;
+    private static final int DIALOGUE_BOTTOM_MARGIN = 18;
+    private final Font dialogueFont = new Font("SansSerif", Font.PLAIN, 16);
     private final Map<String, BufferedImage> visualNovelBackgroundCache = new HashMap<>();
 
     public boolean messageOn = false;
     public String message = "";
     int messageCounter = 0;
-
-    public String pauseMessage = "";
 
     private int blinkClose, blinkHold, blinkOpen;
     private int blinkTick = -1;
@@ -48,6 +55,7 @@ public class UI {
     public void showMessage(String s) {
         message = s;
         messageOn = true;
+        messageCounter = 0;
     }
 
     public void draw(Graphics g2) {
@@ -60,17 +68,12 @@ public class UI {
 
         g2.setFont(consolas_18);
         g2.setColor(Color.WHITE);
-        g2.drawImage(keyImage, 115, 33, 20, 20, null);
-        g2.drawString("Keys = " + gp.player.hasKey, 30, 50);
-        g2.drawString("Health = " + gp.player.health + "/" + gp.player.maxHealth, 30, 70);
-        g2.drawString("Tryb walki (Q): " + gp.player.combatState, 30, 90);
-        g2.drawString("Bron: " + gp.player.currentWeaponName(), 30, 110);
-        if (gp.player.combatState.name().equals("MELEE")) {
-            g2.drawString(gp.player.meleeSlotLabel(0) + "   " + gp.player.meleeSlotLabel(1), 30, 130);
+        if (hud == null) {
+            hud = new Hud(gp);
         }
-        else {
-            g2.drawString(gp.player.rangedSlotLabel(0) + "   " + gp.player.rangedSlotLabel(1), 30, 130);
-        }
+        hud.draw(this.g2);
+        g2.setFont(consolas_18);
+        g2.setColor(Color.WHITE);
         if (gp.debugSettings.isOverlayEnabled()) {
             Rectangle playerSolidArea = gp.player.getWorldSolidArea();
             int playerTileCol = Math.floorDiv(playerSolidArea.x + playerSolidArea.width / 2, gp.tileSize);
@@ -82,7 +85,7 @@ public class UI {
 
 
         if (messageOn) {
-            g2.drawString(message, 300, 250);
+            drawMessageToast();
 
             messageCounter++;
 
@@ -92,9 +95,10 @@ public class UI {
             }
         }
 
+
         if (gp.gameState == GameState.PAUSED) {
             pauseMessage = "Paused";
-            g2.drawString(pauseMessage, 300, 250);
+            drawPauseWindow();
         }
         if (gp.gameState == GameState.PLAYING) {
             pauseMessage = "";
@@ -107,6 +111,8 @@ public class UI {
 
         drawBlink();
         drawDialogueOverlay();
+
+
 
 
     }
@@ -158,51 +164,47 @@ public class UI {
             return;
         }
 
-        int barWidth = 360;
-        int barHeight = 14;
+        int barWidth = 258;
+        int barHeight = 21;
         int x = gp.screenWidth / 2 - barWidth / 2;
-        int y = 24;
-        int filledWidth = barWidth * boss.health / boss.maxHealth;
+        int y = 42;
+        int inner = barWidth - 12;
+        int filledWidth = Math.max(0, inner * boss.health / boss.maxHealth);
 
         Color oldColor = g2.getColor();
-        Font oldFont = g2.getFont();
 
-        g2.setFont(consolas_18);
-        g2.setColor(Color.WHITE);
-        g2.drawString(boss.name, getXForCenteredText(boss.name), y - 6);
+        UiSkin.inset(g2, x, y, barWidth, barHeight);
+        g2.setColor(new Color(0x3A1418));
+        g2.fillRect(x + 6, y + 6, inner, barHeight - 12);
+        g2.setColor(new Color(0xA8302A));
+        g2.fillRect(x + 6, y + 6, filledWidth, barHeight - 12);
+        g2.setColor(new Color(0xD8584A));
+        g2.fillRect(x + 6, y + 6, filledWidth, UiSkin.P);
+        UiSkin.header(g2, gp.screenWidth / 2, y - 30, boss.name);
 
-        g2.setColor(Color.DARK_GRAY);
-        g2.fillRect(x - 2, y - 2, barWidth + 4, barHeight + 4);
-
-        g2.setColor(Color.RED);
-        g2.fillRect(x, y, barWidth, barHeight);
-
-        g2.setColor(Color.GREEN);
-        g2.fillRect(x, y, filledWidth, barHeight);
-
-        g2.setColor(Color.WHITE);
-        g2.drawRect(x, y, barWidth, barHeight);
-
-        g2.setFont(oldFont);
         g2.setColor(oldColor);
     }
 
     public void drawDeathScreen() {
-        String text = "You died.";
+        String text = "You died";
         String prompt = "Continue? Press ENTER";
 
-        g2.setFont(arial_40);
-        g2.setColor(Color.RED);
+        g2.setColor(new Color(10, 4, 6, 170));
+        g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
 
-        int x = getXForCenteredText(text);
-        int y = gp.screenHeight / 2;
+        int width = 366;
+        int height = 135;
+        int x = gp.screenWidth / 2 - width / 2;
+        int y = gp.screenHeight / 2 - height / 2;
+        UiSkin.frame(g2, x, y, width, height);
 
-        g2.drawString(text, x, y);
+        int scale = 4;
+        UiSkin.PixelFont.draw(g2, text, gp.screenWidth / 2 - UiSkin.PixelFont.width(text, scale) / 2, y + 30, scale, UiSkin.TEXT_RED);
+        UiSkin.divider(g2, x + 30, y + 72, width - 60);
 
         g2.setFont(consolas_18);
-        g2.setColor(Color.WHITE);
-        x = getXForCenteredText(prompt);
-        g2.drawString(prompt, x, y + 35);
+        g2.setColor(UiSkin.TEXT);
+        g2.drawString(prompt, getXForCenteredText(prompt), y + 105);
     }
 
     /** Screen pixels covered by the bottom dialogue box right now (0 when no box is open). */
@@ -211,7 +213,7 @@ public class UI {
         if (line == null || line.presentation() == DialogueLine.Presentation.VISUAL_NOVEL) {
             return 0;
         }
-        return gp.tileSize * 4 + gp.tileSize / 4;
+        return DIALOGUE_HEIGHT + DIALOGUE_BOTTOM_MARGIN + 12;
     }
 
     public void drawDialogueOverlay() {
@@ -220,14 +222,34 @@ public class UI {
             return;
         }
 
-        int margin = gp.tileSize / 2;
-        int height = gp.tileSize * 4;
-        int x = margin;
-        int y = gp.screenHeight - height - margin / 2;
-        int width = gp.screenWidth - margin * 2;
+        int x = gp.screenWidth / 2 - DIALOGUE_WIDTH / 2;
+        int y = gp.screenHeight - DIALOGUE_HEIGHT - DIALOGUE_BOTTOM_MARGIN;
 
-        drawDialogueWindow(x, y, width, height, line);
+        drawDialogueWindow(x, y, DIALOGUE_WIDTH, DIALOGUE_HEIGHT, line);
     }
+
+    private void drawMessageToast() {
+        int scale = 2;
+        int width = UiSkin.PixelFont.width(message, scale) + 42;
+        int x = gp.screenWidth / 2 - width / 2;
+        UiSkin.plaque(g2, x, 186, width, 30, message, UiSkin.RED);
+    }
+    private void drawPauseWindow() {
+        int width = 246;
+        int height = 87;
+        int x = gp.screenWidth / 2 - width / 2;
+        int y = gp.screenHeight / 2 - height / 2;
+        UiSkin.frame(g2, x, y, width, height);
+        UiSkin.header(g2, gp.screenWidth / 2, y - 14, pauseMessage);
+
+        Font oldFont = g2.getFont();
+        g2.setFont(consolas_18);
+        g2.setColor(UiSkin.TEXT_DIM);
+        String hint = "P - resume";
+        g2.drawString(hint, getXForCenteredText(hint), y + 52);
+        g2.setFont(oldFont);
+    }
+
 
     private void drawVisualNovelScene() {
         DialogueLine line = gp.dialogueManager.currentLine();
@@ -335,46 +357,42 @@ public class UI {
         Font oldFont = g2.getFont();
         Stroke oldStroke = g2.getStroke();
 
-        int nameBoxWidth = Math.max(gp.tileSize * 4, g2.getFontMetrics(consolas_18).stringWidth(line.speaker().name()) + gp.tileSize * 2);
-        int nameBoxHeight = gp.tileSize;
-        int nameBoxX = x + gp.tileSize / 5;
-        int nameBoxY = y - nameBoxHeight;
+        UiSkin.frame(g2, x, y, width, height);
+        if (!line.speaker().name().isEmpty()) {
+            drawNamePlate(x + 24, y - 15, line.speaker().name());
+        }
 
-        g2.setColor(new Color(0, 24, 32, 195));
-        g2.fillRect(nameBoxX, nameBoxY, nameBoxWidth, nameBoxHeight);
-        g2.setColor(line.speaker().accentColor());
-        g2.setStroke(new BasicStroke(2));
-        g2.drawRect(nameBoxX, nameBoxY, nameBoxWidth, nameBoxHeight);
-
-        g2.setFont(consolas_18.deriveFont(Font.BOLD, 24f));
-        g2.setColor(Color.WHITE);
-        g2.drawString(line.speaker().name(), nameBoxX + 26, nameBoxY + 33);
-
-        g2.setColor(new Color(0, 18, 26, 205));
-        g2.fillRect(x, y, width, height);
-        g2.setColor(new Color(140, 240, 255, 170));
-        g2.setStroke(new BasicStroke(2));
-        g2.drawRect(x, y, width, height);
-
-        int textX = x + 26;
-        int textY = y + 48;
-        int textWidth = width - 52;
+        int textX = x + 30;
+        int textY = y + 50;
+        int textWidth = width - 60;
         int textHeight = height - 74;
 
         g2.setFont(consolas_18.deriveFont(Font.PLAIN, 25f));
-        g2.setColor(Color.WHITE);
+        g2.setColor(UiSkin.TEXT);
         drawWrappedText(gp.dialogueManager.visibleText(), textX, textY, textWidth, textHeight, 35);
 
-        g2.setFont(consolas_18);
-        g2.setColor(new Color(215, 230, 235));
-        g2.drawString("ENTER", x + width - 78, y + height - 18);
+        drawKeyHint(x + width - 24, y + height - 36, "ENTER");
         if (gp.storySequenceManager.canSkipActiveSequence()) {
-            g2.drawString("ESC SKIP", x + width - 182, y + height - 18);
+            drawKeyHint(x + width - 114, y + height - 36, "ESC SKIP");
         }
 
         g2.setStroke(oldStroke);
         g2.setFont(oldFont);
         g2.setColor(oldColor);
+    }
+
+    /** Speaker name on a plate that sits across the top edge of a dialogue frame. */
+    private void drawNamePlate(int x, int y, String name) {
+        int width = UiSkin.PixelFont.width(name, 2) + 42;
+        width += (UiSkin.P - width % UiSkin.P) % UiSkin.P;
+        UiSkin.plaque(g2, x, y, width, 30, name, UiSkin.GLOW);
+    }
+
+    /** Small dim plate with a key name, right-aligned to rightX. */
+    private void drawKeyHint(int rightX, int y, String key) {
+        int width = UiSkin.PixelFont.width(key, 1) + 24;
+        width += (UiSkin.P - width % UiSkin.P) % UiSkin.P;
+        UiSkin.plaque(g2, rightX - width, y, width, 24, key, UiSkin.DIM);
     }
 
     public void drawSubWindow(int x, int y, int width, int height) {
@@ -398,34 +416,29 @@ public class UI {
         Font oldFont = g2.getFont();
         Stroke oldStroke = g2.getStroke();
 
-        g2.setColor(new Color(0, 0, 0, 215));
-        g2.fillRoundRect(x, y, width, height, 24, 24);
-
-        g2.setColor(line.speaker().accentColor());
-        g2.setStroke(new BasicStroke(3));
-        g2.drawRoundRect(x + 4, y + 4, width - 8, height - 8, 18, 18);
+        UiSkin.frame(g2, x, y, width, height);
 
         int portraitSize = height - 36;
-        int portraitX = x + 22;
+        int portraitX = x + 18;
         int portraitY = y + 18;
         drawPortraitSlot(portraitX, portraitY, portraitSize, line.speaker());
 
-        int textX = portraitX + portraitSize + 24;
-        int textY = y + 34;
+        if (!line.speaker().name().isEmpty()) {
+            drawNamePlate(portraitX + portraitSize + 12, y - 15, line.speaker().name());
+        }
+
+        int textX = portraitX + portraitSize + 18;
+        int textY = y + 38;
         int textWidth = x + width - textX - 24;
+        int lineHeight = 22;
 
-        g2.setFont(consolas_18.deriveFont(Font.BOLD));
-        g2.setColor(line.speaker().accentColor());
-        g2.drawString(line.speaker().name(), textX, textY);
+        g2.setFont(dialogueFont);
+        g2.setColor(UiSkin.TEXT);
+        drawWrappedText(gp.dialogueManager.visibleText(), textX, textY, textWidth, lineHeight * 3, lineHeight);
 
-        g2.setFont(consolas_18);
-        g2.setColor(Color.WHITE);
-        int textHeight = y + height - (textY + 30) - 24;
-        drawWrappedText(gp.dialogueManager.visibleText(), textX, textY + 30, textWidth, textHeight, 24);
-
+        // sits across the bottom edge so it never covers the text
         if (line.mode() == DialogueLine.Mode.BLOCKING) {
-            g2.setColor(new Color(220, 220, 220));
-            g2.drawString("ENTER", x + width - 78, y + height - 22);
+            drawKeyHint(x + width - 24, y + height - 12, "ENTER");
         }
 
         g2.setStroke(oldStroke);
@@ -434,27 +447,21 @@ public class UI {
     }
 
     private void drawPortraitSlot(int x, int y, int size, DialogueSpeaker speaker) {
-        g2.setColor(new Color(18, 18, 18));
-        g2.fillRoundRect(x, y, size, size, 16, 16);
-        g2.setColor(new Color(90, 90, 90));
-        g2.drawRoundRect(x, y, size, size, 16, 16);
+        UiSkin.inset(g2, x, y, size, size);
 
         BufferedImage portrait = speaker.portrait();
         if (portrait != null) {
-            g2.drawImage(portrait, x + 4, y + 4, size - 8, size - 8, null);
+            g2.drawImage(portrait, x + 6, y + 6, size - 12, size - 12, null);
+            return;
+        }
+        if (speaker.name().isEmpty()) {
             return;
         }
 
-        String initial = speaker.name().substring(0, 1).toUpperCase();
-        Font oldFont = g2.getFont();
-        g2.setFont(arial_40.deriveFont(Font.BOLD, 36f));
-        g2.setColor(speaker.accentColor());
-
-        FontMetrics fm = g2.getFontMetrics();
-        int textX = x + size / 2 - fm.stringWidth(initial) / 2;
-        int textY = y + size / 2 + fm.getAscent() / 2 - 6;
-        g2.drawString(initial, textX, textY);
-        g2.setFont(oldFont);
+        String initial = speaker.name().substring(0, 1);
+        int scale = 6;
+        UiSkin.PixelFont.draw(g2, initial, x + size / 2 - UiSkin.PixelFont.width(initial, scale) / 2,
+                y + size / 2 - 7 * scale / 2, scale, speaker.accentColor());
     }
 
     private void drawVisualNovelPortrait(int x, int y, int width, int height, DialogueSpeaker speaker) {

@@ -1,0 +1,254 @@
+package main;
+
+import entity.CombatState;
+import entity.enemy.Enemy;
+import entity.npc.NPC;
+import story.QuestLog;
+import tile.MapFile;
+import tile.Tile;
+
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.util.List;
+
+/** In-game overlay: hearts, combat mode + weapon, minimap and quest panel. */
+public class Hud {
+
+    private static final int MARGIN = 12;
+    private static final int BADGE_SIZE = 60;
+    private static final int MINIMAP_SIZE = 120;
+    private static final int RIGHT_PANEL_WIDTH = 156;
+
+    private final GamePanel gp;
+    private final Font smallFont = new Font("SansSerif", Font.PLAIN, 12);
+    private final Font boldFont = new Font("SansSerif", Font.BOLD, 15);
+    private final Color[] tileColors;
+
+    private int[][] minimapGround;
+    private int[][] minimapObjects;
+    private BufferedImage minimapImage;
+
+    public Hud(GamePanel gp) {
+        this.gp = gp;
+        tileColors = new Color[gp.tileM.tile.length];
+    }
+
+    public void draw(Graphics2D g2) {
+        Object oldTextAa = g2.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);
+        Stroke oldStroke = g2.getStroke();
+        Font oldFont = g2.getFont();
+        Color oldColor = g2.getColor();
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        drawStatus(g2, MARGIN, MARGIN);
+
+        int rightX = gp.screenWidth - MARGIN - RIGHT_PANEL_WIDTH;
+        int rightBottom = drawMinimap(g2, rightX, MARGIN + 14);
+        drawQuests(g2, rightX, rightBottom + 26);
+
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, oldTextAa);
+        g2.setStroke(oldStroke);
+        g2.setFont(oldFont);
+        g2.setColor(oldColor);
+    }
+
+    // ---- hearts, combat mode and weapon -------------------------------------------------------
+
+    private void drawStatus(Graphics2D g2, int x, int y) {
+        boolean melee = gp.player.combatState == CombatState.MELEE;
+        boolean locked = gp.player.isWeaponsLocked();
+
+        // medallion with the weapon in hand
+        UiSkin.badge(g2, x, y, BADGE_SIZE, locked ? UiSkin.DIM : UiSkin.RED);
+        UiSkin.icon(g2, iconFor(melee, melee ? meleeSlot() : rangedSlot()),
+                x + BADGE_SIZE / 2, y + BADGE_SIZE / 2, 3, !locked);
+        if (locked) {
+            UiSkin.icon(g2, UiSkin.Icon.LOCK, x + BADGE_SIZE - 10, y + BADGE_SIZE - 10, 2, true);
+        }
+
+        // hearts: one per point of health, no bar
+        int heartsX = x + BADGE_SIZE + 8;
+        int max = Math.max(0, gp.player.maxHealth);
+        int hp = Math.max(0, Math.min(gp.player.health, max));
+        for (int i = 0; i < max; i++) {
+            UiSkin.heart(g2, heartsX + i * (UiSkin.HEART_W + 3), y + 2, i < hp);
+        }
+
+        // mode tabs: the active one glows, the other is dimmed
+        int tabY = y + 36;
+        UiSkin.plaque(g2, heartsX, tabY, 84, 27, "MELEE", melee ? UiSkin.GLOW : UiSkin.DIM);
+        UiSkin.plaque(g2, heartsX + 87, tabY, 84, 27, "RANGE", melee ? UiSkin.DIM : UiSkin.GLOW);
+
+        if (gp.player.hasKey > 0) {
+            int keyX = heartsX + 177;
+            g2.drawImage(gp.ui.keyImage, keyX, tabY + 4, 18, 18, null);
+            g2.setFont(boldFont);
+            g2.setColor(UiSkin.GOLD);
+            g2.drawString("" + gp.player.hasKey, keyX + 20, tabY + 19);
+        }
+    }
+
+    private int meleeSlot() {
+        return gp.player.currentMeleeSlot();
+    }
+
+    private int rangedSlot() {
+        return gp.player.currentRangedSlot();
+    }
+
+    private static UiSkin.Icon iconFor(boolean melee, int slot) {
+        if (melee) {
+            return slot == 0 ? UiSkin.Icon.SWORD : UiSkin.Icon.HEAVY_SWORD;
+        }
+        return slot == 0 ? UiSkin.Icon.PISTOL : UiSkin.Icon.SHOTGUN;
+    }
+
+    // ---- minimap ------------------------------------------------------------------------------
+
+    private int drawMinimap(Graphics2D g2, int x, int y) {
+        int panelH = RIGHT_PANEL_WIDTH;
+        UiSkin.frame(g2, x, y, RIGHT_PANEL_WIDTH, panelH);
+        int wellX = x + 15;
+        int wellY = y + 15;
+        UiSkin.inset(g2, wellX, wellY, MINIMAP_SIZE + 6, MINIMAP_SIZE + 6);
+        UiSkin.header(g2, x + RIGHT_PANEL_WIDTH / 2, y - 14, "MAP");
+
+        int cols = gp.tileM.getWorldCols();
+        int rows = gp.tileM.getWorldRows();
+        if (cols <= 0 || rows <= 0) {
+            return y + panelH;
+        }
+        refreshMinimapImage();
+
+        double scale = Math.min((double) MINIMAP_SIZE / cols, (double) MINIMAP_SIZE / rows);
+        int drawW = (int) Math.round(cols * scale);
+        int drawH = (int) Math.round(rows * scale);
+        int mapX = wellX + 3 + (MINIMAP_SIZE - drawW) / 2;
+        int mapY = wellY + 3 + (MINIMAP_SIZE - drawH) / 2;
+
+        Object oldInterp = g2.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2.drawImage(minimapImage, mapX, mapY, drawW, drawH, null);
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldInterp);
+
+        double worldToMap = scale / gp.tileSize;
+        List<NPC> npcs = gp.entities.npcs();
+        g2.setColor(UiSkin.GOLD);
+        for (NPC npc : npcs) {
+            drawDot(g2, mapX, mapY, npc.worldX + gp.tileSize / 2, npc.worldY + gp.tileSize / 2, worldToMap, 3);
+        }
+        g2.setColor(new Color(235, 60, 60));
+        for (Enemy enemy : gp.entities.enemies()) {
+            if (enemy.alive) {
+                drawDot(g2, mapX, mapY, enemy.worldX + gp.tileSize / 2, enemy.worldY + gp.tileSize / 2, worldToMap, 3);
+            }
+        }
+
+        // player: white dot with a dark outline so it reads on any terrain
+        int px = gp.player.worldX + gp.tileSize / 2;
+        int py = gp.player.worldY + gp.tileSize / 2;
+        g2.setColor(Color.BLACK);
+        drawDot(g2, mapX, mapY, px, py, worldToMap, 7);
+        g2.setColor(UiSkin.CREAM);
+        drawDot(g2, mapX, mapY, px, py, worldToMap, 5);
+        return y + panelH;
+    }
+
+    private void drawDot(Graphics2D g2, int mapX, int mapY, int worldX, int worldY, double worldToMap, int size) {
+        int dx = mapX + (int) Math.round(worldX * worldToMap) - size / 2;
+        int dy = mapY + (int) Math.round(worldY * worldToMap) - size / 2;
+        g2.fillRect(dx, dy, size, size);
+    }
+
+    /** One pixel per map cell; rebuilt only when a different map has been loaded. */
+    private void refreshMinimapImage() {
+        int[][] ground = gp.tileM.mapTileNum;
+        int[][] objects = gp.tileM.objectTileNum;
+        if (minimapImage != null && ground == minimapGround && objects == minimapObjects) {
+            return;
+        }
+        int cols = gp.tileM.getWorldCols();
+        int rows = gp.tileM.getWorldRows();
+        BufferedImage image = new BufferedImage(cols, rows, BufferedImage.TYPE_INT_ARGB);
+        for (int col = 0; col < cols; col++) {
+            for (int row = 0; row < rows; row++) {
+                int id = ground[col][row];
+                int object = objects[col][row];
+                if (object != MapFile.EMPTY && gp.tileM.tile[object].collision) {
+                    id = object;
+                }
+                image.setRGB(col, row, tileColor(id).getRGB());
+            }
+        }
+        minimapImage = image;
+        minimapGround = ground;
+        minimapObjects = objects;
+    }
+
+    private Color tileColor(int id) {
+        if (tileColors[id] == null) {
+            Tile tile = gp.tileM.tile[id];
+            BufferedImage img = tile.image;
+            long r = 0, g = 0, b = 0, n = 0;
+            if (img != null) {
+                for (int py = 0; py < img.getHeight(); py++) {
+                    for (int px = 0; px < img.getWidth(); px++) {
+                        int argb = img.getRGB(px, py);
+                        if ((argb >>> 24) < 128) {
+                            continue;
+                        }
+                        r += (argb >> 16) & 0xFF;
+                        g += (argb >> 8) & 0xFF;
+                        b += argb & 0xFF;
+                        n++;
+                    }
+                }
+            }
+            tileColors[id] = n == 0 ? new Color(40, 40, 48) : new Color((int) (r / n), (int) (g / n), (int) (b / n));
+        }
+        return tileColors[id];
+    }
+
+    // ---- quests -------------------------------------------------------------------------------
+
+    private void drawQuests(Graphics2D g2, int x, int y) {
+        List<QuestLog.Quest> quests = gp.questLog.active();
+        int lineH = 15;
+        int height = 30 + Math.max(1, quests.size()) * (lineH * 2 + 6) + 6;
+        UiSkin.frame(g2, x, y, RIGHT_PANEL_WIDTH, height);
+        UiSkin.header(g2, x + RIGHT_PANEL_WIDTH / 2, y - 14, "QUESTS");
+
+        g2.setFont(smallFont);
+        FontMetrics fm = g2.getFontMetrics();
+        int textX = x + 18;
+        int textW = RIGHT_PANEL_WIDTH - 36;
+        int ty = y + 32;
+        if (quests.isEmpty()) {
+            g2.setColor(UiSkin.TEXT_DIM);
+            g2.drawString("No active quests", textX, ty + 4);
+            return;
+        }
+        for (QuestLog.Quest quest : quests) {
+            g2.setColor(UiSkin.GOLD);
+            g2.fillRect(textX, ty - 7, 3, 3);
+            g2.setFont(smallFont.deriveFont(Font.BOLD));
+            g2.setColor(UiSkin.TEXT);
+            g2.drawString(trim(g2.getFontMetrics(), quest.title(), textW - 8), textX + 8, ty);
+            g2.setFont(smallFont);
+            g2.setColor(UiSkin.TEXT_DIM);
+            g2.drawString(trim(fm, quest.description(), textW - 8), textX + 8, ty + lineH);
+            ty += lineH * 2 + 6;
+        }
+    }
+
+    private String trim(FontMetrics fm, String text, int width) {
+        if (fm.stringWidth(text) <= width) {
+            return text;
+        }
+        String result = text;
+        while (!result.isEmpty() && fm.stringWidth(result + "...") > width) {
+            result = result.substring(0, result.length() - 1);
+        }
+        return result + "...";
+    }
+}
