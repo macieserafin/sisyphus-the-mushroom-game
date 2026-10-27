@@ -26,6 +26,7 @@ public final class SpriteSheet {
     public final double distancePerFrame;
 
     private final BufferedImage[][] frames;
+    private final Point[][] hands;
 
     private SpriteSheet(String name, Properties props, BufferedImage image) {
         this.name = name;
@@ -46,6 +47,8 @@ public final class SpriteSheet {
             throw new IllegalStateException(name + ": image is " + image.getWidth() + "x" + image.getHeight()
                     + ", expected at least " + frameWidth * frameCount + "x" + frameHeight * directions);
         }
+
+        hands = readHands(props);
 
         frames = new BufferedImage[directions][frameCount];
         GraphicsConfiguration config = graphicsConfiguration();
@@ -71,12 +74,13 @@ public final class SpriteSheet {
         int col = Math.floorMod(index, frameCount);
         switch (directions) {
             case 1:
-                return new Frame(this, frames[0][col], false);
+                return new Frame(this, frames[0][col], hands[0][col], false);
             case 5:
                 Direction8 east = dir.mirroredToEast();
-                return new Frame(this, frames[fiveRow(east)][col], east != dir);
+                int row = fiveRow(east);
+                return new Frame(this, frames[row][col], hands[row][col], east != dir);
             default:
-                return new Frame(this, frames[dir.ordinal()][col], false);
+                return new Frame(this, frames[dir.ordinal()][col], hands[dir.ordinal()][col], false);
         }
     }
 
@@ -95,11 +99,33 @@ public final class SpriteSheet {
         public final SpriteSheet sheet;
         public final BufferedImage image;
         public final boolean mirrored;
+        private final Point hand;
 
-        Frame(SpriteSheet sheet, BufferedImage image, boolean mirrored) {
+        Frame(SpriteSheet sheet, BufferedImage image, Point hand, boolean mirrored) {
             this.sheet = sheet;
             this.image = image;
+            this.hand = hand;
             this.mirrored = mirrored;
+        }
+
+        public boolean hasHand() {
+            return hand != null;
+        }
+
+        public int handX() {
+            return mirrored ? sheet.frameWidth - 1 - hand.x : hand.x;
+        }
+
+        public int handY() {
+            return hand.y;
+        }
+
+        public int originX(int footX, int scale) {
+            return footX - anchorX() * scale;
+        }
+
+        public int originY(int footY, int scale) {
+            return footY - sheet.anchorY * scale;
         }
 
         public int anchorX() {
@@ -109,14 +135,42 @@ public final class SpriteSheet {
         public void draw(Graphics2D g2, int footX, int footY, int scale) {
             int w = sheet.frameWidth * scale;
             int h = sheet.frameHeight * scale;
-            int x = footX - anchorX() * scale;
-            int y = footY - sheet.anchorY * scale;
+            int x = originX(footX, scale);
+            int y = originY(footY, scale);
             if (mirrored) {
                 g2.drawImage(image, x + w, y, -w, h, null);
             } else {
                 g2.drawImage(image, x, y, w, h, null);
             }
         }
+    }
+
+    private Point[][] readHands(Properties props) {
+        Point[][] result = new Point[directions][frameCount];
+        for (int row = 0; row < directions; row++) {
+            String rowKey = directions == 1 ? "hand" : "hand." + rowDirection(row).name();
+            Point rowHand = parsePoint(props.getProperty(rowKey));
+            for (int col = 0; col < frameCount; col++) {
+                Point frameHand = parsePoint(props.getProperty(rowKey + "." + col));
+                result[row][col] = frameHand != null ? frameHand : rowHand;
+            }
+        }
+        return result;
+    }
+
+    private Direction8 rowDirection(int row) {
+        if (directions == 5) {
+            return new Direction8[]{Direction8.S, Direction8.SE, Direction8.E, Direction8.NE, Direction8.N}[row];
+        }
+        return Direction8.values()[row];
+    }
+
+    private static Point parsePoint(String value) {
+        if (value == null) {
+            return null;
+        }
+        String[] parts = value.split(",");
+        return new Point(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
     }
 
     private static int intProp(Properties props, String key) {

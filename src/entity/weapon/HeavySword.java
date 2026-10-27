@@ -2,6 +2,7 @@ package entity.weapon;
 
 import entity.Direction8;
 import entity.MovementImpulse;
+import entity.anim.WeaponSprite;
 
 import java.awt.Shape;
 
@@ -24,7 +25,9 @@ public class HeavySword implements MeleeWeapon {
     private static final double RECOVERY_DAMPING = 0.70;
     private static final double ENEMY_KNOCKBACK = 11.0;
     private static final int HIT_STOP_FRAMES = 3;
+    private static final double SWING_ARC_RADIANS = Math.toRadians(170);
     private final PlayerCombatAnimations animations = PlayerCombatAnimations.loadDefaultMelee();
+    private final WeaponSprite sprite = WeaponSprite.load("heavy_sword");
 
     @Override
     public String displayName() {
@@ -34,6 +37,16 @@ public class HeavySword implements MeleeWeapon {
     @Override
     public PlayerCombatAnimations animations() {
         return animations;
+    }
+
+    @Override
+    public WeaponSprite sprite() {
+        return sprite;
+    }
+
+    @Override
+    public double swingArcRadians() {
+        return SWING_ARC_RADIANS;
     }
 
     @Override

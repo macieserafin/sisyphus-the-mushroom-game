@@ -2,6 +2,7 @@ package entity.weapon;
 
 import entity.Direction8;
 import entity.MovementImpulse;
+import entity.anim.WeaponSprite;
 
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
@@ -10,6 +11,8 @@ import java.awt.geom.Rectangle2D;
 public interface MeleeWeapon {
     String displayName();
     PlayerCombatAnimations animations();
+    WeaponSprite sprite();
+    double swingArcRadians();
     int inputBufferFrames();
     int cooldownFrames();
     int damage();

@@ -16,7 +16,7 @@ public class PlayerCombatAnimations {
     }
 
     public static PlayerCombatAnimations loadDefaultMelee() {
-        return new PlayerCombatAnimations(null, SpriteSheet.load("player/anim/player_melee"));
+        return new PlayerCombatAnimations(null, SpriteSheet.load("player/anim/player_attack"));
     }
 
     public SpriteSheet shoot() {

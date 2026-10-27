@@ -4,6 +4,7 @@ import entity.Bullet;
 import entity.Direction8;
 import entity.Entity;
 import entity.MovementImpulse;
+import entity.anim.WeaponSprite;
 import entity.combat.Faction;
 import world.BulletManager;
 
@@ -19,6 +20,7 @@ public class Pistol implements RangedWeapon {
     private int shotCooldownFrames = DEFAULT_SHOT_COOLDOWN_FRAMES;
     private double bulletSpeed = DEFAULT_BULLET_SPEED;
     private final PlayerCombatAnimations animations = PlayerCombatAnimations.loadDefaultRanged();
+    private final WeaponSprite sprite = WeaponSprite.load("pistol");
 
     @Override
     public String displayName() {
@@ -28,6 +30,11 @@ public class Pistol implements RangedWeapon {
     @Override
     public PlayerCombatAnimations animations() {
         return animations;
+    }
+
+    @Override
+    public WeaponSprite sprite() {
+        return sprite;
     }
 
     public double movementMultiplier() {

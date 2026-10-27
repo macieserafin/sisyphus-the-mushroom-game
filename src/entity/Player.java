@@ -10,6 +10,7 @@ import entity.enemy.Enemy;
 import entity.npc.NPC;
 import object.SuperObject;
 import entity.anim.PlayerAnimator;
+import entity.anim.WeaponRenderer;
 import entity.anim.SpriteSheet;
 import entity.weapon.CombatLoadout;
 import entity.weapon.MeleeWeapon;
@@ -35,6 +36,8 @@ public class Player extends Entity {
     private static final double HURT_KNOCKBACK_DAMPING = 0.84;
     private static final double INTERACT_RANGE_TILES = 1.3;
     private static final int AIM_CHORD_TICKS = 2;
+    private static final int MUZZLE_FLASH_TICKS = 4;
+    private static final int RECOIL_KICK_TICKS = 3;
     private static final double FACING_HYSTERESIS_RADIANS = Math.toRadians(10);
 
     KeyHandler keyH;
@@ -57,6 +60,8 @@ public class Player extends Entity {
     private Direction8 heldAim;
     private Direction8 lastAim;
     private int aimHeldTicks;
+    private int muzzleFlashTicks;
+    private int recoilKickTicks;
 
     private int shotCooldownCounter = 0;
 
@@ -202,6 +207,8 @@ public class Player extends Entity {
         heldAim = null;
         lastAim = null;
         aimHeldTicks = 0;
+        muzzleFlashTicks = 0;
+        recoilKickTicks = 0;
     }
 
     public void endScriptedHold() {
@@ -304,6 +311,12 @@ public class Player extends Entity {
         }
         if (meleeCooldownCounter > 0) {
             meleeCooldownCounter--;
+        }
+        if (muzzleFlashTicks > 0) {
+            muzzleFlashTicks--;
+        }
+        if (recoilKickTicks > 0) {
+            recoilKickTicks--;
         }
     }
 
@@ -564,6 +577,8 @@ public class Player extends Entity {
     }
 
     private void fireBullet(Direction8 shootDirection) {
+        muzzleFlashTicks = MUZZLE_FLASH_TICKS;
+        recoilKickTicks = RECOIL_KICK_TICKS;
         addMovementImpulse(rangedWeapon.fire(
                 gp.tileSize,
                 gp.bulletManager,
@@ -679,7 +694,15 @@ public class Player extends Entity {
         if (isHurtInvincible() && (hurtInvincibleCounter / 5) % 2 == 0) {
             g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
         }
+        boolean weaponVisible = isWeaponDrawn(frame);
+        boolean weaponBehind = weaponVisible && aim.dy < 0;
+        if (weaponBehind) {
+            drawWeapon(g2, frame, footX, footY);
+        }
         frame.draw(g2, footX, footY, gp.scale);
+        if (weaponVisible && !weaponBehind) {
+            drawWeapon(g2, frame, footX, footY);
+        }
         g2.setComposite(oldComposite);
 
         if (gp.debugSettings.isOverlayEnabled()) {
@@ -691,6 +714,32 @@ public class Player extends Entity {
 
             drawMeleeHitBox(g2);
         }
+    }
+
+    private boolean isWeaponDrawn(SpriteSheet.Frame frame) {
+        if (aim == null || !frame.hasHand()) {
+            return false;
+        }
+        return combatState == CombatState.RANGE || (combatState == CombatState.MELEE && meleeAttacking);
+    }
+
+    private void drawWeapon(Graphics2D g2, SpriteSheet.Frame frame, int footX, int footY) {
+        int scale = gp.scale;
+        int handX = frame.originX(footX, scale) + frame.handX() * scale;
+        int handY = frame.originY(footY, scale) + frame.handY() * scale;
+        if (combatState == CombatState.RANGE) {
+            double angle = aim.angle();
+            int kick = recoilKickTicks > 0 ? -1 : 0;
+            WeaponRenderer.drawHeld(g2, rangedWeapon.sprite(), angle, handX, handY, scale, kick);
+            if (muzzleFlashTicks > 0) {
+                WeaponRenderer.drawMuzzleFlash(g2, rangedWeapon.sprite(), angle, handX, handY, scale, kick, muzzleFlashTicks);
+            }
+            return;
+        }
+        WeaponRenderer.SwingPose pose = WeaponRenderer.swingPose(meleeWeapon, meleeFrame, aim);
+        double bladeLength = meleeWeapon.sprite().length();
+        WeaponRenderer.drawSmear(g2, pose, bladeLength * 0.6, bladeLength + 1, handX, handY, scale);
+        WeaponRenderer.drawHeld(g2, meleeWeapon.sprite(), pose.bladeAngle, handX, handY, scale, 0);
     }
 
     private void drawMeleeHitBox(Graphics2D g2) {
