@@ -78,6 +78,9 @@ public class GamePanel extends JPanel implements Runnable {
     public StoryFlags storyFlags = new StoryFlags();
     public QuestLog questLog = new QuestLog();
     public ModMenu modMenu = new ModMenu(this);
+    public DisplayManager display = new DisplayManager(this);
+    public OptionsMenu optionsMenu = new OptionsMenu(this);
+    public PauseMenu pauseMenu = new PauseMenu(this);
     public StorySequenceManager storySequenceManager = new StorySequenceManager(this);
     public PrologueTutorialManager prologueTutorialManager = new PrologueTutorialManager(this);
     Thread gameThread;
@@ -176,6 +179,11 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
+        if (gameState == GameState.PAUSED) {
+            pauseMenu.update();
+            return;
+        }
+
         if (prologueSkipRequested) {
             prologueSkipRequested = false;
             skipPrologue();
@@ -257,6 +265,14 @@ public class GamePanel extends JPanel implements Runnable {
         super.paintComponent(g);
 
         Graphics2D g2 = (Graphics2D) g;
+        // The game is drawn at its native size and scaled to fill the window, keeping the 4:3 frame.
+        double viewScale = Math.min(getWidth() / (double) screenWidth, getHeight() / (double) screenHeight);
+        if (viewScale <= 0) {
+            return;
+        }
+        g2.translate((getWidth() - screenWidth * viewScale) / 2, (getHeight() - screenHeight * viewScale) / 2);
+        g2.scale(viewScale, viewScale);
+        g2.clipRect(0, 0, screenWidth, screenHeight);
         g2.setRenderingHint(
                 RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
@@ -305,6 +321,44 @@ public class GamePanel extends JPanel implements Runnable {
         music.play();
         music.loop();
         currentMusic = i;
+    }
+
+    public void pauseGame() {
+        keyH.clearGameplayInput();
+        pauseMenu.open();
+        gameState = GameState.PAUSED;
+        pauseMusic(0);
+    }
+
+    public void resumeGame() {
+        keyH.clearGameplayInput();
+        gameState = GameState.PLAYING;
+        playAreaMusic();
+    }
+
+    /** Drops the current game completely; Start Game on the title screen begins a fresh one. */
+    public void returnToTitle() {
+        storySequenceManager.cancel();
+        dialogueManager.clear();
+        music.stop();
+        cutsceneMusic.stop();
+        se.stopAllEffects();
+        currentMusic = -1;
+
+        storyFlags = new StoryFlags();
+        prologueTutorialManager = new PrologueTutorialManager(this);
+        questLog.clear();
+        villageAwakeningPending = false;
+        restartAfterDeathPending = false;
+        tutorialRespawnPending = false;
+        prologueSkipRequested = false;
+        hitStopFrames = 0;
+
+        levelManager.clearLevel();
+        keyH.clearGameplayInput();
+        player.setDefaultValues();
+        player.resetLoadout();
+        gameState = GameState.MENU;
     }
 
     public void pauseMusic(int i) {

@@ -7,7 +7,7 @@ public class KeyHandler implements KeyListener {
     public boolean upPressed, downPressed, leftPressed, rightPressed;
     public boolean upShootPressed, downShootPressed, leftShootPressed, rightShootPressed;
     public boolean shiftPressed, spacePressed, enterPressed;
-    public boolean qPressed, pPressed, onePressed, twoPressed;
+    public boolean qPressed, onePressed, twoPressed;
 
     GamePanel gp;
 
@@ -99,10 +99,9 @@ public class KeyHandler implements KeyListener {
                 gp.debugDamageActiveBoss(100);
             }
 
-            if (code == KeyEvent.VK_P) {
-                pPressed = true;
-                gp.gameState = GameState.PAUSED;
-                gp.pauseMusic(0);
+            if (code == KeyEvent.VK_ESCAPE) {
+                gp.pauseGame();
+                return;
             }
 
             if (code == KeyEvent.VK_ENTER) {
@@ -111,12 +110,7 @@ public class KeyHandler implements KeyListener {
             }
         }
         else if(gp.gameState == GameState.PAUSED) {
-            if (code == KeyEvent.VK_P) {
-                pPressed = true;
-                gp.gameState = GameState.PLAYING;
-                gp.playAreaMusic();
-            }
-
+            gp.pauseMenu.keyPressed(code);
         }
         else if(gp.gameState == GameState.DIALOGUE) {
             if (code == KeyEvent.VK_ENTER) {
@@ -180,9 +174,6 @@ public class KeyHandler implements KeyListener {
             qPressed = false;
         }
 
-        if (code == KeyEvent.VK_P) {
-            pPressed = false;
-        }
         if (code == KeyEvent.VK_1) {
             onePressed = false;
         }

@@ -45,7 +45,7 @@ public class TitleMenu {
 
     private void handle(int code) {
         if (inOptions) {
-            if (code == KeyEvent.VK_ESCAPE || code == KeyEvent.VK_ENTER) {
+            if (gp.optionsMenu.handle(code)) {
                 inOptions = false;
             }
             return;
@@ -70,6 +70,7 @@ public class TitleMenu {
                 break;
             case OPTIONS:
                 inOptions = true;
+                gp.optionsMenu.open();
                 break;
             case EXIT:
                 System.exit(0);
@@ -103,7 +104,7 @@ public class TitleMenu {
         }
 
         String[] hints = inOptions
-                ? new String[]{"ESC  BACK"}
+                ? new String[]{"A/D  CHANGE", "ESC  BACK"}
                 : new String[]{"W/S  MOVE", "ENTER  SELECT"};
         int totalW = 0;
         for (String hint : hints) {
@@ -161,17 +162,7 @@ public class TitleMenu {
     }
 
     private void drawOptions(Graphics2D g2) {
-        int width = 366;
-        int height = 120;
-        int x = gp.screenWidth / 2 - width / 2;
-        int y = 336;
-        UiSkin.frame(g2, x, y, width, height);
-        UiSkin.header(g2, gp.screenWidth / 2, y - 14, "OPTIONS");
-
-        g2.setFont(subtitleFont);
-        g2.setColor(UiSkin.TEXT_DIM);
-        String empty = "Nothing here yet.";
-        g2.drawString(empty, centered(g2, empty), y + 68);
+        gp.optionsMenu.draw(g2, 336);
     }
 
     private int centered(Graphics2D g2, String text) {

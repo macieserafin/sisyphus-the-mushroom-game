@@ -25,8 +25,6 @@ public class UI {
     BufferedImage keyImage;
     private Hud hud;
 
-    public String pauseMessage = "";
-
     // Compact dialogue box: about a fifth of the screen, centred above the bottom edge.
     private static final int DIALOGUE_WIDTH = 600;
     private static final int DIALOGUE_HEIGHT = 120;
@@ -96,15 +94,6 @@ public class UI {
         }
 
 
-        if (gp.gameState == GameState.PAUSED) {
-            pauseMessage = "Paused";
-            drawPauseWindow();
-        }
-        if (gp.gameState == GameState.PLAYING) {
-            pauseMessage = "";
-
-        }
-
         if (gp.gameState == GameState.DEAD) {
             drawDeathScreen();
         }
@@ -114,7 +103,9 @@ public class UI {
         if (gp.gameState == GameState.MOD_MENU) {
             gp.modMenu.draw(this.g2);
         }
-
+        if (gp.gameState == GameState.PAUSED) {
+            gp.pauseMenu.draw(this.g2);
+        }
 
 
     }
@@ -236,22 +227,6 @@ public class UI {
         int x = gp.screenWidth / 2 - width / 2;
         UiSkin.plaque(g2, x, 186, width, 30, message, UiSkin.RED);
     }
-    private void drawPauseWindow() {
-        int width = 246;
-        int height = 87;
-        int x = gp.screenWidth / 2 - width / 2;
-        int y = gp.screenHeight / 2 - height / 2;
-        UiSkin.frame(g2, x, y, width, height);
-        UiSkin.header(g2, gp.screenWidth / 2, y - 14, pauseMessage);
-
-        Font oldFont = g2.getFont();
-        g2.setFont(consolas_18);
-        g2.setColor(UiSkin.TEXT_DIM);
-        String hint = "P - resume";
-        g2.drawString(hint, getXForCenteredText(hint), y + 52);
-        g2.setFont(oldFont);
-    }
-
 
     private void drawVisualNovelScene() {
         DialogueLine line = gp.dialogueManager.currentLine();
