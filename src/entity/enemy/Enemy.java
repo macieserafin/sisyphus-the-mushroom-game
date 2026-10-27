@@ -301,6 +301,10 @@ public class Enemy extends Entity {
         drawHealthBar(g2);
     }
 
+    // Drawn after the player, for effects that must appear on top of everything in the world.
+    public void drawOverlay(Graphics2D g2) {
+    }
+
     private void drawDamageFlash(Graphics g2) {
         if (damageFlashFramesLeft <= 0 || !alive) {
             return;

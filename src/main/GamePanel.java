@@ -4,6 +4,8 @@ import dialogue.DialogueLine;
 import dialogue.DialogueManager;
 import dialogue.DialogueSpeaker;
 import entity.Player;
+import entity.combat.Hit;
+import entity.combat.HitType;
 import entity.enemy.Enemy;
 import entity.npc.NPC;
 import level.AssetSetter;
@@ -46,6 +48,8 @@ public class GamePanel extends JPanel implements Runnable {
     Sound music = new Sound();
     Sound cutsceneMusic = new Sound();
     private int currentMusic = -1;
+    private boolean restartAfterDeathPending = false;
+    private boolean tutorialRespawnPending = false;
     private boolean villageAwakeningPending = false;
 
     // What BYT says from somewhere above the plaza when the player wakes up after dying.
@@ -153,6 +157,16 @@ public class GamePanel extends JPanel implements Runnable {
             villageAwakeningPending = false;
             storySequenceManager.start(StorySequences.villageAwakening(this));
         }
+        if (restartAfterDeathPending) {
+            restartAfterDeathPending = false;
+            restartAfterDeath();
+        }
+        if (tutorialRespawnPending) {
+            tutorialRespawnPending = false;
+            keyH.clearGameplayInput();
+            prologueTutorialManager.respawnPlayerForPractice();
+        }
+
         dialogueManager.update();
         storySequenceManager.update();
 
@@ -238,6 +252,10 @@ public class GamePanel extends JPanel implements Runnable {
 
         player.draw(g2);
 
+        for(Enemy enemy : entities.enemies()) {
+            enemy.drawOverlay(g2);
+        }
+
         ui.draw(g2);
 
         g2.dispose();
@@ -305,15 +323,47 @@ public class GamePanel extends JPanel implements Runnable {
         villageAwakeningPending = true;
     }
 
+    // Dying to BYT in the prologue skips the death screen and goes straight to his lines.
+    // The restart waits for the next update so it doesn't run in the middle of the hit that killed the player.
+    public void onPlayerDied() {
+        if (isPrologueBytEncounterActive()) {
+            restartAfterDeathPending = true;
+            return;
+        }
+        if (prologueTutorialManager.isFightingPracticeSlimes()) {
+            tutorialRespawnPending = true;
+            return;
+        }
+        gameState = GameState.DEAD;
+    }
+
+    private boolean isPrologueBytEncounterActive() {
+        return storyFlags.isPrologueBytEncounterStarted() && !storyFlags.isPrologueBytEncounterCompleted();
+    }
+
     public void restartAfterDeath() {
         keyH.clearGameplayInput();
         hitStopFrames = 0;
         player.setDefaultValues();
 
+        if (isPrologueBytEncounterActive()) {
+            gameState = GameState.PLAYING;
+            storySequenceManager.start(StorySequences.prologueBytPlayerFell(this));
+            return;
+        }
+
         levelManager.loadHub();
         gameState = GameState.PLAYING;
         playAreaMusic();
         dialogueManager.showAmbient(BYT_VOICE, WAKE_UP_TAUNTS[random.nextInt(WAKE_UP_TAUNTS.length)], DialogueLine.Priority.HIGH, 60 * 4);
+    }
+
+    public void debugDamageActiveBoss(int damage) {
+        Enemy boss = levelManager.getActiveBoss();
+        if (boss == null) {
+            return;
+        }
+        boss.receiveHit(new Hit(damage, HitType.MELEE, player, player.worldX, player.worldY, 0, null));
     }
 
     public void startHitStop(int frames) {

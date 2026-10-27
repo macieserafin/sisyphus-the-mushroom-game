@@ -1,7 +1,6 @@
 package entity;
 
 import main.GamePanel;
-import main.GameState;
 import main.KeyHandler;
 import main.Sound;
 import entity.combat.Hit;
@@ -1022,6 +1021,6 @@ public class Player extends Entity {
         spriteNum = 1;
         gp.keyH.clearGameplayInput();
         gp.playSoundEffect(Sound.PLAYER_DEATH);
-        gp.gameState = GameState.DEAD;
+        gp.onPlayerDied();
     }
 }

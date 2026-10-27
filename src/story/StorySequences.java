@@ -866,6 +866,25 @@ public final class StorySequences {
         );
     }
 
+    public static StorySequence prologueBytPlayerFell(GamePanel gp) {
+        DialogueSpeaker byt = createSpeaker(
+                "BYT",
+                BYT_SHADOW_SPLASH,
+                new Color(190, 80, 230)
+        );
+
+        return StorySequence.of(
+                "prologue_byt_player_fell",
+                StorySequenceStep.visualNovelDialogue(
+                        byt,
+                        "Already?",
+                        "I had not even started trying.",
+                        "Get up. Somewhere else. I will find you there too."
+                ),
+                StorySequenceStep.action(gp.levelManager::finishPrologueBytEncounter)
+        );
+    }
+
     private static DialogueSpeaker createSpeaker(String name, String portraitPath, Color accentColor) {
         return new DialogueSpeaker(name, loadImage(portraitPath), accentColor);
     }

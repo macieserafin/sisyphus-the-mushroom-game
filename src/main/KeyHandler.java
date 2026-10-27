@@ -70,6 +70,9 @@ public class KeyHandler implements KeyListener {
             if (code == KeyEvent.VK_F3) {
                 gp.debugSettings.toggleOverlay();
             }
+            if (code == KeyEvent.VK_F4 && gp.debugSettings.isOverlayEnabled()) {
+                gp.debugDamageActiveBoss(100);
+            }
 
             if (code == KeyEvent.VK_P) {
                 pPressed = true;

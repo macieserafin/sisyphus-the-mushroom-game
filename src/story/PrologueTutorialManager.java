@@ -3,11 +3,17 @@ package story;
 import dialogue.DialogueLine;
 import dialogue.DialogueSpeaker;
 import entity.CombatState;
+import entity.enemy.Enemy;
+import entity.enemy.Enemy_Slime;
 import main.GamePanel;
 import main.GameState;
+import main.Sound;
 import object.TutorialSword;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class PrologueTutorialManager {
     private enum Step {
@@ -21,7 +27,8 @@ public class PrologueTutorialManager {
         COMPLETE
     }
 
-    private static final int PRACTICE_FRAMES = 60 * 12;
+    private static final int PRACTICE_SLIME_COUNT = 5;
+    private static final int PRACTICE_SLIME_MIN_DISTANCE_TILES = 4;
     private static final int NEXT_LINE_DELAY_FRAMES = 60 * 2;
     private static final int TUTORIAL_DIALOGUE_FRAMES = Integer.MAX_VALUE;
     private static final int[][] DEFAULT_SWORD_OFFSETS = {
@@ -41,7 +48,8 @@ public class PrologueTutorialManager {
     private boolean instructionActionCompleted = false;
     private int nextLineDelayLeft = -1;
     private TutorialSword tutorialSword = null;
-    private int practiceFramesLeft = 0;
+    private final List<Enemy> practiceSlimes = new ArrayList<>();
+    private int lastPracticeSlimesLeft = -1;
 
     public PrologueTutorialManager(GamePanel gp) {
         this.gp = gp;
@@ -59,14 +67,14 @@ public class PrologueTutorialManager {
                 break;
             case WAIT_FOR_MOVE:
                 if (isInstructionComplete(hasMovementInput())) {
-                    say("Ah. A pistol in the jacket. Of course. You woke in an impossible forest and still brought a smaller ending. Arrow keys fire it.");
+                    say("Ah. A pistol in the jacket. Of course. You woke in an impossible forest and still brought a fucking pistol. [Arrow keys fire it.]");
                     step = Step.WAIT_FOR_RANGED;
                     resetInstructionProgress();
                 }
                 break;
             case WAIT_FOR_RANGED:
                 if (isInstructionComplete(hasAttackInput() && gp.player.combatState == CombatState.RANGE)) {
-                    say("Good. Lead makes such brave promises. It will not be enough here.");
+                    say("Good. Lead makes such brave promises. It will not be enough here. Take a sword.");
                     spawnTutorialSword();
                     step = Step.WAIT_FOR_SWORD_PICKUP;
                     resetInstructionProgress();
@@ -74,14 +82,14 @@ public class PrologueTutorialManager {
                 break;
             case WAIT_FOR_SWORD_PICKUP:
                 if (isInstructionComplete(false)) {
-                    say("There. A sharper lie. Q changes the shape: blade, gun, blade again.");
+                    say("There. A sharper lie. [Q] changes the shape: blade, gun, blade again.");
                     step = Step.WAIT_FOR_SWITCH;
                     resetInstructionProgress();
                 }
                 break;
             case WAIT_FOR_SWITCH:
                 if (isInstructionComplete(gp.player.combatState == CombatState.MELEE)) {
-                    say("Closer, then. Let the fear use your hands. Arrow keys. Swing.");
+                    say("Closer. Now take a swing. [Use the arrow keys]");
                     step = Step.WAIT_FOR_MELEE;
                     resetInstructionProgress();
                 }
@@ -89,16 +97,26 @@ public class PrologueTutorialManager {
             case WAIT_FOR_MELEE:
                 if (isInstructionComplete(gp.player.combatState == CombatState.MELEE && hasAttackInput())) {
                     say("There it is. A tiny blade against a very old hunger. Keep moving. I want to watch.");
-                    practiceFramesLeft = PRACTICE_FRAMES;
+                    spawnPracticeSlimes();
                     step = Step.PRACTICE;
                     resetInstructionProgress();
                 }
                 break;
             case PRACTICE:
-                if (practiceFramesLeft > 0) {
-                    practiceFramesLeft--;
+                int slimesLeft = countPracticeSlimesAlive();
+                if (slimesLeft != lastPracticeSlimesLeft) {
+                    lastPracticeSlimesLeft = slimesLeft;
+                    if (slimesLeft > 0) {
+                        gp.ui.showMessage("Slimes left: " + slimesLeft);
+                    }
+                }
+                if (slimesLeft > 0) {
                     break;
                 }
+                practiceSlimes.clear();
+                // Full health going into the BYT encounter.
+                gp.player.health = gp.player.maxHealth;
+                gp.playSoundEffect(Sound.POWERUP);
                 gp.storyFlags.completePrologueTutorial();
                 gp.storyFlags.startPrologueBytEncounter();
                 gp.storySequenceManager.start(StorySequences.prologueBytEncounterIntro(gp));
@@ -163,6 +181,67 @@ public class PrologueTutorialManager {
 
         tutorialSword = null;
         instructionActionCompleted = true;
+    }
+
+    public boolean isFightingPracticeSlimes() {
+        return isTutorialLockActive() && step == Step.PRACTICE;
+    }
+
+    // Dying to the practice slimes just puts the player back at the start; the slimes keep their progress.
+    public void respawnPlayerForPractice() {
+        gp.player.setDefaultValues();
+        gp.levelManager.placePlayerAtPrologueSpawn();
+        say("Up. The hunger is patient, and so am I.");
+    }
+
+    private void spawnPracticeSlimes() {
+        practiceSlimes.clear();
+        lastPracticeSlimesLeft = -1;
+
+        int playerCol = Math.floorDiv(gp.player.worldX + gp.tileSize / 2, gp.tileSize);
+        int playerRow = Math.floorDiv(gp.player.worldY + gp.tileSize / 2, gp.tileSize);
+
+        List<int[]> candidates = new ArrayList<>();
+        for (int col = 0; col < gp.tileM.getWorldCols(); col++) {
+            for (int row = 0; row < gp.tileM.getWorldRows(); row++) {
+                int distance = Math.max(Math.abs(col - playerCol), Math.abs(row - playerRow));
+                if (distance >= PRACTICE_SLIME_MIN_DISTANCE_TILES && isOpenTile(col, row) && !hasObjectAt(col, row)) {
+                    candidates.add(new int[]{col, row});
+                }
+            }
+        }
+        Collections.shuffle(candidates);
+
+        for (int[] tile : candidates) {
+            if (practiceSlimes.size() >= PRACTICE_SLIME_COUNT) {
+                break;
+            }
+            if (isNextToPracticeSlime(tile[0], tile[1])) {
+                continue;
+            }
+            practiceSlimes.add(gp.entities.addEnemy(new Enemy_Slime(gp), tile[0], tile[1]));
+        }
+    }
+
+    private boolean isNextToPracticeSlime(int col, int row) {
+        for (Enemy slime : practiceSlimes) {
+            int slimeCol = slime.worldX / gp.tileSize;
+            int slimeRow = slime.worldY / gp.tileSize;
+            if (Math.abs(slimeCol - col) <= 1 && Math.abs(slimeRow - row) <= 1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int countPracticeSlimesAlive() {
+        int alive = 0;
+        for (Enemy slime : practiceSlimes) {
+            if (slime.alive) {
+                alive++;
+            }
+        }
+        return alive;
     }
 
     private boolean isInstructionComplete(boolean actionCompletedThisFrame) {
