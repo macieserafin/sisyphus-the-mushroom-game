@@ -128,39 +128,52 @@ public class GamePanel extends JPanel implements Runnable {
 
     @Override
     public void run() {
-        double drawInterval = 1000000000 / FPS;
-        double delta = 0;
-        long lastTime = System.nanoTime();
-        long currentTime;
-        long timer = 0;
-        int drawCount = 0;
+        final long tickNanos = 1_000_000_000L / FPS;
+        final int maxCatchUpTicks = 5;
+        long nextTick = System.nanoTime();
+        long statsStart = nextTick;
+        int ticks = 0;
+        int frames = 0;
 
-        while(gameThread != null) {
-            currentTime = System.nanoTime();
-
-            delta += (currentTime - lastTime) / drawInterval;
-            timer += (currentTime - lastTime);
-            lastTime = currentTime;
-
-            if (delta >= 1) {
-                // 1 UPDATE: update information such as character positions
+        while (gameThread != null) {
+            int updates = 0;
+            while (System.nanoTime() - nextTick >= 0 && updates < maxCatchUpTicks) {
                 synchronized (frameLock) {
                     update();
                 }
-
-                // 2 DRAW: draw the screen with the updated information
-                repaint();
-
-                delta--;
-                drawCount++;
+                nextTick += tickNanos;
+                updates++;
+            }
+            if (updates == maxCatchUpTicks && System.nanoTime() - nextTick >= 0) {
+                nextTick = System.nanoTime();
             }
 
-            if (timer >= 1000000000) {
+            if (updates > 0) {
+                repaint();
+                ticks += updates;
+                frames++;
+            }
+
+            long now = System.nanoTime();
+            if (now - statsStart >= 1_000_000_000L) {
                 if (debugSettings.isOverlayEnabled()) {
-                    System.out.println("FPS: " + FPS);
+                    System.out.println("UPS: " + ticks + "  FPS: " + frames);
                 }
-                drawCount = 0;
-                timer = 0;
+                ticks = 0;
+                frames = 0;
+                statsStart = now;
+            }
+
+            long sleepNanos = nextTick - System.nanoTime();
+            if (sleepNanos > 2_000_000L) {
+                try {
+                    Thread.sleep((sleepNanos - 1_000_000L) / 1_000_000L);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            } else if (sleepNanos > 0) {
+                Thread.yield();
             }
         }
     }
@@ -251,6 +264,7 @@ public class GamePanel extends JPanel implements Runnable {
         synchronized (frameLock) {
             paintFrame(g);
         }
+        Toolkit.getDefaultToolkit().sync();
     }
 
     private void paintFrame(Graphics g) {

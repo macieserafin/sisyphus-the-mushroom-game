@@ -9,16 +9,14 @@ import entity.combat.HitType;
 import entity.enemy.Enemy;
 import entity.npc.NPC;
 import object.SuperObject;
+import entity.anim.AnimationPlayer;
+import entity.anim.SpriteSheet;
 import entity.weapon.CombatLoadout;
 import entity.weapon.MeleeWeapon;
 import entity.weapon.RangedWeapon;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -83,6 +81,10 @@ public class Player extends Entity {
     private int scriptedDrawOffsetX = 0;
     private int scriptedDrawOffsetY = 0;
 
+    private final SpriteSheet idleSheet = SpriteSheet.load("player/anim/player_idle");
+    private final SpriteSheet walkSheet = SpriteSheet.load("player/anim/player_walk");
+    private final AnimationPlayer locomotion = new AnimationPlayer();
+
     public Player(GamePanel gp, KeyHandler keyH) {
         super(gp);
         this.keyH = keyH;
@@ -97,7 +99,6 @@ public class Player extends Entity {
         hitBox = new Rectangle(7, -2, 33, 52);
 
         setDefaultValues();
-        getPlayerImage();
     }
 
     public void setDefaultValues() {
@@ -125,8 +126,7 @@ public class Player extends Entity {
         meleeCooldownCounter = 0;
         meleeAttackInputHeldLastFrame = false;
         resetMeleeHitEnemies();
-        spriteCounter = 0;
-        spriteNum = 1;
+        locomotion.restart(idleSheet);
         endScriptedHold();
     }
 
@@ -219,25 +219,6 @@ public class Player extends Entity {
         collisionOn = false;
     }
 
-    public void getPlayerImage() {
-        try {
-            up1 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_up_1.png")));
-            up2 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_up_2.png")));
-            down1 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_down_1.png")));
-            down2 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_down_2.png")));
-            left1 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_left_1.png")));
-            left2 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_left_2.png")));
-            right1 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_right_1.png")));
-            right2 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_right_2.png")));
-
-            idle1 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_idle_1.png")));
-            idle2 = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("player/player_idle_2.png")));
-
-        } catch(IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     public void update() {
         if (!alive) {
             return;
@@ -246,7 +227,7 @@ public class Player extends Entity {
         if (scriptedHold) {
             velX = 0;
             velY = 0;
-            updateSpriteAnimation(false);
+            updateLocomotionAnimation();
             return;
         }
 
@@ -294,7 +275,7 @@ public class Player extends Entity {
         clampVelocity(getCurrentVelocityCap(currentMaxSpeed, attackInput, hurtKnockbackActive));
         updateDirectionFromVelocity();
         resolveInteractionsAfterMovement();
-        updateSpriteAnimation(movingInput);
+        updateLocomotionAnimation();
     }
 
     private void tickTimers() {
@@ -535,14 +516,9 @@ public class Player extends Entity {
         interactNPC(npcIndex);
     }
 
-    private void updateSpriteAnimation(boolean movingInput) {
-        spriteCounter++;
-
-        int spriteUpdate = movingInput ? 10 : 18;
-        if (spriteCounter > spriteUpdate) {
-            spriteNum = spriteNum == 1 ? 2 : 1;
-            spriteCounter = 0;
-        }
+    private void updateLocomotionAnimation() {
+        locomotion.play("idle".equals(direction) ? idleSheet : walkSheet, true);
+        locomotion.update();
     }
 
     private double vectorLength(double x, double y) {
@@ -657,21 +633,15 @@ public class Player extends Entity {
             return;
         }
 
-        BufferedImage image = getCurrentPlayerImage();
-        if (image == null) {
-            image = idle1;
-        }
+        SpriteSheet.Frame frame = currentFrame();
+        int footX = screenX + gp.tileSize / 2 + scriptedDrawOffsetX;
+        int footY = screenY + gp.tileSize + scriptedDrawOffsetY;
 
-        int drawW = image.getWidth() * gp.scale;
-        int drawH = image.getHeight() * gp.scale;
-
-        Point p = computeDrawPosition(drawW, drawH);
-        p.translate(scriptedDrawOffsetX, scriptedDrawOffsetY);
         Composite oldComposite = g2.getComposite();
         if (isHurtInvincible() && (hurtInvincibleCounter / 5) % 2 == 0) {
             g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
         }
-        g2.drawImage(image, p.x, p.y, drawW, drawH, null);
+        frame.draw(g2, footX, footY, gp.scale);
         g2.setComposite(oldComposite);
 
         if (gp.debugSettings.isOverlayEnabled()) {
@@ -685,38 +655,25 @@ public class Player extends Entity {
         }
     }
 
-    private BufferedImage getCurrentPlayerImage() {
-        if(combatDirection.equals("idle")) {
-            if (direction.equals("idle")) {
-                return spriteNum == 1 ? idle1 : idle2;
+    private SpriteSheet.Frame currentFrame() {
+        if ("idle".equals(combatDirection)) {
+            SpriteSheet.Frame frame = locomotion.currentFrame(Direction8.fromLegacyName(direction));
+            return frame != null ? frame : idleSheet.frame(Direction8.S, 0);
+        }
+
+        Direction8 aim = Direction8.fromLegacyName(combatDirection);
+        if (combatState == CombatState.RANGE) {
+            SpriteSheet shoot = rangedWeapon.animations().shoot();
+            if (shoot != null) {
+                return shoot.frame(aim, 0);
             }
-
-            switch (direction) {
-                case "up":
-                    return spriteNum == 1 ? up1 : up2;
-                case "left":
-                    return spriteNum == 1 ? left1 : left2;
-                case "right":
-                    return spriteNum == 1 ? right1 : right2;
-                case "down":
-                    return spriteNum == 1 ? down1 : down2;
-                default:
-                    return idle1;
+        } else if (combatState == CombatState.MELEE && meleeAttacking) {
+            SpriteSheet attack = meleeWeapon.animations().attack();
+            if (attack != null) {
+                return attack.frame(aim, meleeWeapon.useStrikeSprite(meleeFrame) ? 1 : 0);
             }
         }
-
-        if(combatState == CombatState.RANGE){
-            BufferedImage rangedImage = rangedWeapon.animations().shootImage(combatDirection);
-            return rangedImage != null ? rangedImage : idle1;
-        }
-
-        if (combatState == CombatState.MELEE && meleeAttacking) {
-            boolean useAttack2 = meleeWeapon.useStrikeSprite(meleeFrame);
-            BufferedImage meleeImage = meleeWeapon.animations().attackImage(combatDirection, useAttack2);
-            return meleeImage != null ? meleeImage : idle1;
-        }
-
-        return idle1;
+        return idleSheet.frame(Direction8.S, 0);
     }
 
     private void drawMeleeHitBox(Graphics2D g2) {
@@ -734,39 +691,6 @@ public class Player extends Entity {
         g2.drawRect(screenAttackX, screenAttackY, attackBox.width, attackBox.height);
 
         g2.setColor(oldColor);
-    }
-
-    private Point computeDrawPosition(int drawW, int drawH) {
-        int anchorX = screenX + gp.tileSize / 2;
-        int anchorY = screenY + gp.tileSize;
-
-        int drawX = anchorX - drawW / 2;
-        int drawY = anchorY - drawH;
-
-        boolean isMeleeSprite = combatState == CombatState.MELEE && !"idle".equals(combatDirection);
-        if (!isMeleeSprite) {
-            return new Point(drawX, drawY);
-        }
-
-        int extraW = drawW - gp.tileSize;
-
-        switch (combatDirection) {
-            case "right":
-                drawX = screenX;
-                break;
-            case "left":
-                drawX = screenX - extraW;
-                break;
-            case "down":
-                drawY = screenY;
-                drawX = screenX - extraW / 2;
-                break;
-            case "up":
-            default:
-                break;
-        }
-
-        return new Point(drawX, drawY);
     }
 
     private void startMeleeAttack() {
