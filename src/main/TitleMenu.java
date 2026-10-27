@@ -20,10 +20,7 @@ public class TitleMenu {
     private final GamePanel gp;
     private final ConcurrentLinkedQueue<Integer> pressedKeys = new ConcurrentLinkedQueue<>();
     private final BufferedImage background;
-    private final Font titleFont = new Font("Serif", Font.BOLD, 54);
     private final Font subtitleFont = new Font("Serif", Font.ITALIC, 20);
-    private final Font itemFont = new Font("Monospaced", Font.BOLD, 26);
-    private final Font hintFont = new Font("Monospaced", Font.PLAIN, 14);
 
     private int selected = START;
     private boolean inOptions = false;
@@ -92,64 +89,89 @@ public class TitleMenu {
             g2.setColor(new Color(18, 22, 16));
             g2.fillRect(0, 0, w, h);
         }
-        g2.setPaint(new GradientPaint(0, 0, new Color(8, 6, 10, 170), 0, h, new Color(8, 6, 10, 235)));
+        g2.setPaint(new GradientPaint(0, 0, new Color(14, 6, 10, 150), 0, h, new Color(10, 4, 8, 235)));
+        g2.fillRect(0, 0, w, h);
+        g2.setPaint(new RadialGradientPaint(w / 2f, h / 2f, w * 0.75f, new float[]{0.55f, 1f},
+                new Color[]{new Color(0, 0, 0, 0), new Color(0, 0, 0, 170)}));
         g2.fillRect(0, 0, w, h);
 
+        drawTitle(g2);
         if (inOptions) {
             drawOptions(g2);
         } else {
-            drawTitle(g2);
             drawItems(g2);
         }
 
-        g2.setFont(hintFont);
-        g2.setColor(new Color(170, 160, 140));
-        String hint = inOptions ? "ESC - back" : "W/S or arrows - move     ENTER - choose";
-        g2.drawString(hint, centered(g2, hint), h - 24);
+        String[] hints = inOptions
+                ? new String[]{"ESC  BACK"}
+                : new String[]{"W/S  MOVE", "ENTER  SELECT"};
+        int totalW = 0;
+        for (String hint : hints) {
+            totalW += hintWidth(hint) + 12;
+        }
+        int x = (w - totalW + 12) / 2;
+        for (String hint : hints) {
+            UiSkin.plaque(g2, x, h - 42, hintWidth(hint), 27, hint, UiSkin.DIM);
+            x += hintWidth(hint) + 12;
+        }
+    }
+
+    private static int hintWidth(String hint) {
+        int width = UiSkin.PixelFont.width(hint, 2) + 30;
+        return width + (UiSkin.P - width % UiSkin.P) % UiSkin.P;
     }
 
     private void drawTitle(Graphics2D g2) {
-        String title = "Sisyphus the Mushroom";
-        g2.setFont(titleFont);
-        int x = centered(g2, title);
-        int y = 150;
-        g2.setColor(new Color(0, 0, 0, 200));
-        g2.drawString(title, x + 3, y + 3);
-        g2.setColor(new Color(200, 80, 60));
-        g2.drawString(title, x, y);
+        int cx = gp.screenWidth / 2;
+        int bob = (int) Math.round(Math.sin(tick * 0.04) * 3);
+        UiSkin.icon(g2, UiSkin.Icon.MUSHROOM, cx, 70 + bob, 5, true);
+
+        drawTitleLine(g2, "SISYPHUS", 7, 126, UiSkin.CREAM);
+        drawTitleLine(g2, "THE", 3, 188, UiSkin.TEXT_DIM);
+        drawTitleLine(g2, "MUSHROOM", 6, 214, new Color(0xC8382E));
 
         String subtitle = "you will wake up again";
         g2.setFont(subtitleFont);
-        float pulse = 0.55f + 0.25f * (float) Math.sin(tick * 0.05);
-        g2.setColor(new Color(190, 170, 220, (int) (255 * pulse)));
-        g2.drawString(subtitle, centered(g2, subtitle), y + 36);
+        float pulse = 0.55f + 0.3f * (float) Math.sin(tick * 0.05);
+        g2.setColor(new Color(232, 216, 176, (int) (255 * pulse)));
+        g2.drawString(subtitle, centered(g2, subtitle), 286);
+    }
+
+    private void drawTitleLine(Graphics2D g2, String text, int scale, int y, Color color) {
+        int x = (gp.screenWidth - UiSkin.PixelFont.width(text, scale)) / 2;
+        UiSkin.PixelFont.drawOutlined(g2, text, x, y, scale, color, new Color(0, 0, 0, 150));
     }
 
     private void drawItems(Graphics2D g2) {
-        g2.setFont(itemFont);
-        int y = 300;
+        UiSkin.Icon[] icons = {UiSkin.Icon.PLAY, UiSkin.Icon.OPTIONS, UiSkin.Icon.CLOSE};
+        String[] labels = {"START", "OPTIONS", "QUIT"};
+        int badge = 54;
+        int plaqueW = 168;
+        int left = gp.screenWidth / 2 - (badge + plaqueW - 12) / 2;
+        int y = 312;
         for (int i = 0; i < ITEMS.length; i++) {
             boolean active = i == selected;
-            String text = active ? "> " + ITEMS[i] + " <" : ITEMS[i];
-            int x = centered(g2, text);
-            g2.setColor(new Color(0, 0, 0, 180));
-            g2.drawString(text, x + 2, y + 2);
-            g2.setColor(active ? new Color(240, 210, 140) : new Color(150, 140, 125));
-            g2.drawString(text, x, y);
-            y += 52;
+            // the chosen button leans out a little, like the staggered buttons of a fantasy menu
+            int x = left + (active ? 12 : 0);
+            UiSkin.plaque(g2, x + badge - 15, y + 12, plaqueW, 33, labels[i], active ? UiSkin.GLOW : UiSkin.DIM);
+            UiSkin.badge(g2, x, y, badge, active ? UiSkin.RED : UiSkin.DIM);
+            UiSkin.icon(g2, icons[i], x + badge / 2 + (i == 0 ? 2 : 0), y + badge / 2, 3, active);
+            y += 64;
         }
     }
 
     private void drawOptions(Graphics2D g2) {
-        g2.setFont(itemFont);
-        g2.setColor(new Color(240, 210, 140));
-        String title = "Options";
-        g2.drawString(title, centered(g2, title), 200);
+        int width = 366;
+        int height = 120;
+        int x = gp.screenWidth / 2 - width / 2;
+        int y = 336;
+        UiSkin.frame(g2, x, y, width, height);
+        UiSkin.header(g2, gp.screenWidth / 2, y - 14, "OPTIONS");
 
         g2.setFont(subtitleFont);
-        g2.setColor(new Color(170, 160, 140));
+        g2.setColor(UiSkin.TEXT_DIM);
         String empty = "Nothing here yet.";
-        g2.drawString(empty, centered(g2, empty), 260);
+        g2.drawString(empty, centered(g2, empty), y + 68);
     }
 
     private int centered(Graphics2D g2, String text) {
