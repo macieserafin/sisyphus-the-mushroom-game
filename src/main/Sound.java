@@ -23,6 +23,7 @@ public class Sound {
     public static final int SLIME_DEATH = 11;
     public static final int PLAYER_DEATH = 12;
     public static final int CUTSCENE_MUSIC = 13;
+    public static final int BOSS_MUSIC = 14;
 
     private static final int EFFECT_VOICES = 12;
 
@@ -47,6 +48,7 @@ public class Sound {
         soundURL[SLIME_DEATH] = getClass().getResource("/sounds/slimedeath.wav");
         soundURL[PLAYER_DEATH] = getClass().getResource("/sounds/playerdeath.wav");
         soundURL[CUTSCENE_MUSIC] = getClass().getResource("/sounds/cutscene.wav");
+        soundURL[BOSS_MUSIC] = getClass().getResource("/sounds/babycore.wav");
 
     }
 

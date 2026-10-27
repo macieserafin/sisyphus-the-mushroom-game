@@ -31,6 +31,9 @@ public class UI {
 
     public String pauseMessage = "";
 
+    private int blinkClose, blinkHold, blinkOpen;
+    private int blinkTick = -1;
+
 
     public UI(GamePanel gp) {
         this.gp = gp;
@@ -102,9 +105,51 @@ public class UI {
             drawDeathScreen();
         }
 
+        drawBlink();
         drawDialogueOverlay();
 
 
+    }
+
+    /** Eyelids closing over the screen, staying shut for a moment, then opening again. A close of 0 starts shut. */
+    public void blink(int closeFrames, int holdFrames, int openFrames) {
+        blinkClose = closeFrames;
+        blinkHold = holdFrames;
+        blinkOpen = openFrames;
+        blinkTick = 0;
+    }
+
+    private void drawBlink() {
+        if (blinkTick < 0) {
+            return;
+        }
+
+        double shut;
+        if (blinkTick < blinkClose) {
+            shut = blinkTick / (double) blinkClose;
+        } else if (blinkTick < blinkClose + blinkHold) {
+            shut = 1;
+        } else if (blinkTick < blinkClose + blinkHold + blinkOpen) {
+            shut = 1 - (blinkTick - blinkClose - blinkHold) / (double) blinkOpen;
+        } else {
+            blinkTick = -1;
+            return;
+        }
+        blinkTick++;
+
+        // Ease so the lids snap shut and open slowly, like waking up.
+        shut = shut * shut * (3 - 2 * shut);
+        int lid = (int) Math.round(shut * (gp.screenHeight / 2.0 + 24));
+        Color oldColor = g2.getColor();
+        g2.setColor(Color.BLACK);
+        for (int x = 0; x < gp.screenWidth; x += 4) {
+            // the lid edge bows a little toward the middle of the screen
+            double u = (x - gp.screenWidth / 2.0) / (gp.screenWidth / 2.0);
+            int bow = (int) Math.round((1 - u * u) * 24 * shut);
+            g2.fillRect(x, 0, 4, lid + bow - 24);
+            g2.fillRect(x, gp.screenHeight - lid - bow + 24, 4, lid + bow);
+        }
+        g2.setColor(oldColor);
     }
 
     private void drawBossHealthBar() {
@@ -158,6 +203,15 @@ public class UI {
         g2.setColor(Color.WHITE);
         x = getXForCenteredText(prompt);
         g2.drawString(prompt, x, y + 35);
+    }
+
+    /** Screen pixels covered by the bottom dialogue box right now (0 when no box is open). */
+    public int dialogueOverlayHeight() {
+        DialogueLine line = gp.dialogueManager.currentLine();
+        if (line == null || line.presentation() == DialogueLine.Presentation.VISUAL_NOVEL) {
+            return 0;
+        }
+        return gp.tileSize * 4 + gp.tileSize / 4;
     }
 
     public void drawDialogueOverlay() {

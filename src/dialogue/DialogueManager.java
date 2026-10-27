@@ -164,6 +164,10 @@ public class DialogueManager {
         typewriterFrameCounter = 0;
 
         if (gp.storySequenceManager.isActive()) {
+            // In-world scenes (not visual novel) give control back as soon as the talking stops.
+            if (!gp.storySequenceManager.isVisualNovelSequenceActive()) {
+                gp.gameState = returnState;
+            }
             gp.storySequenceManager.completeDialogueStep();
             return;
         }

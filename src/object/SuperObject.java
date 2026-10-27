@@ -17,18 +17,34 @@ public class SuperObject {
 
 
     public void draw(Graphics g2, GamePanel gp) {
+        BufferedImage frame = currentImage();
+        if (frame == null) {
+            return;
+        }
+
         int screenX = worldX - gp.player.worldX + gp.player.screenX;
         int screenY = worldY - gp.player.worldY + gp.player.screenY;
 
-        if(     worldX + gp.tileSize > gp.player.worldX - gp.player.screenX &&
-                worldX - gp.tileSize < gp.player.worldX + gp.player.screenX &&
-                worldY + gp.tileSize > gp.player.worldY - gp.player.screenY &&
-                worldY - gp.tileSize < gp.player.worldY + gp.player.screenY){
+        if (screenX + gp.tileSize > 0 && screenX < gp.screenWidth &&
+                screenY + gp.tileSize > 0 && screenY < gp.screenHeight) {
 
-            g2.drawImage(image,screenX , screenY, gp.tileSize, gp.tileSize, null);
+            g2.drawImage(frame, screenX, screenY, gp.tileSize, gp.tileSize, null);
         }
     }
 
+    protected BufferedImage currentImage() {
+        return image;
+    }
+
+    /** Called once per game update for objects that animate or run timers. */
+    public void update(GamePanel gp) {
+    }
+
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
+    }
+
+    /** Called when the player presses ENTER next to the object. Returns true when it reacted. */
+    public boolean onPlayerInteract(GamePanel gp, Player player) {
+        return false;
     }
 }

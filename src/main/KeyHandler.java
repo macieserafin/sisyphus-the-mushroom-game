@@ -86,7 +86,7 @@ public class KeyHandler implements KeyListener {
             if (code == KeyEvent.VK_P) {
                 pPressed = true;
                 gp.gameState = GameState.PLAYING;
-                gp.playMusic(0);
+                gp.playAreaMusic();
             }
 
         }

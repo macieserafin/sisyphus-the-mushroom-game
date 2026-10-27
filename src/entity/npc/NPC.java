@@ -17,8 +17,41 @@ public class NPC extends Entity {
     private BufferedImage portrait;
     private Color dialogueAccentColor = Color.WHITE;
 
+    // How far away the player can be and still start a conversation with ENTER.
+    public double talkRangeTiles = 1.2;
+    // World-pixel rectangle the NPC never leaves; null means it may walk anywhere.
+    private Rectangle homeArea;
+
     public NPC(GamePanel gp) {
         super(gp);
+    }
+
+    /** Keeps the NPC inside the given tiles (inclusive), e.g. the room it lives in. */
+    public void setHomeArea(int leftCol, int topRow, int rightCol, int bottomRow) {
+        homeArea = new Rectangle(
+                leftCol * gp.tileSize,
+                topRow * gp.tileSize,
+                (rightCol - leftCol + 1) * gp.tileSize,
+                (bottomRow - topRow + 1) * gp.tileSize
+        );
+    }
+
+    @Override
+    protected boolean canStep() {
+        if (homeArea == null) {
+            return true;
+        }
+        int nextX = worldX;
+        int nextY = worldY;
+        switch (direction) {
+            case "up": nextY -= speed; break;
+            case "down": nextY += speed; break;
+            case "left": nextX -= speed; break;
+            case "right": nextX += speed; break;
+            default: return true;
+        }
+        Rectangle body = new Rectangle(nextX + solidArea.x, nextY + solidArea.y, solidArea.width, solidArea.height);
+        return homeArea.contains(body);
     }
 
     protected void setupNPCStats(String name, int speed, String direction) {

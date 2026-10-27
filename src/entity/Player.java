@@ -8,6 +8,8 @@ import entity.combat.Hit;
 import entity.combat.HitResult;
 import entity.combat.HitType;
 import entity.enemy.Enemy;
+import entity.npc.NPC;
+import object.SuperObject;
 import entity.weapon.CombatLoadout;
 import entity.weapon.MeleeWeapon;
 import entity.weapon.RangedWeapon;
@@ -33,11 +35,14 @@ public class Player extends Entity {
     private static final double ENTITY_HURT_KNOCKBACK_FORCE = 12.0;
     private static final double HURT_KNOCKBACK_MAX_SPEED = 12.0;
     private static final double HURT_KNOCKBACK_DAMPING = 0.84;
+    private static final double INTERACT_RANGE_TILES = 1.3;
 
     KeyHandler keyH;
 
-    public final int screenX;
-    public final int screenY;
+    // Where the player is drawn on screen; updated by updateCamera() so the view stops at map edges.
+    public int screenX;
+    public int screenY;
+    private double coveredByDialogue = 0;
 
     private double velX = 0.0;
     private double velY = 0.0;
@@ -66,6 +71,15 @@ public class Player extends Entity {
     public int hasKey = 0;
     private int hurtInvincibleCounter = 0;
     private int hurtKnockbackCounter = 0;
+
+    // Chosen at the dojo rack; every new life starts with these weapons in hand.
+    private int startingMeleeSlot = 0;
+    private int startingRangedSlot = 0;
+
+    private boolean scriptedHold = false;
+    private boolean scriptedHidden = false;
+    private int scriptedDrawOffsetX = 0;
+    private int scriptedDrawOffsetY = 0;
 
     public Player(GamePanel gp, KeyHandler keyH) {
         super(gp);
@@ -97,8 +111,8 @@ public class Player extends Entity {
         direction = "idle";
         combatDirection = "idle";
         combatState = CombatState.RANGE;
-        meleeWeapon = combatLoadout.selectMeleeSlot(0);
-        rangedWeapon = combatLoadout.selectRangedSlot(0);
+        meleeWeapon = combatLoadout.selectMeleeSlot(startingMeleeSlot);
+        rangedWeapon = combatLoadout.selectRangedSlot(startingRangedSlot);
         shotCooldownCounter = 0;
         hurtInvincibleCounter = 0;
         hurtKnockbackCounter = 0;
@@ -111,6 +125,82 @@ public class Player extends Entity {
         resetMeleeHitEnemies();
         spriteCounter = 0;
         spriteNum = 1;
+        endScriptedHold();
+    }
+
+    /**
+     * Follows the player but stops at the map edges, and centres maps smaller than the screen
+     * (interiors) instead of scrolling them.
+     */
+    public void updateCamera() {
+        // While a dialogue box covers the bottom of the screen, frame the player in the space above it.
+        // The shift eases in and out so the view doesn't jump when a line appears.
+        coveredByDialogue += (gp.ui.dialogueOverlayHeight() - coveredByDialogue) * 0.15;
+        int visibleHeight = gp.screenHeight - (int) Math.round(coveredByDialogue);
+
+        int centerX = gp.screenWidth / 2 - gp.tileSize / 2;
+        int centerY = visibleHeight / 2 - gp.tileSize / 2;
+        int cameraX = cameraOrigin(worldX - centerX, gp.tileM.getWorldCols() * gp.tileSize, gp.screenWidth);
+        int cameraY = cameraOrigin(worldY - centerY, gp.tileM.getWorldRows() * gp.tileSize, visibleHeight);
+        screenX = worldX - cameraX;
+        screenY = worldY - cameraY;
+    }
+
+    private static int cameraOrigin(int wanted, int mapSize, int screenSize) {
+        if (mapSize <= 0) {
+            return wanted;
+        }
+        if (mapSize <= screenSize) {
+            return -(screenSize - mapSize) / 2;
+        }
+        return Math.max(0, Math.min(wanted, mapSize - screenSize));
+    }
+
+    /** Picks the next starting melee weapon and equips it right away. Returns its name. */
+    public String cycleStartingMeleeWeapon() {
+        startingMeleeSlot = (startingMeleeSlot + 1) % combatLoadout.meleeWeaponCount();
+        setMeleeWeapon(combatLoadout.selectMeleeSlot(startingMeleeSlot));
+        return combatLoadout.meleeWeaponName(startingMeleeSlot);
+    }
+
+    /** Picks the next starting ranged weapon and equips it right away. Returns its name. */
+    public String cycleStartingRangedWeapon() {
+        startingRangedSlot = (startingRangedSlot + 1) % combatLoadout.rangedWeaponCount();
+        setRangedWeapon(combatLoadout.selectRangedSlot(startingRangedSlot));
+        return combatLoadout.rangedWeaponName(startingRangedSlot);
+    }
+
+    public void beginScriptedHold() {
+        scriptedHold = true;
+        velX = 0;
+        velY = 0;
+        hurtKnockbackCounter = 0;
+        meleeAttacking = false;
+        meleeFrame = 0;
+        bufferedMeleeDirection = null;
+        meleeInputBufferCounter = 0;
+        direction = "idle";
+        combatDirection = "idle";
+    }
+
+    public void endScriptedHold() {
+        scriptedHold = false;
+        scriptedHidden = false;
+        scriptedDrawOffsetX = 0;
+        scriptedDrawOffsetY = 0;
+    }
+
+    public boolean isScriptedHold() {
+        return scriptedHold;
+    }
+
+    public void setScriptedHidden(boolean scriptedHidden) {
+        this.scriptedHidden = scriptedHidden;
+    }
+
+    public void setScriptedDrawOffset(int offsetX, int offsetY) {
+        scriptedDrawOffsetX = offsetX;
+        scriptedDrawOffsetY = offsetY;
     }
 
     public void setWorldPosition(int worldX, int worldY) {
@@ -144,6 +234,13 @@ public class Player extends Entity {
 
     public void update() {
         if (!alive) {
+            return;
+        }
+
+        if (scriptedHold) {
+            velX = 0;
+            velY = 0;
+            updateSpriteAnimation(false);
             return;
         }
 
@@ -488,15 +585,50 @@ public class Player extends Entity {
 
     public void interactNPC(int i){
 
-        if(i != 999){
-            if(gp.keyH.enterPressed)
-            {
+        if (gp.keyH.enterPressed) {
+            if (i != 999) {
                 gp.entities.npcs().get(i).speak();
             }
-
+            else {
+                interactNearby();
+            }
         }
         gp.keyH.enterPressed = false;
 
+    }
+
+    // ENTER without bumping into anyone: talk to an NPC within reach (e.g. across a counter),
+    // otherwise use the closest interactive object next to the player.
+    private void interactNearby() {
+        double playerCenterX = worldX + gp.tileSize / 2.0;
+        double playerCenterY = worldY + gp.tileSize / 2.0;
+
+        NPC closestNpc = null;
+        double closestNpcDistance = Double.MAX_VALUE;
+        for (NPC npc : gp.entities.npcs()) {
+            double distance = Math.hypot(npc.worldX + gp.tileSize / 2.0 - playerCenterX, npc.worldY + gp.tileSize / 2.0 - playerCenterY);
+            if (distance <= npc.talkRangeTiles * gp.tileSize && distance < closestNpcDistance) {
+                closestNpc = npc;
+                closestNpcDistance = distance;
+            }
+        }
+        if (closestNpc != null) {
+            closestNpc.speak();
+            return;
+        }
+
+        SuperObject closestObject = null;
+        double closestObjectDistance = INTERACT_RANGE_TILES * gp.tileSize;
+        for (SuperObject object : gp.entities.objects()) {
+            double distance = Math.hypot(object.worldX + gp.tileSize / 2.0 - playerCenterX, object.worldY + gp.tileSize / 2.0 - playerCenterY);
+            if (distance <= closestObjectDistance) {
+                closestObject = object;
+                closestObjectDistance = distance;
+            }
+        }
+        if (closestObject != null) {
+            closestObject.onPlayerInteract(gp, this);
+        }
     }
 
     public void pickUpObject(int i) {
@@ -512,6 +644,10 @@ public class Player extends Entity {
     }
 
     public void draw(Graphics2D g2){
+        if (scriptedHidden) {
+            return;
+        }
+
         BufferedImage image = getCurrentPlayerImage();
         if (image == null) {
             image = idle1;
@@ -521,6 +657,7 @@ public class Player extends Entity {
         int drawH = image.getHeight() * gp.scale;
 
         Point p = computeDrawPosition(drawW, drawH);
+        p.translate(scriptedDrawOffsetX, scriptedDrawOffsetY);
         Composite oldComposite = g2.getComposite();
         if (isHurtInvincible() && (hurtInvincibleCounter / 5) % 2 == 0) {
             g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));

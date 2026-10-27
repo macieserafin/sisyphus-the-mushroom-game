@@ -39,6 +39,22 @@ public class CombatLoadout {
         return rangedSlot;
     }
 
+    public int meleeWeaponCount() {
+        return meleeWeapons.length;
+    }
+
+    public int rangedWeaponCount() {
+        return rangedWeapons.length;
+    }
+
+    public String meleeWeaponName(int slot) {
+        return meleeWeapons[validSlot(slot, meleeWeapons.length)].displayName();
+    }
+
+    public String rangedWeaponName(int slot) {
+        return rangedWeapons[validSlot(slot, rangedWeapons.length)].displayName();
+    }
+
     public String meleeSlotLabel(int slot) {
         return (slot + 1) + ": " + meleeWeapons[validSlot(slot, meleeWeapons.length)].displayName();
     }

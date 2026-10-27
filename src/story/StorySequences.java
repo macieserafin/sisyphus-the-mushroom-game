@@ -1,6 +1,7 @@
 package story;
 
 import dialogue.DialogueSpeaker;
+import entity.npc.NPC;
 import main.GamePanel;
 
 import javax.imageio.ImageIO;
@@ -830,9 +831,38 @@ public final class StorySequences {
                         narrator,
                         "The shape in front of you stops pretending.",
                         "The world folds inward.",
-                        "You die before you understand what touched you."
+                        "You were dead before the sound of it reached you."
                 ),
                 StorySequenceStep.action(gp.levelManager::finishPrologueBytEncounter)
+        );
+    }
+
+    /**
+     * First time in the village after BYT: the player opens their eyes on the plaza with old Aldous
+     * standing over them. He welcomes them and asks them to come by his house; one blink later he is gone.
+     */
+    public static StorySequence villageAwakening(GamePanel gp) {
+        DialogueSpeaker aldous = createSpeaker("Old Aldous", "npc/sage_down_1.png", new Color(200, 205, 220));
+        NPC[] sage = new NPC[1];
+
+        return StorySequence.of(
+                "village_awakening",
+                StorySequenceStep.action(() -> {
+                    gp.ui.blink(0, 40, 70);
+                    sage[0] = gp.aSetter.spawnAwakeningSage();
+                }),
+                StorySequenceStep.waitFrames(120),
+                StorySequenceStep.dialogue(
+                        aldous,
+                        "Easy. Easy now. Breathe. There you are.",
+                        "You died out there, child. Everyone here has, at least once. And yet you woke up. That's the village for you.",
+                        "Welcome. I'm Aldous. I've been waiting for someone like you for longer than you'd believe.",
+                        "Come and see me when your legs remember how to work. My house is at the bottom of the village, the old brick one with the broken roof."
+                ),
+                StorySequenceStep.action(() -> gp.ui.blink(22, 26, 40)),
+                StorySequenceStep.waitFrames(34),
+                StorySequenceStep.action(() -> gp.entities.removeNPC(sage[0])),
+                StorySequenceStep.waitFrames(60)
         );
     }
 

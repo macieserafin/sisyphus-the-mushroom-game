@@ -1,6 +1,8 @@
 package main;
 
+import dialogue.DialogueLine;
 import dialogue.DialogueManager;
+import dialogue.DialogueSpeaker;
 import entity.Player;
 import entity.enemy.Enemy;
 import entity.npc.NPC;
@@ -18,7 +20,9 @@ import world.WorldEntities;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class GamePanel extends JPanel implements Runnable {
 
@@ -41,6 +45,19 @@ public class GamePanel extends JPanel implements Runnable {
     public KeyHandler keyH = new KeyHandler(this);
     Sound music = new Sound();
     Sound cutsceneMusic = new Sound();
+    private int currentMusic = -1;
+    private boolean villageAwakeningPending = false;
+
+    // What BYT says from somewhere above the plaza when the player wakes up after dying.
+    private static final DialogueSpeaker BYT_VOICE = new DialogueSpeaker("BYT", null, new Color(190, 80, 230));
+    private static final String[] WAKE_UP_TAUNTS = {
+            "Back already? The mushroom spat you out again.",
+            "Again. You are very good at that.",
+            "Every time you wake up, you are a little less you.",
+            "The village loves a regular.",
+            "I counted. That was not your best death.",
+    };
+    private final Random random = new Random();
     Sound se = new Sound();
 
     public CollisionChecker cChecker = new CollisionChecker(this);
@@ -132,6 +149,10 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        if (villageAwakeningPending && !storySequenceManager.isActive()) {
+            villageAwakeningPending = false;
+            storySequenceManager.start(StorySequences.villageAwakening(this));
+        }
         dialogueManager.update();
         storySequenceManager.update();
 
@@ -156,6 +177,11 @@ public class GamePanel extends JPanel implements Runnable {
             bulletManager.update();
             if (storySequenceManager.isActive()) {
                 return;
+            }
+
+            // A copy, because a door that finishes opening loads another map and replaces the list.
+            for (SuperObject object : new ArrayList<>(entities.objects())) {
+                object.update(this);
             }
 
             List<NPC> npcs = entities.npcs();
@@ -195,6 +221,7 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
+        player.updateCamera();
         tileM.draw(g2);
 
         bulletManager.draw(g2);
@@ -220,10 +247,24 @@ public class GamePanel extends JPanel implements Runnable {
         music.setFile(i);
         music.play();
         music.loop();
+        currentMusic = i;
     }
 
     public void pauseMusic(int i) {
         music.stop();
+        currentMusic = -1;
+    }
+
+    // Boss music while a boss is alive, regular background music everywhere else.
+    public void playAreaMusic() {
+        if (gameState == GameState.CUTSCENE) {
+            return;
+        }
+
+        int track = levelManager.getActiveBoss() != null ? Sound.BOSS_MUSIC : Sound.BACKGROUND;
+        if (track != currentMusic) {
+            playMusic(track);
+        }
     }
 
     public void playSoundEffect(int i) {
@@ -236,6 +277,7 @@ public class GamePanel extends JPanel implements Runnable {
     public void enterCutsceneMode() {
         keyH.clearGameplayInput();
         music.stop();
+        currentMusic = -1;
         se.stopAllEffects();
         gameState = GameState.CUTSCENE;
 
@@ -254,16 +296,24 @@ public class GamePanel extends JPanel implements Runnable {
                 : nextState;
 
         if (gameState == GameState.PLAYING) {
-            playMusic(Sound.BACKGROUND);
+            playAreaMusic();
         }
+    }
+
+    // The first wake-up in the village plays once the defeat cutscene that triggered it has finished.
+    public void requestVillageAwakening() {
+        villageAwakeningPending = true;
     }
 
     public void restartAfterDeath() {
         keyH.clearGameplayInput();
         hitStopFrames = 0;
         player.setDefaultValues();
+
         levelManager.loadHub();
         gameState = GameState.PLAYING;
+        playAreaMusic();
+        dialogueManager.showAmbient(BYT_VOICE, WAKE_UP_TAUNTS[random.nextInt(WAKE_UP_TAUNTS.length)], DialogueLine.Priority.HIGH, 60 * 4);
     }
 
     public void startHitStop(int frames) {

@@ -3,6 +3,8 @@ package level;
 public final class TransitionTarget {
     public enum Type {
         HUB,
+        HUB_AT,
+        INTERIOR,
         RUN_FLOOR,
         BOSS_ARENA,
         RETURN_FROM_BOSS,
@@ -11,16 +13,38 @@ public final class TransitionTarget {
     }
 
     private final Type type;
+    private final Interior interior;
+    private final int col;
+    private final int row;
 
     private TransitionTarget(Type type) {
+        this(type, null, 0, 0);
+    }
+
+    private TransitionTarget(Type type, Interior interior, int col, int row) {
         if (type == null) {
             throw new IllegalArgumentException("Transition type is required");
         }
         this.type = type;
+        this.interior = interior;
+        this.col = col;
+        this.row = row;
     }
 
     public static TransitionTarget hub() {
         return new TransitionTarget(Type.HUB);
+    }
+
+    /** Back to the village, standing on the given tile (in front of the door the player used). */
+    public static TransitionTarget hubAt(int col, int row) {
+        return new TransitionTarget(Type.HUB_AT, null, col, row);
+    }
+
+    public static TransitionTarget interior(Interior interior) {
+        if (interior == null) {
+            throw new IllegalArgumentException("Interior is required");
+        }
+        return new TransitionTarget(Type.INTERIOR, interior, 0, 0);
     }
 
     public static TransitionTarget runFloor() {
@@ -45,5 +69,17 @@ public final class TransitionTarget {
 
     public Type type() {
         return type;
+    }
+
+    public Interior interior() {
+        return interior;
+    }
+
+    public int col() {
+        return col;
+    }
+
+    public int row() {
+        return row;
     }
 }

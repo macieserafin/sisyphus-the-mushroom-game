@@ -6,12 +6,10 @@ import main.GameState;
 
 public class LevelManager {
 
-    private static final String HUB_MAP_PATH = "maps/world01.txt";
+    private static final String HUB_MAP_PATH = "maps/village.txt";
     private static final String PROLOGUE_MAP_PATH = "maps/prologue_void.txt";
     private static final String RUN_FLOOR_MAP_PATH = "maps/run_forest_test.txt";
     private static final String BOSS_ARENA_MAP_PATH = "maps/boss_slime_arena.txt";
-    private static final int HUB_PLAYER_SPAWN_COL = 23;
-    private static final int HUB_PLAYER_SPAWN_ROW = 21;
     private static final int PROLOGUE_PLAYER_SPAWN_COL = 12;
     private static final int PROLOGUE_PLAYER_SPAWN_ROW = 13;
     private static final int RUN_PLAYER_SPAWN_COL = 100;
@@ -41,25 +39,42 @@ public class LevelManager {
         activeBoss = null;
         gp.keyH.clearGameplayInput();
         gp.tileM.loadMap(PROLOGUE_MAP_PATH);
+        placePlayerAtPrologueSpawn();
+    }
+
+    public void placePlayerAtPrologueSpawn() {
         gp.player.setWorldPosition(
                 PROLOGUE_PLAYER_SPAWN_COL * gp.tileSize,
                 PROLOGUE_PLAYER_SPAWN_ROW * gp.tileSize
         );
     }
 
+    /** The village, waking up on the plaza. */
     public void loadHub() {
+        loadHubAt(VillageLayout.SPAWN_COL, VillageLayout.SPAWN_ROW);
+    }
+
+    public void loadHubAt(int col, int row) {
         runActive = false;
         floorNumber = 0;
         clearLevel();
         activeBoss = null;
+        gp.keyH.clearGameplayInput();
         gp.tileM.loadMap(HUB_MAP_PATH);
-        gp.player.setWorldPosition(
-                HUB_PLAYER_SPAWN_COL * gp.tileSize,
-                HUB_PLAYER_SPAWN_ROW * gp.tileSize
-        );
-        gp.aSetter.setObject();
-        gp.aSetter.setNPC();
-        gp.aSetter.setEnemy();
+        gp.player.setWorldPosition(col * gp.tileSize, row * gp.tileSize);
+        gp.aSetter.setVillageObjects();
+        gp.aSetter.setVillageNPCs();
+        gp.playAreaMusic();
+    }
+
+    public void enterInterior(Interior interior) {
+        clearLevel();
+        activeBoss = null;
+        gp.keyH.clearGameplayInput();
+        gp.tileM.loadMap(interior.mapPath);
+        // A few pixels up, so the player does not start out touching the exit door below.
+        gp.player.setWorldPosition(interior.spawnCol() * gp.tileSize, interior.spawnRow() * gp.tileSize - 4);
+        gp.aSetter.setInterior(interior);
     }
 
     public void loadStoryLobby() {
@@ -73,10 +88,11 @@ public class LevelManager {
         gp.tileM.loadMap(HUB_MAP_PATH);
         gp.player.setDefaultValues();
         gp.player.setWorldPosition(
-                HUB_PLAYER_SPAWN_COL * gp.tileSize,
-                HUB_PLAYER_SPAWN_ROW * gp.tileSize
+                VillageLayout.SPAWN_COL * gp.tileSize,
+                VillageLayout.SPAWN_ROW * gp.tileSize
         );
-        gp.aSetter.setNPC();
+        gp.aSetter.setVillageObjects();
+        gp.aSetter.setVillageNPCs();
         gp.ui.showMessage("You wake up somewhere almost safe.");
     }
 
@@ -85,6 +101,7 @@ public class LevelManager {
         gp.keyH.clearGameplayInput();
         gp.player.setDefaultValues();
         loadHub();
+        gp.requestVillageAwakening();
     }
 
     public void startRun() {
@@ -130,6 +147,7 @@ public class LevelManager {
         );
         activeBoss = gp.aSetter.setBossArenaEnemy();
         gp.ui.showMessage("Boss arena");
+        gp.playAreaMusic();
     }
 
     public void enterPrologueBytArena() {
@@ -147,6 +165,7 @@ public class LevelManager {
         );
         activeBoss = gp.aSetter.setPrologueBytArenaEnemy();
         gp.ui.showMessage("BYT");
+        gp.playAreaMusic();
     }
 
     public void onBossDefeated() {
@@ -158,6 +177,7 @@ public class LevelManager {
         activeBoss = null;
         gp.aSetter.setBossArenaRewardObject();
         gp.ui.showMessage("Boss defeated");
+        gp.playAreaMusic();
     }
 
     public void returnFromBossArena() {
@@ -203,6 +223,12 @@ public class LevelManager {
         switch (target.type()) {
             case HUB:
                 loadHub();
+                break;
+            case HUB_AT:
+                loadHubAt(target.col(), target.row());
+                break;
+            case INTERIOR:
+                enterInterior(target.interior());
                 break;
             case RUN_FLOOR:
                 startRun();

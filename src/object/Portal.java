@@ -21,7 +21,7 @@ public class Portal extends SuperObject {
         collision = true;
 
         try {
-            image = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("objects/door.png")));
+            image = ImageIO.read(Objects.requireNonNull(getClass().getClassLoader().getResourceAsStream("objects/portal.png")));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

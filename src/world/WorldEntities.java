@@ -75,6 +75,10 @@ public class WorldEntities {
         objects.clear();
     }
 
+    public void removeNPC(NPC npc) {
+        npcs.remove(npc);
+    }
+
     public void clearNPCs() {
         npcs.clear();
     }

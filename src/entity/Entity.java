@@ -130,7 +130,7 @@ public class Entity {
 
             switch (direction) {
                 case "idle":
-                    image = down1;
+                    image = idleImage();
                     break;
                 case "up":
                     image = (spriteNum == 1) ? up1 : up2;
@@ -174,6 +174,23 @@ public class Entity {
         }
     }
 
+    // Which way the entity looks while standing still.
+    protected String idleFacing = "down";
+
+    private BufferedImage idleImage() {
+        switch (idleFacing) {
+            case "up": return up1;
+            case "left": return left1;
+            case "right": return right1;
+            default: return down1;
+        }
+    }
+
+    /** Extra movement rule on top of collisions, e.g. an NPC that must stay inside its home area. */
+    protected boolean canStep() {
+        return true;
+    }
+
     public void setAction(){}
     public void speak(){
         facePlayer();
@@ -204,7 +221,7 @@ public class Entity {
         gp.cChecker.checkObject(this, false);
         gp.cChecker.checkPlayer(this);
 
-        if(!collisionOn){
+        if(!collisionOn && canStep()){
             switch (direction) {
                 case "up":    worldY -= speed; break;
                 case "down":  worldY += speed; break;
