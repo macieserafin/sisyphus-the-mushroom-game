@@ -5,5 +5,6 @@ public enum GameState {
     PAUSED,
     DIALOGUE,
     CUTSCENE,
-    DEAD
+    DEAD,
+    MENU
 }

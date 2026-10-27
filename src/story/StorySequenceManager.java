@@ -106,6 +106,15 @@ public class StorySequenceManager {
         finishSequence();
     }
 
+    /** Drops the active sequence without running its remaining actions. */
+    public void cancel() {
+        if (activeSequence == null) {
+            return;
+        }
+        gp.dialogueManager.clear();
+        finishSequence();
+    }
+
     public void completeDialogueStep() {
         if (activeSequence == null || currentStep == null || currentStep.type() != StorySequenceStep.Type.DIALOGUE) {
             return;

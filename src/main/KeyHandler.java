@@ -25,6 +25,17 @@ public class KeyHandler implements KeyListener {
     public void keyPressed(KeyEvent e) {
         int code = e.getKeyCode();
 
+        if (gp.gameState == GameState.MENU) {
+            gp.titleMenu.keyPressed(code);
+            return;
+        }
+
+        // TAB jumps past the whole prologue straight to the village.
+        if (code == KeyEvent.VK_TAB) {
+            gp.requestPrologueSkip();
+            return;
+        }
+
         if(gp.gameState == GameState.PLAYING){
             if (code == KeyEvent.VK_W) {
                 upPressed = true;

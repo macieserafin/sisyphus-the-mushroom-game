@@ -50,6 +50,7 @@ public class GamePanel extends JPanel implements Runnable {
     private int currentMusic = -1;
     private boolean restartAfterDeathPending = false;
     private boolean tutorialRespawnPending = false;
+    private volatile boolean prologueSkipRequested = false;
     private boolean villageAwakeningPending = false;
 
     // What BYT says from somewhere above the plaza when the player wakes up after dying.
@@ -67,6 +68,7 @@ public class GamePanel extends JPanel implements Runnable {
     public CollisionChecker cChecker = new CollisionChecker(this);
     public AssetSetter aSetter = new AssetSetter(this);
     public UI ui = new UI(this);
+    public TitleMenu titleMenu = new TitleMenu(this);
     public DialogueManager dialogueManager = new DialogueManager(this);
     public StoryFlags storyFlags = new StoryFlags();
     public StorySequenceManager storySequenceManager = new StorySequenceManager(this);
@@ -93,9 +95,16 @@ public class GamePanel extends JPanel implements Runnable {
         this.setDoubleBuffered(true);
         this.addKeyListener(keyH);
         this.setFocusable(true);
+        // Let TAB reach the key handler instead of moving keyboard focus.
+        this.setFocusTraversalKeysEnabled(false);
     }
 
+    // The game opens on the title menu; Start Game calls startNewGame().
     public void setupGame(){
+        gameState = GameState.MENU;
+    }
+
+    public void startNewGame() {
         levelManager.loadPrologue();
 
         gameState = GameState.PLAYING;
@@ -153,6 +162,15 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        if (gameState == GameState.MENU) {
+            titleMenu.update();
+            return;
+        }
+
+        if (prologueSkipRequested) {
+            prologueSkipRequested = false;
+            skipPrologue();
+        }
         if (villageAwakeningPending && !storySequenceManager.isActive()) {
             villageAwakeningPending = false;
             storySequenceManager.start(StorySequences.villageAwakening(this));
@@ -228,6 +246,12 @@ public class GamePanel extends JPanel implements Runnable {
                 RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
         );
+
+        if (gameState == GameState.MENU) {
+            titleMenu.draw(g2);
+            g2.dispose();
+            return;
+        }
 
         if (gameState == GameState.CUTSCENE || storySequenceManager.isVisualNovelSequenceActive()) {
             ui.draw(g2);
@@ -321,6 +345,33 @@ public class GamePanel extends JPanel implements Runnable {
     // The first wake-up in the village plays once the defeat cutscene that triggered it has finished.
     public void requestVillageAwakening() {
         villageAwakeningPending = true;
+    }
+
+    // Called from the key thread; the skip itself runs at the start of the next update.
+    public void requestPrologueSkip() {
+        prologueSkipRequested = true;
+    }
+
+    private void skipPrologue() {
+        if (storyFlags.isPrologueBytEncounterCompleted()) {
+            return;
+        }
+        storySequenceManager.cancel();
+        dialogueManager.clear();
+        cutsceneMusic.stop();
+        storyFlags.completeIntroCutscene();
+        storyFlags.completePrologueTutorial();
+        storyFlags.startPrologueBytEncounter();
+        storyFlags.completePrologueBytEncounter();
+        villageAwakeningPending = false;
+        restartAfterDeathPending = false;
+        tutorialRespawnPending = false;
+        hitStopFrames = 0;
+        keyH.clearGameplayInput();
+        player.setDefaultValues();
+        gameState = GameState.PLAYING;
+        levelManager.loadHub();
+        ui.showMessage("Prologue skipped");
     }
 
     // Dying to BYT in the prologue skips the death screen and goes straight to his lines.
