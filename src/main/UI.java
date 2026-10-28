@@ -101,10 +101,8 @@ public class UI {
         if (gp.gameState == GameState.PAUSED) {
             gp.pauseMenu.draw(this.g2);
         }
-
     }
 
-    /** Eyelids closing over the screen, staying shut for a moment, then opening again. A close of 0 starts shut. */
     public void blink(int closeFrames, int holdFrames, int openFrames) {
         blinkClose = closeFrames;
         blinkHold = holdFrames;
@@ -136,7 +134,6 @@ public class UI {
         Color oldColor = g2.getColor();
         g2.setColor(Color.BLACK);
         for (int x = 0; x < gp.screenWidth; x += 4) {
-            // the lid edge bows a little toward the middle of the screen
             double u = (x - gp.screenWidth / 2.0) / (gp.screenWidth / 2.0);
             int bow = (int) Math.round((1 - u * u) * 24 * shut);
             g2.fillRect(x, 0, 4, lid + bow - 24);
@@ -194,7 +191,6 @@ public class UI {
         g2.drawString(prompt, getXForCenteredText(prompt), y + 105);
     }
 
-    /** Screen pixels covered by the bottom dialogue box right now (0 when no box is open). */
     public int dialogueOverlayHeight() {
         DialogueLine line = gp.dialogueManager.currentLine();
         if (line == null || line.presentation() == DialogueLine.Presentation.VISUAL_NOVEL) {

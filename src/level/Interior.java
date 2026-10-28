@@ -1,6 +1,5 @@
 package level;
 
-/** Buildings the player can enter. Each interior is its own small map with an exit door at the bottom. */
 public enum Interior {
     SMITHY("maps/interior_smithy.txt", VillageLayout.SMITHY),
     SHOP("maps/interior_shop.txt", VillageLayout.SHOP),
@@ -8,19 +7,16 @@ public enum Interior {
     MYCOLOGIST("maps/interior_mycologist.txt", VillageLayout.MYCOLOGIST),
     SAGE("maps/interior_sage.txt", VillageLayout.SAGE);
 
-    // Every interior map shares the same frame: walls around, exit door in the middle of the bottom wall.
     public static final int COLS = 15;
     public static final int ROWS = 11;
     public static final int EXIT_COL = 7;
     public static final int EXIT_ROW = ROWS - 1;
 
-    // Dojo loadout spots (tile positions inside the dojo map).
     public static final int DOJO_WEAPON_RACK_COL = 2;
     public static final int DOJO_WEAPON_RACK_ROW = 2;
     public static final int DOJO_GUN_CABINET_COL = 12;
     public static final int DOJO_GUN_CABINET_ROW = 2;
 
-    // The sage's room is full of failed escape plans; these can be looked at with ENTER.
     public static final VillageLayout.Readable[] SAGE_NOTES = {
             new VillageLayout.Readable("escape_map", 7, 1, "A hand-drawn map of the village. Every road out is crossed in red.", "In the corner, very small: \"the gate only opens one way\"."),
             new VillageLayout.Readable("tally_wall", 11, 1, "Tally marks. Thousands of them. They cover the wall and carry on behind the bookshelves."),

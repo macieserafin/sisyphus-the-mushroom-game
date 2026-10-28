@@ -106,7 +106,6 @@ public class StorySequenceManager {
         finishSequence();
     }
 
-    /** Drops the active sequence without running its remaining actions. */
     public void cancel() {
         if (activeSequence == null) {
             return;

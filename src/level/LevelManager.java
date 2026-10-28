@@ -5,7 +5,6 @@ import main.GamePanel;
 import main.GameState;
 
 public class LevelManager {
-
     private static final String HUB_MAP_PATH = "maps/village.txt";
     private static final String PROLOGUE_MAP_PATH = "maps/prologue_void.txt";
     private static final String RUN_FLOOR_MAP_PATH = "maps/run_forest_test.txt";
@@ -51,7 +50,6 @@ public class LevelManager {
         );
     }
 
-    /** The village, waking up on the plaza. */
     public void loadHub() {
         loadHubAt(VillageLayout.SPAWN_COL, VillageLayout.SPAWN_ROW);
     }

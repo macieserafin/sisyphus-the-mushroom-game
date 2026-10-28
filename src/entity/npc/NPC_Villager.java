@@ -12,10 +12,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
-/**
- * A village NPC: sprite set "npc/<sprite>_<dir>_<n>.png", a few conversations it cycles through
- * one per talk, and either a slow wander inside its home area or standing still.
- */
 public class NPC_Villager extends NPC {
     private final List<String[]> conversations = new ArrayList<>();
     private final boolean wanders;
@@ -42,12 +38,10 @@ public class NPC_Villager extends NPC {
         setDialogueAccentColor(accent);
     }
 
-    /** Stands still and never talks, like the overgrown gate guards. */
     public static NPC_Villager silent(GamePanel gp, String name, String sprite) {
         return new NPC_Villager(gp, name, sprite, Color.WHITE, false, true);
     }
 
-    /** Adds one conversation; each time the player talks the NPC moves on to the next one. */
     public NPC_Villager conversation(String... lines) {
         conversations.add(lines);
         return this;
@@ -126,7 +120,6 @@ public class NPC_Villager extends NPC {
             return;
         }
         facePlayer();
-        // Turn toward the player but stay put instead of walking off in that direction.
         if (!"idle".equals(direction)) {
             idleFacing = direction;
         }

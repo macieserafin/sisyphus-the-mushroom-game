@@ -7,7 +7,6 @@ import main.Sound;
 
 import java.awt.*;
 
-/** The dojo weapon rack and gun cabinet: ENTER swaps the weapon the player starts every run with. */
 public class LoadoutRack extends SuperObject {
     private static final DialogueSpeaker NARRATION = new DialogueSpeaker("", null, new Color(230, 200, 150));
 

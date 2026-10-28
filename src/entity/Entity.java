@@ -16,7 +16,6 @@ public class Entity {
     public BufferedImage up1, up2, down1, down2, left1, left2, right1, right2, idle1, idle2;
     public String direction;
 
-
     public int spriteCounter = 0;
     public int spriteNum = 1;
     public Rectangle solidArea = new Rectangle(0 , 0, 48, 48);;
@@ -127,7 +126,6 @@ public class Entity {
                 drawScreenX < gp.screenWidth &&
                 drawScreenY + drawHeight > 0 &&
                 drawScreenY < gp.screenHeight) {
-
             image = currentImage();
 
             if (image != null) {
@@ -157,7 +155,6 @@ public class Entity {
         }
     }
 
-    // Which way the entity looks while standing still.
     protected String idleFacing = "down";
 
     protected BufferedImage currentImage() {
@@ -188,7 +185,6 @@ public class Entity {
         }
     }
 
-    /** Extra movement rule on top of collisions, e.g. an NPC that must stay inside its home area. */
     protected boolean canStep() {
         return true;
     }
@@ -240,7 +236,5 @@ public class Entity {
             }
             spriteCounter = 0;
         }
-
     }
-
 }

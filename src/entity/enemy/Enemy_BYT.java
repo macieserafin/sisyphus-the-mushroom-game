@@ -46,7 +46,6 @@ public class Enemy_BYT extends Enemy {
     private static final int SPRITE_WIDTH = 96;
     private static final int SPRITE_HEIGHT = 144;
 
-    // Palette sampled from the BYT splash art.
     private static final Color VOID = new Color(14, 10, 24);
     private static final Color DEEP = new Color(52, 30, 86);
     private static final Color VIOLET = new Color(120, 78, 190);
@@ -63,7 +62,6 @@ public class Enemy_BYT extends Enemy {
     private static final int EXECUTION_BLACKOUT_END = 340;
     private static final int EXECUTION_END = 360;
 
-    // Said when the fight reaches tiers 1..5 (90%, 80%, 70%, 60%, 55% health).
     private static final String[] TIER_TAUNTS = {
             "You scratched me. The sea feels pebbles the same way.",
             "Hm. Then let me hold you a little closer.",
@@ -164,8 +162,6 @@ public class Enemy_BYT extends Enemy {
         return flash;
     }
 
-    // ---------------------------------------------------------------- update
-
     @Override
     public void update() {
         frameCounter++;
@@ -231,7 +227,6 @@ public class Enemy_BYT extends Enemy {
         return maxHealth / 2;
     }
 
-    // 0 at full health, +1 for every 10% lost, 5 for the last 5% before the execution.
     private int tier() {
         double fraction = health / (double) maxHealth;
         if (fraction <= 0.55) {
@@ -244,7 +239,6 @@ public class Enemy_BYT extends Enemy {
         return tier() / (double) MAX_TIER;
     }
 
-    // Interpolates between the gentle opening value and the final-tier value.
     private double scaled(double easy, double crazy) {
         return easy + (crazy - easy) * intensity();
     }
@@ -252,8 +246,6 @@ public class Enemy_BYT extends Enemy {
     private int scaledInt(double easy, double crazy) {
         return (int) Math.round(scaled(easy, crazy));
     }
-
-    // --------------------------------------------------------------- attacks
 
     private void updateAttacks() {
         int tier = tier();
@@ -298,7 +290,6 @@ public class Enemy_BYT extends Enemy {
         }
     }
 
-    // New attacks unlock as the tiers go up.
     private List<Attack> availableAttacks() {
         List<Attack> attacks = new ArrayList<>();
         Collections.addAll(attacks, Attack.RING_BURST, Attack.SPIRAL, Attack.LANCES);
@@ -401,7 +392,6 @@ public class Enemy_BYT extends Enemy {
             double aim = angleToPlayer(centerX(), centerY());
             int count = scaledInt(3, 5);
             double spread = 0.32;
-            // From tier 2 every other volley shifts by half a gap, closing the safe lanes of the previous one.
             double shift = (tier() >= 2 && volley % 2 == 1) ? spread / 2 : 0;
             for (int i = 0; i < count; i++) {
                 double angle = aim + (i - (count - 1) / 2.0) * spread + shift;
@@ -476,7 +466,6 @@ public class Enemy_BYT extends Enemy {
         }
     }
 
-    // A full-width line of orbs crossing the arena, with one narrow gap placed near the player.
     private void fireWall(int side) {
         int tile = gp.tileSize;
         double minX = tile;
@@ -561,8 +550,6 @@ public class Enemy_BYT extends Enemy {
         velY = 0;
     }
 
-    // --------------------------------------------------------------- hazards
-
     private void updateOrbs() {
         Rectangle playerBox = playerDangerBox();
         Iterator<Orb> iterator = orbs.iterator();
@@ -631,8 +618,6 @@ public class Enemy_BYT extends Enemy {
         return gp.player.receiveHit(hit) == HitResult.APPLIED;
     }
 
-    // ---------------------------------------------------------------- taunts
-
     private void updateTaunts(int playerHealthBefore) {
         if (!introTauntDone) {
             introTauntDone = true;
@@ -649,8 +634,6 @@ public class Enemy_BYT extends Enemy {
     private void say(String text, DialogueLine.Priority priority) {
         gp.dialogueManager.showAmbient(speaker, text, priority, 60 * 3);
     }
-
-    // ------------------------------------------------------------- execution
 
     private void startExecution() {
         executing = true;
@@ -675,7 +658,6 @@ public class Enemy_BYT extends Enemy {
 
         if (t < EXECUTION_FADE_OUT_START) {
             shakeAmount = 3;
-            // Everything around gets pulled into the shape.
             if (t % 2 == 0) {
                 double angle = random.nextDouble() * Math.PI * 2;
                 double distance = 160 + random.nextDouble() * 120;
@@ -744,8 +726,6 @@ public class Enemy_BYT extends Enemy {
         return 1f - (1f - t) * (1f - t);
     }
 
-    // ------------------------------------------------------------- particles
-
     private void spawnBurstParticles(double x, double y, int count, double maxSpeed) {
         for (int i = 0; i < count; i++) {
             double angle = random.nextDouble() * Math.PI * 2;
@@ -770,8 +750,6 @@ public class Enemy_BYT extends Enemy {
             }
         }
     }
-
-    // --------------------------------------------------------------- drawing
 
     @Override
     public void draw(Graphics g) {
@@ -1037,7 +1015,6 @@ public class Enemy_BYT extends Enemy {
         int playerX = gp.player.screenX + gp.tileSize / 2;
         int playerY = gp.player.screenY + gp.tileSize / 2;
 
-        // Darkness closing in around the player.
         float close = Math.min(1f, t / (float) EXECUTION_TENDRILS_END);
         float outer = Math.max(gp.screenWidth, gp.screenHeight);
         float radius = outer * (1.1f - 0.75f * close);
@@ -1049,7 +1026,6 @@ public class Enemy_BYT extends Enemy {
         ));
         g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
 
-        // Tendrils reaching from BYT around the player.
         float reach = tendrilProgress();
         if (reach > 0f && t < EXECUTION_CRUSH + 6) {
             double bytX = screenX(worldX + gp.tileSize / 2.0);
@@ -1084,8 +1060,6 @@ public class Enemy_BYT extends Enemy {
             g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
         }
     }
-
-    // --------------------------------------------------------------- helpers
 
     private double centerX() {
         return worldX + gp.tileSize / 2.0;
@@ -1150,8 +1124,6 @@ public class Enemy_BYT extends Enemy {
     private static Color withAlpha(Color color, int alpha) {
         return new Color(color.getRed(), color.getGreen(), color.getBlue(), Math.max(0, Math.min(255, alpha)));
     }
-
-    // ------------------------------------------------------------ hazard data
 
     private static final class Orb {
         double x;

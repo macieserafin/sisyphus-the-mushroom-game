@@ -5,13 +5,8 @@ import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Soft terrain transitions: when a neighbouring tile has a higher blend priority,
- * a jagged strip of its ground texture is drawn over this tile's edge or corner.
- */
 class TileEdges {
     private static final int SIZE = 16;
-    // How far (in source pixels) the spilled edge reaches at each position along the side.
     private static final int[] JAG = {3, 2, 3, 4, 3, 2, 2, 3, 4, 3, 2, 3, 3, 4, 2, 3};
     private static final float TIP_SHADE = 0.78f;
 
@@ -23,7 +18,6 @@ class TileEdges {
     };
 
     private final Tile[] tiles;
-    // blend source tile id -> one overlay per direction
     private final Map<Integer, BufferedImage[]> overlays = new HashMap<>();
     private final int[] pendingDirections = new int[8];
     private final int[] pendingPriorities = new int[8];
@@ -151,7 +145,6 @@ class TileEdges {
         }
     }
 
-    // Pixels on the inner boundary of the spilled strip get a darker tint, which reads as a soft lip.
     private static boolean isTip(boolean[][] mask, int x, int y) {
         int[][] around = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (int[] d : around) {

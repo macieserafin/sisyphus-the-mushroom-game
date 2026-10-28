@@ -114,7 +114,6 @@ public class PrologueTutorialManager {
                     break;
                 }
                 practiceSlimes.clear();
-                // Full health going into the BYT encounter.
                 gp.player.health = gp.player.maxHealth;
                 gp.playSoundEffect(Sound.POWERUP);
                 gp.storyFlags.completePrologueTutorial();

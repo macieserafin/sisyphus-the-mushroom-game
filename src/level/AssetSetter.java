@@ -33,10 +33,7 @@ public class AssetSetter {
             "Locked. A note on the door: \"back after the fog\".",
     };
 
-    // ---------------------------------------------------------------- village
-
     public void setVillageObjects() {
-        // The dojo hall has a double door; either half leads inside.
         spawnObject(new HouseDoor(TransitionTarget.interior(Interior.DOJO), "hall_l"), VillageLayout.DOJO.doorCol(), VillageLayout.DOJO.doorRow());
         spawnObject(new HouseDoor(TransitionTarget.interior(Interior.DOJO), "hall_r"), VillageLayout.DOJO.doorCol() + 1, VillageLayout.DOJO.doorRow());
         spawnDoor(VillageLayout.MYCOLOGIST, Interior.MYCOLOGIST, "wood");
@@ -92,13 +89,10 @@ public class AssetSetter {
         spawnNPC(NPC_Villager.silent(gp, "Guard", "guard"), VillageLayout.GUARD_RIGHT_COL, VillageLayout.GUARD_ROW);
     }
 
-    /** Aldous standing next to the waking player on the plaza, for the first-awakening scene. */
     public NPC spawnAwakeningSage() {
         NPC sage = NPC_Villager.silent(gp, "Old Aldous", "sage").facing("left");
         return spawnNPC(sage, VillageLayout.SPAWN_COL + 1, VillageLayout.SPAWN_ROW);
     }
-
-    // -------------------------------------------------------------- interiors
 
     public void setInterior(Interior interior) {
         VillageLayout.Building building = interior.building;

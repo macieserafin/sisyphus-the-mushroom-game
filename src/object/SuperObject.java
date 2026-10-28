@@ -7,14 +7,12 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 
 public class SuperObject {
-
     public BufferedImage image;
     public String name;
     public boolean collision = false;
     public int worldX,worldY;
     public Rectangle solidArea = new Rectangle(0 , 0, 48, 48);
     public int solidAreaDefaultX, solidAreaDefaultY = 0;
-
 
     public void draw(Graphics g2, GamePanel gp) {
         BufferedImage frame = currentImage();
@@ -27,7 +25,6 @@ public class SuperObject {
 
         if (screenX + gp.tileSize > 0 && screenX < gp.screenWidth &&
                 screenY + gp.tileSize > 0 && screenY < gp.screenHeight) {
-
             g2.drawImage(frame, screenX, screenY, gp.tileSize, gp.tileSize, null);
         }
     }
@@ -43,7 +40,6 @@ public class SuperObject {
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
     }
 
-    /** Called when the player presses ENTER next to the object. Returns true when it reacted. */
     public boolean onPlayerInteract(GamePanel gp, Player player) {
         return false;
     }

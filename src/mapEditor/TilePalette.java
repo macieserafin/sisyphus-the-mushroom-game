@@ -17,11 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.IntConsumer;
 
-/**
- * Tile picker: a searchable grid of tile thumbnails with a kind filter, a strip of recently
- * used tiles (keys 1-8) and a panel describing the tile under the mouse or the selected one.
- * A big object (house, well...) shows up once, and its id is the id of its top-left cell.
- */
 class TilePalette extends JPanel {
     static final int RECENT_SLOTS = 8;
     static final Color ACCENT = new Color(0x4F, 0xA3, 0xFF);
@@ -95,10 +90,6 @@ class TilePalette extends JPanel {
     private int selected;
     private Entry hovered;
 
-    /**
-     * @param onUserSelect called when the user picks a tile in the palette (not for select())
-     * @param onReturnFocus called when ESC is pressed in the empty search box
-     */
     TilePalette(Tile[] tiles, IntConsumer onUserSelect, Runnable onReturnFocus) {
         super(new BorderLayout(0, 8));
         this.onUserSelect = onUserSelect;
@@ -120,13 +111,10 @@ class TilePalette extends JPanel {
         applyFilter();
     }
 
-    // ------------------------------------------------------------------ public API
-
     int selected() {
         return selected;
     }
 
-    /** Selects a tile from outside the palette (the picker tool). Makes sure it is visible in the grid. */
     void select(int tileId) {
         Entry entry = entryFor(tileId);
         if (entry == null) {
@@ -157,8 +145,6 @@ class TilePalette extends JPanel {
         Entry entry = entryFor(tileId);
         return entry == null ? "?" : entry.name;
     }
-
-    // ------------------------------------------------------------------ construction
 
     private void buildEntries(Tile[] tiles) {
         for (int id = 0; id < tiles.length; id++) {
@@ -228,7 +214,6 @@ class TilePalette extends JPanel {
             }
         });
         search.addActionListener(e -> {
-            // ENTER takes the first match
             if (!shown.isEmpty()) {
                 userSelect(shown.get(0));
                 onReturnFocus.run();
@@ -273,8 +258,6 @@ class TilePalette extends JPanel {
         return header;
     }
 
-    // ------------------------------------------------------------------ state
-
     private Entry entryFor(int tileId) {
         if (tileId < 0 || tileId >= byId.length) {
             return null;
@@ -282,7 +265,6 @@ class TilePalette extends JPanel {
         if (byId[tileId] != null) {
             return byId[tileId];
         }
-        // a cell of a big object: walk back to the top-left cell
         for (int id = tileId; id >= 0; id--) {
             if (byId[id] != null) {
                 return byId[id];
@@ -379,9 +361,6 @@ class TilePalette extends JPanel {
         }
     }
 
-    // ------------------------------------------------------------------ components
-
-    /** Text field that shows a grey hint while it is empty. */
     private static final class HintField extends JTextField {
         private final String hint;
 
@@ -609,7 +588,6 @@ class TilePalette extends JPanel {
         }
     }
 
-    /** Preview and description of the hovered tile, or of the selected one. */
     private final class InfoPanel extends JPanel {
         InfoPanel() {
             setPreferredSize(new Dimension(100, 92));

@@ -11,14 +11,12 @@ public class KeyHandler implements KeyListener {
 
     GamePanel gp;
 
-
     public KeyHandler(GamePanel gp) {
         this.gp = gp;
     }
 
     @Override
     public void keyTyped(KeyEvent e) {
-
     }
 
     @Override
@@ -29,13 +27,11 @@ public class KeyHandler implements KeyListener {
     }
 
     private void handleKeyPressed(int code) {
-
         if (gp.gameState == GameState.MENU) {
             gp.titleMenu.keyPressed(code);
             return;
         }
 
-        // TAB jumps past the whole prologue straight to the village.
         if (code == KeyEvent.VK_TAB) {
             gp.requestPrologueSkip();
             return;
@@ -106,7 +102,6 @@ public class KeyHandler implements KeyListener {
 
             if (code == KeyEvent.VK_ENTER) {
                 enterPressed = true;
-
             }
         }
         else if(gp.gameState == GameState.PAUSED) {
@@ -130,7 +125,6 @@ public class KeyHandler implements KeyListener {
                 gp.restartAfterDeath();
             }
         }
-
     }
 
     @Override

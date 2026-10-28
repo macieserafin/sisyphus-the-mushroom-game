@@ -1,15 +1,9 @@
 package level;
 
-/**
- * Where things stand in the village. The map builder (mapEditor.VillageBuilder) draws the
- * buildings at these spots and AssetSetter puts doors and NPCs on top of them, so both
- * always agree. Coordinates are tile columns and rows.
- */
 public final class VillageLayout {
     public static final int COLS = 68;
     public static final int ROWS = 54;
 
-    // Plaza with the old giant mushroom; the player wakes up here.
     public static final int PLAZA_LEFT = 26;
     public static final int PLAZA_TOP = 18;
     public static final int PLAZA_RIGHT = 37;
@@ -21,20 +15,16 @@ public final class VillageLayout {
     public static final int SPAWN_COL = 31;
     public static final int SPAWN_ROW = 23;
 
-    // Walled yard in front of the dojo hall: gravel, lanterns, pines, a roofed gate and stairs down.
-    // The hall has a double door (doorCol and doorCol + 1), lined up with the 2-tile road.
     public static final int DOJO_YARD_LEFT = 25;
     public static final int DOJO_YARD_RIGHT = 38;
     public static final int DOJO_WALL_ROW = 14;
     public static final int DOJO_GATE_COL = 30;
     public static final int DOJO_GATE_ROW = 12;
 
-    // Buildings: top-left tile and the door cell inside the building image.
     public static final Building DOJO = new Building("dojo", 27, 3, 10, 6, 4, 5);
     public static final Building MYCOLOGIST = new Building("mycologist_hut", 17, 9, 4, 4, 1, 3);
     public static final Building SHOP = new Building("shop", 10, 19, 5, 4, 2, 3);
     public static final Building SMITHY = new Building("smithy", 45, 19, 5, 4, 2, 3);
-    // The old sage lives in a half-collapsed brick hut down in the south-west corner.
     public static final Building SAGE = new Building("house_ruined", 9, 39, 4, 4, 1, 3);
     public static final Building[] HOMES = {
             new Building("house_wood", 39, 8, 4, 4, 1, 3),
@@ -44,7 +34,6 @@ public final class VillageLayout {
             new Building("house_wood", 22, 32, 4, 4, 1, 3),
     };
 
-    // The gate out to the forest: a 2-tile opening with a guard on each side.
     public static final int GATE_COL = 30;
     public static final int GATE_ROW = 43;
     public static final int GATE_OPENING_COL = 31;
@@ -54,7 +43,6 @@ public final class VillageLayout {
     public static final int GUARD_ROW = 46;
     public static final int PORTAL_ROW = 50;
 
-    // River running down the east side into the lake, with a pier for fishing later.
     public static final int RIVER_LEFT = 55;
     public static final int RIVER_RIGHT = 57;
     public static final int RIVER_BOTTOM = 34;
@@ -67,14 +55,12 @@ public final class VillageLayout {
     public static final int PIER_BOTTOM = 38;
     public static final int BRIDGE_ROW = 23;
 
-    // Empty plots waiting for NPCs unlocked by bosses.
     public static final Plot[] PLOTS = {
             new Plot(6, 8, 6, 6, false),
             new Plot(37, 33, 6, 6, true),
             new Plot(59, 19, 6, 8, true),
     };
 
-    // Things to read or look at. The builder places the tile, AssetSetter makes it readable.
     public static final Readable[] READABLES = {
             new Readable("sign_obj", 34, 15, "North: the dojo. Bow at the door.", "Someone has scratched underneath: \"he hits harder than the forest\"."),
             new Readable("sign_obj", 24, 22, "West: Spore & Sundry. Fair prices, mostly."),
@@ -137,7 +123,6 @@ public final class VillageLayout {
             return row + doorY;
         }
 
-        /** The tile just outside the door, where the player stands after leaving. */
         public int frontRow() {
             return doorRow() + 1;
         }

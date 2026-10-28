@@ -52,7 +52,6 @@ public class Player extends Entity {
 
     KeyHandler keyH;
 
-    // Where the player is drawn on screen; updated by updateCamera() so the view stops at map edges.
     public int screenX;
     public int screenY;
     private double coveredByDialogue = 0;
@@ -99,7 +98,6 @@ public class Player extends Entity {
     private int hurtInvincibleCounter = 0;
     private int hurtKnockbackCounter = 0;
 
-    // Chosen at the dojo rack; every new life starts with these weapons in hand.
     private int startingMeleeSlot = 0;
     private int startingRangedSlot = 0;
 
@@ -160,13 +158,7 @@ public class Player extends Entity {
         endScriptedHold();
     }
 
-    /**
-     * Follows the player but stops at the map edges, and centres maps smaller than the screen
-     * (interiors) instead of scrolling them.
-     */
     public void updateCamera() {
-        // While a dialogue box covers the bottom of the screen, frame the player in the space above it.
-        // The shift eases in and out so the view doesn't jump when a line appears.
         coveredByDialogue += (gp.ui.dialogueOverlayHeight() - coveredByDialogue) * 0.15;
         int visibleHeight = gp.screenHeight - (int) Math.round(coveredByDialogue);
 
@@ -188,7 +180,6 @@ public class Player extends Entity {
         return Math.max(0, Math.min(wanted, mapSize - screenSize));
     }
 
-    /** Picks the next starting melee weapon and equips it right away. Returns its name. */
     public String cycleStartingMeleeWeapon() {
         do {
             startingMeleeSlot = (startingMeleeSlot + 1) % combatLoadout.meleeWeaponCount();
@@ -197,7 +188,6 @@ public class Player extends Entity {
         return combatLoadout.meleeWeaponName(startingMeleeSlot);
     }
 
-    /** Picks the next starting ranged weapon and equips it right away. Returns its name. */
     public String cycleStartingRangedWeapon() {
         do {
             startingRangedSlot = (startingRangedSlot + 1) % combatLoadout.rangedWeaponCount();
@@ -720,11 +710,8 @@ public class Player extends Entity {
             }
         }
         gp.keyH.enterPressed = false;
-
     }
 
-    // ENTER without bumping into anyone: talk to an NPC within reach (e.g. across a counter),
-    // otherwise use the closest interactive object next to the player.
     private void interactNearby() {
         double playerCenterX = worldX + gp.tileSize / 2.0;
         double playerCenterY = worldY + gp.tileSize / 2.0;
@@ -761,7 +748,6 @@ public class Player extends Entity {
         if(i != 999){
             gp.entities.objects().get(i).onPlayerTouch(gp, this, i);
         }
-
     }
 
     public void addMaxSpeed(double amount) {

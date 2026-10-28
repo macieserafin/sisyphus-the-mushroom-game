@@ -11,22 +11,18 @@ import java.util.Collections;
 import java.util.List;
 
 public class NPC extends Entity {
-
     public String name;
     private final List<String> dialogueLines = new ArrayList<>();
     private BufferedImage portrait;
     private Color dialogueAccentColor = Color.WHITE;
 
-    // How far away the player can be and still start a conversation with ENTER.
     public double talkRangeTiles = 1.2;
-    // World-pixel rectangle the NPC never leaves; null means it may walk anywhere.
     private Rectangle homeArea;
 
     public NPC(GamePanel gp) {
         super(gp);
     }
 
-    /** Keeps the NPC inside the given tiles (inclusive), e.g. the room it lives in. */
     public void setHomeArea(int leftCol, int topRow, int rightCol, int bottomRow) {
         homeArea = new Rectangle(
                 leftCol * gp.tileSize,

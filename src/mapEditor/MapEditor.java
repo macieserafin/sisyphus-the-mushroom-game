@@ -84,8 +84,6 @@ public class MapEditor {
         }
     }
 
-    // ------------------------------------------------------------------ state
-
     private final Tile[] tiles = TileSet.loadTiles();
     private int rows;
     private int cols;
@@ -119,8 +117,6 @@ public class MapEditor {
     private int rectEndCol;
     private Point panStartMouse;
     private Point panStartView;
-
-    // ------------------------------------------------------------------ components
 
     private final JFrame frame = new JFrame();
     private final TilePalette palette;
@@ -197,8 +193,6 @@ public class MapEditor {
     JFrame frame() {
         return frame;
     }
-
-    // ------------------------------------------------------------------ building the window
 
     private JMenuBar buildMenuBar() {
         int mask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
@@ -364,7 +358,6 @@ public class MapEditor {
         return bar;
     }
 
-    /** A menu/toolbar action with an optional accelerator. */
     private Action action(String name, int key, int modifiers, Runnable run) {
         AbstractAction action = new AbstractAction(name) {
             @Override
@@ -378,7 +371,6 @@ public class MapEditor {
         return action;
     }
 
-    /** A check box action usable from both the menu and the status bar, also from a key press. */
     private static final class ToggleAction extends AbstractAction {
         private final Consumer<Boolean> apply;
 
@@ -454,8 +446,6 @@ public class MapEditor {
         }
     }
 
-    // ------------------------------------------------------------------ tools and selection
-
     private void setTool(Tool next) {
         if (tool != next && tool.paints()) {
             lastPaintTool = tool;
@@ -469,7 +459,6 @@ public class MapEditor {
         canvas.repaint();
     }
 
-    /** The user chose a tile in the palette: switch back to a painting tool. */
     private void onPaletteChosen(int tileId) {
         if (tool == Tool.ERASER || tool == Tool.PICKER || tool == Tool.PAN) {
             setTool(lastPaintTool == Tool.ERASER ? Tool.BRUSH : lastPaintTool);
@@ -481,8 +470,6 @@ public class MapEditor {
     private int selectedTile() {
         return palette.selected();
     }
-
-    // ------------------------------------------------------------------ editing primitives
 
     private boolean inBounds(int row, int col) {
         return row >= 0 && row < rows && col >= 0 && col < cols;
@@ -505,7 +492,6 @@ public class MapEditor {
         stroke = null;
     }
 
-    /** Runs several edits as one undo step. */
     private void asOneStroke(Runnable edits) {
         beginStroke();
         edits.run();
@@ -537,7 +523,6 @@ public class MapEditor {
         return t.group == null ? id : id - (t.groupY * t.groupWidth + t.groupX);
     }
 
-    /** Removes the object at a cell; a building is removed whole, not just the clicked cell. */
     private void clearObjectInstance(int row, int col) {
         int value = objectMap[row][col];
         if (value == MapFile.EMPTY) {
@@ -603,7 +588,6 @@ public class MapEditor {
         }
     }
 
-    /** One application of the brush or the eraser at a cell. */
     private void paintAt(int row, int col) {
         if (tool == Tool.ERASER) {
             forBrush(row, col, p -> clearObjectInstance(p[0], p[1]));
@@ -656,7 +640,6 @@ public class MapEditor {
         int id = selectedTile();
         Tile t = tiles[id];
         if (t.group != null) {
-            // repeat the building across the rectangle
             int w = t.groupWidth, h = t.groupHeight;
             for (int r = top; r + h - 1 <= bottom; r += h) {
                 for (int c = left; c + w - 1 <= right; c += w) {
@@ -677,8 +660,6 @@ public class MapEditor {
         palette.select(id);
         setMessage("Picked " + palette.describe(id));
     }
-
-    // ------------------------------------------------------------------ undo / redo
 
     private void undo() {
         if (undoStack.isEmpty()) {
@@ -717,8 +698,6 @@ public class MapEditor {
             redoAction.setEnabled(!redoStack.isEmpty());
         }
     }
-
-    // ------------------------------------------------------------------ files
 
     private String currentName() {
         return currentMapPath == null ? "Untitled" : currentMapPath.getFileName().toString();
@@ -824,7 +803,6 @@ public class MapEditor {
                 Files.createDirectories(parent);
             }
             Files.writeString(path, MapFile.write(map, false));
-            // the object layer lives next to the map; skip it for maps that never had objects
             Path objectPath = objectLayerPath(path);
             if (!MapFile.isEmpty(objectMap) || Files.exists(objectPath)) {
                 Files.writeString(objectPath, MapFile.write(objectMap, true));
@@ -902,8 +880,6 @@ public class MapEditor {
         messageLabel.setText(text);
     }
 
-    // ------------------------------------------------------------------ zoom
-
     private int tileSize() {
         return Math.max(2, (int) Math.round(BASE_TILE_SIZE * zoom));
     }
@@ -945,8 +921,6 @@ public class MapEditor {
         canvas.updateSize();
         scrollPane.getViewport().setViewPosition(new Point(0, 0));
     }
-
-    // ------------------------------------------------------------------ the map view
 
     private boolean isSolid(int row, int col) {
         if (tiles[map[row][col]].collision) {
@@ -1238,7 +1212,6 @@ public class MapEditor {
             g2.setComposite(old);
         }
 
-        /** The ghost of what a click would do, plus the rectangle being dragged. */
         private void paintToolPreview(Graphics2D g2, int ts) {
             if (rectDragging) {
                 int top = Math.min(rectStartRow, rectEndRow), left = Math.min(rectStartCol, rectEndCol);
@@ -1296,8 +1269,6 @@ public class MapEditor {
             }
         }
     }
-
-    // ------------------------------------------------------------------ icons
 
     private static final class ToolIcon implements Icon {
         private final Tool tool;
@@ -1364,8 +1335,6 @@ public class MapEditor {
             g.dispose();
         }
     }
-
-    // ------------------------------------------------------------------ map files
 
     private static int[][] createEmptyMap(int rows, int cols) {
         return new int[rows][cols];
@@ -1441,9 +1410,6 @@ public class MapEditor {
         return new int[]{((Number) rowsSpinner.getValue()).intValue(), ((Number) colsSpinner.getValue()).intValue()};
     }
 
-    // ------------------------------------------------------------------ start-up
-
-    /** What the user chose in the start dialog: an existing map, or the size of a new one. */
     private static final class Startup {
         Path path;
         int rows;
@@ -1457,7 +1423,6 @@ public class MapEditor {
                 files.filter(p -> p.getFileName().toString().endsWith(".txt") && !p.getFileName().toString().endsWith("_objects.txt"))
                         .forEach(maps::add);
             } catch (IOException ignored) {
-                // an unreadable folder just means an empty list
             }
         }
         Collections.sort(maps);
@@ -1560,7 +1525,6 @@ public class MapEditor {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             } catch (Exception ignored) {
-                // the default look and feel is fine too
             }
 
             Startup start = showStartDialog();

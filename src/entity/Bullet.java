@@ -20,7 +20,7 @@ public class Bullet extends Entity {
     public double velY;
 
     public double distanceTraveled = 0;
-    public double maxDistance; // pixels
+    public double maxDistance;
 
     public int damage = 1;
     private Faction faction = Faction.PLAYER;
@@ -94,7 +94,6 @@ public class Bullet extends Entity {
     }
 
     public void setVelocityFromDirection() {
-
         velX = 0;
         velY = 0;
 
@@ -202,7 +201,6 @@ public class Bullet extends Entity {
             g2.drawImage(image, screenX, screenY, null);
         }
         else {
-            // TEMP DEBUG BULLET (visual only)
             g2.setColor(Color.YELLOW);
             g2.fillRect(
                     screenX,
@@ -233,7 +231,6 @@ public class Bullet extends Entity {
     }
 
     public static class Builder {
-
         private Bullet bullet;
         private int tileSize;
 

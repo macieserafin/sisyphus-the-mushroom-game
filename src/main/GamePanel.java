@@ -29,16 +29,14 @@ import java.util.List;
 import java.util.Random;
 
 public class GamePanel extends JPanel implements Runnable {
-// SCREEN SETTINGS
+    public final int originalTitleSize = 16;
+    public final int scale = 3;
 
-    public final int originalTitleSize = 16; //16x16 tile default
-    public final int scale = 3; //16x16 will look like 48x48
-
-    public final int tileSize = originalTitleSize * scale; //48x48 tile
+    public final int tileSize = originalTitleSize * scale;
     public final int maxScreenCol = 16;
-    public final int maxScreenRow = 12;  //4x3
-    public final int screenWidth = tileSize * maxScreenCol; //768 pixels
-    public final int screenHeight = tileSize * maxScreenRow; // 576 pixels
+    public final int maxScreenRow = 12;
+    public final int screenWidth = tileSize * maxScreenCol;
+    public final int screenHeight = tileSize * maxScreenRow;
 
     public final int maxWorldCol = 50;
     public final int maxWorldRow = 50;
@@ -56,7 +54,6 @@ public class GamePanel extends JPanel implements Runnable {
     private volatile boolean prologueSkipRequested = false;
     private boolean villageAwakeningPending = false;
 
-    // What BYT says from somewhere above the plaza when the player wakes up after dying.
     private static final DialogueSpeaker BYT_VOICE = new DialogueSpeaker("BYT", null, new Color(190, 80, 230));
     private static final String[] WAKE_UP_TAUNTS = {
             "Back already? The mushroom spat you out again.",
@@ -90,10 +87,8 @@ public class GamePanel extends JPanel implements Runnable {
     public DebugSettings debugSettings = new DebugSettings();
     private int hitStopFrames = 0;
 
-    //entity
     public Player player = new Player(this, keyH);
 
-    //game state
     public GameState gameState;
 
     public GamePanel() {
@@ -106,7 +101,6 @@ public class GamePanel extends JPanel implements Runnable {
         this.setFocusTraversalKeysEnabled(false);
     }
 
-    // The game opens on the title menu; Start Game calls startNewGame().
     public void setupGame(){
         gameState = GameState.MENU;
     }
@@ -379,7 +373,6 @@ public class GamePanel extends JPanel implements Runnable {
         currentMusic = -1;
     }
 
-    // Boss music while a boss is alive, regular background music everywhere else.
     public void playAreaMusic() {
         if (gameState == GameState.CUTSCENE) {
             return;
@@ -424,7 +417,6 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    // The first wake-up in the village plays once the defeat cutscene that triggered it has finished.
     public void requestVillageAwakening() {
         villageAwakeningPending = true;
     }

@@ -21,7 +21,6 @@ import java.util.Objects;
 public final class TileSet {
     public static final int ANIMATION_FRAME_TICKS = 20;
 
-    // Blend priorities: higher terrain spills over lower terrain.
     private static final int DEEP_WATER = 0;
     private static final int WATER = 1;
     private static final int SAND = 2;
@@ -42,7 +41,6 @@ public final class TileSet {
     private static final Map<String, Integer> IDS = new HashMap<>();
 
     static {
-        // --- original set (ids 0..30, stored in existing maps)
         ground("grass", "Grass", false, GRASS, GRASS_ID, "grass");
         ground("wall", "Brick wall", true, NONE, -1, "wall");
         ground("water", "Water", true, WATER, WATER_ID, "water", "water_2", "water_3");
@@ -75,7 +73,6 @@ public final class TileSet {
         ground("bridge_h", "Bridge (horizontal)", false, NONE, -1, "bridge_h");
         ground("bridge_v", "Bridge (vertical)", false, NONE, -1, "bridge_v");
 
-        // --- village ground
         ground("plaza", "Plaza stones", false, PLAZA, 31, "plaza");
         ground("plaza_ornament", "Plaza ornament", false, PLAZA, 31, "plaza_ornament");
         ground("path", "Village path", false, EARTH, 33, "path");
@@ -94,7 +91,6 @@ public final class TileSet {
         ground("stone_path", "Stone path", false, NONE, -1, "stone_path");
         ground("stairs", "Stone stairs", false, NONE, -1, "stairs");
 
-        // --- village objects (object layer, transparent)
         object("lamp_post", "Lamp post", true, "lamp_post");
         object("glow_shrooms", "Glowing mushrooms", true, "glow_shrooms");
         object("tiny_glow", "Tiny glow spores", false, "tiny_glow");
@@ -169,7 +165,6 @@ public final class TileSet {
         object("old_musket", "Rusty musket", true, "old_musket");
         object("dug_hole", "Hole in the floor", true, "dug_hole");
 
-        // --- big objects
         grid("bed", "Bed", 1, 2, "X", "X");
         grid("fireplace", "Fireplace", 2, 2, "XX", "XX");
         grid("forge", "Forge", 2, 2, "XX", "XX");
@@ -199,7 +194,6 @@ public final class TileSet {
         return DEFS.size();
     }
 
-    /** Id of a named tile, or of one cell of a big object: id("house_red", 1, 3). */
     public static int id(String name) {
         Integer id = IDS.get(name);
         if (id == null) {

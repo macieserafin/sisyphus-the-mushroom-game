@@ -35,7 +35,6 @@ public final class TransitionTarget {
         return new TransitionTarget(Type.HUB);
     }
 
-    /** Back to the village, standing on the given tile (in front of the door the player used). */
     public static TransitionTarget hubAt(int col, int row) {
         return new TransitionTarget(Type.HUB_AT, null, col, row);
     }

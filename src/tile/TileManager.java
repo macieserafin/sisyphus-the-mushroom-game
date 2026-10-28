@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.util.Objects;
 
 public class TileManager {
-
     GamePanel gp;
     public Tile[] tile;
     // Both layers are indexed [col][row]. The object layer uses MapFile.EMPTY for empty cells.
@@ -78,7 +77,6 @@ public class TileManager {
         return worldRows;
     }
 
-    /** A cell blocks movement when its ground or its object is solid. */
     public boolean isCollision(int col, int row) {
         if (tile[mapTileNum[col][row]].collision) {
             return true;
