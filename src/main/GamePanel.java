@@ -76,6 +76,7 @@ public class GamePanel extends JPanel implements Runnable {
     public QuestLog questLog = new QuestLog();
     public ModMenu modMenu = new ModMenu(this);
     public DisplayManager display = new DisplayManager(this);
+    public AudioSettings audio = new AudioSettings(this);
     public OptionsMenu optionsMenu = new OptionsMenu(this);
     public PauseMenu pauseMenu = new PauseMenu(this);
     public StorySequenceManager storySequenceManager = new StorySequenceManager(this);
@@ -105,6 +106,13 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void setupGame(){
         gameState = GameState.MENU;
+        applyAudioSettings();
+    }
+
+    public void applyAudioSettings() {
+        music.setVolume(audio.musicGain());
+        cutsceneMusic.setVolume(audio.musicGain());
+        se.setVolume(audio.effectsGain());
     }
 
     public void startNewGame() {

@@ -161,7 +161,7 @@ public class TitleMenu {
     }
 
     private void drawOptions(Graphics2D g2) {
-        gp.optionsMenu.draw(g2, 336);
+        gp.optionsMenu.draw(g2, 300);
     }
 
     private int centered(Graphics2D g2, String text) {

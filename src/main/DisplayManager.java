@@ -2,6 +2,7 @@ package main;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.prefs.Preferences;
 
 public class DisplayManager {
     public enum Mode {
@@ -25,6 +26,9 @@ public class DisplayManager {
     }
 
     private final GamePanel gp;
+    private static final String MODE_KEY = "displayMode";
+
+    private final Preferences prefs = Preferences.userNodeForPackage(DisplayManager.class);
     private volatile Mode mode = Mode.WINDOWED;
 
     public DisplayManager(GamePanel gp) {
@@ -40,7 +44,21 @@ public class DisplayManager {
             return;
         }
         mode = next;
+        prefs.put(MODE_KEY, next.name());
         SwingUtilities.invokeLater(() -> apply(next));
+    }
+
+    public void restoreSaved() {
+        Mode saved;
+        try {
+            saved = Mode.valueOf(prefs.get(MODE_KEY, Mode.WINDOWED.name()));
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+        if (saved != Mode.WINDOWED) {
+            mode = saved;
+            SwingUtilities.invokeLater(() -> apply(saved));
+        }
     }
 
     private void apply(Mode next) {

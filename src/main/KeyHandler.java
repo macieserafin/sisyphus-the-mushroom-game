@@ -88,6 +88,10 @@ public class KeyHandler implements KeyListener {
             if (code == KeyEvent.VK_2) {
                 twoPressed = true;
             }
+            if (code == KeyEvent.VK_M) {
+                gp.audio.toggleMute();
+                gp.ui.showMessage(gp.audio.isMuted() ? "Sound muted" : "Sound on");
+            }
             if (code == KeyEvent.VK_F3) {
                 gp.debugSettings.toggleOverlay();
             }

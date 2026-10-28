@@ -3,6 +3,7 @@ package main;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.IOException;
@@ -32,6 +33,7 @@ public class Sound {
     private final Clip[][] effectClips = new Clip[30][EFFECT_VOICES];
     private final int[] nextEffectVoice = new int[30];
     private final boolean[] effectLoadFailed = new boolean[30];
+    private float volume = 1f;
 
     public Sound() {
         soundURL[BACKGROUND] = getClass().getResource("/sounds/background.wav");
@@ -73,6 +75,7 @@ public class Sound {
         try (AudioInputStream ais = AudioSystem.getAudioInputStream(resource)) {
             clip = AudioSystem.getClip();
             clip.open(ais);
+            applyVolume(clip);
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
             System.err.println("Could not load audio resource at index " + i + " from " + resource + ": " + e.getMessage());
             closeClip();
@@ -114,6 +117,25 @@ public class Sound {
         effect.stop();
         effect.setFramePosition(0);
         effect.start();
+    }
+
+    public synchronized void setVolume(float volume) {
+        this.volume = Math.max(0f, Math.min(1f, volume));
+        applyVolume(clip);
+        for (Clip[] voices : effectClips) {
+            for (Clip effect : voices) {
+                applyVolume(effect);
+            }
+        }
+    }
+
+    private void applyVolume(Clip target) {
+        if (target == null || !target.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+            return;
+        }
+        FloatControl gain = (FloatControl) target.getControl(FloatControl.Type.MASTER_GAIN);
+        float decibels = volume <= 0.001f ? gain.getMinimum() : (float) (20.0 * Math.log10(volume));
+        gain.setValue(Math.max(gain.getMinimum(), Math.min(gain.getMaximum(), decibels)));
     }
 
     public void stopAllEffects() {
@@ -164,6 +186,7 @@ public class Sound {
         try (AudioInputStream ais = AudioSystem.getAudioInputStream(resource)) {
             Clip effect = AudioSystem.getClip();
             effect.open(ais);
+            applyVolume(effect);
             effectClips[i][voice] = effect;
             return effect;
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
