@@ -128,24 +128,7 @@ public class Entity {
                 drawScreenY + drawHeight > 0 &&
                 drawScreenY < gp.screenHeight) {
 
-            switch (direction) {
-                case "idle":
-                    image = idleImage();
-                    break;
-                case "up":
-                    image = (spriteNum == 1) ? up1 : up2;
-                    break;
-                case "left":
-                    image = (spriteNum == 1) ? left1 : left2;
-                    break;
-                case "right":
-                    image = (spriteNum == 1) ? right1 : right2;
-                    break;
-                case "down":
-                default:
-                    image = (spriteNum == 1) ? down1 : down2;
-                    break;
-            }
+            image = currentImage();
 
             if (image != null) {
                 g2.drawImage(image, drawScreenX, drawScreenY, drawWidth, drawHeight, null);
@@ -176,6 +159,25 @@ public class Entity {
 
     // Which way the entity looks while standing still.
     protected String idleFacing = "down";
+
+    protected BufferedImage currentImage() {
+        if (direction == null) {
+            direction = "down";
+        }
+        switch (direction) {
+            case "idle":
+                return idleImage();
+            case "up":
+                return (spriteNum == 1) ? up1 : up2;
+            case "left":
+                return (spriteNum == 1) ? left1 : left2;
+            case "right":
+                return (spriteNum == 1) ? right1 : right2;
+            case "down":
+            default:
+                return (spriteNum == 1) ? down1 : down2;
+        }
+    }
 
     private BufferedImage idleImage() {
         switch (idleFacing) {

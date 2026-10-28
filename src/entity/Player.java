@@ -11,6 +11,7 @@ import entity.npc.NPC;
 import object.SuperObject;
 import entity.anim.PlayerAnimator;
 import entity.anim.WeaponRenderer;
+import world.EffectsManager;
 import entity.anim.SpriteSheet;
 import entity.weapon.CombatLoadout;
 import entity.weapon.MeleeWeapon;
@@ -38,6 +39,15 @@ public class Player extends Entity {
     private static final int AIM_CHORD_TICKS = 2;
     private static final int MUZZLE_FLASH_TICKS = 4;
     private static final int RECOIL_KICK_TICKS = 3;
+    private static final int HURT_FLASH_TICKS = 8;
+    private static final int DEATH_TICKS = 60;
+    private static final int DEATH_FADE_TICKS = 30;
+    private static final double SQUASH_DECAY = 0.72;
+    private static final int SQUASH_ART_PIXELS = 3;
+    private static final double STOP_SQUASH_SPEED = 2.5;
+    private static final double TURN_DUST_SPEED = 2.5;
+    private static final int TURN_DUST_COOLDOWN_TICKS = 14;
+    private static final int SPRINT_DUST_INTERVAL_TICKS = 9;
     private static final double FACING_HYSTERESIS_RADIANS = Math.toRadians(10);
 
     KeyHandler keyH;
@@ -62,6 +72,13 @@ public class Player extends Entity {
     private int aimHeldTicks;
     private int muzzleFlashTicks;
     private int recoilKickTicks;
+    private int hurtFlashTicks;
+    private int deathTicks;
+    private double squash;
+    private boolean wasMoving;
+    private double lastSpeed;
+    private int turnDustCooldown;
+    private int sprintDustCounter;
 
     private int shotCooldownCounter = 0;
 
@@ -137,6 +154,8 @@ public class Player extends Entity {
         meleeCooldownCounter = 0;
         meleeAttackInputHeldLastFrame = false;
         resetMeleeHitEnemies();
+        hurtFlashTicks = 0;
+        deathTicks = 0;
         animator.reset();
         endScriptedHold();
     }
@@ -209,6 +228,11 @@ public class Player extends Entity {
         aimHeldTicks = 0;
         muzzleFlashTicks = 0;
         recoilKickTicks = 0;
+        squash = 0;
+        wasMoving = false;
+        lastSpeed = 0;
+        turnDustCooldown = 0;
+        sprintDustCounter = 0;
     }
 
     public void endScriptedHold() {
@@ -243,6 +267,7 @@ public class Player extends Entity {
 
     public void update() {
         if (!alive) {
+            updateDeath();
             return;
         }
 
@@ -298,6 +323,7 @@ public class Player extends Entity {
 
         clampVelocity(getCurrentVelocityCap(currentMaxSpeed, attackInput, hurtKnockbackActive));
         updateFacingFromVelocity();
+        updateMovementFeedback(moveInput[0], moveInput[1]);
         resolveInteractionsAfterMovement();
         updateAnimation();
     }
@@ -317,6 +343,16 @@ public class Player extends Entity {
         }
         if (recoilKickTicks > 0) {
             recoilKickTicks--;
+        }
+        if (hurtFlashTicks > 0) {
+            hurtFlashTicks--;
+        }
+        if (turnDustCooldown > 0) {
+            turnDustCooldown--;
+        }
+        squash *= SQUASH_DECAY;
+        if (Math.abs(squash) < 0.05) {
+            squash = 0;
         }
     }
 
@@ -531,6 +567,58 @@ public class Player extends Entity {
         return cap;
     }
 
+    private void updateMovementFeedback(double inputX, double inputY) {
+        double speed = vectorLength(velX, velY);
+        boolean hasInput = inputX != 0 || inputY != 0;
+
+        if (moving && !wasMoving && hasInput) {
+            squash = -0.7;
+            spawnFootDust(-inputX, -inputY, 4);
+        } else if (!moving && wasMoving && lastSpeed > STOP_SQUASH_SPEED) {
+            squash = 0.8;
+            spawnFootDust(0, 0, 4);
+        }
+
+        if (hasInput && speed > TURN_DUST_SPEED && turnDustCooldown == 0 && velX * inputX + velY * inputY < 0) {
+            spawnFootDust(velX / speed, velY / speed, 7);
+            squash = 0.5;
+            turnDustCooldown = TURN_DUST_COOLDOWN_TICKS;
+        }
+
+        if (moving && hasInput && keyH.shiftPressed) {
+            sprintDustCounter++;
+            if (sprintDustCounter >= SPRINT_DUST_INTERVAL_TICKS) {
+                sprintDustCounter = 0;
+                spawnFootDust(-velX / Math.max(speed, 1e-6), -velY / Math.max(speed, 1e-6), 3);
+            }
+        } else {
+            sprintDustCounter = 0;
+        }
+
+        wasMoving = moving;
+        lastSpeed = speed;
+    }
+
+    private void spawnFootDust(double dirX, double dirY, int count) {
+        gp.effects.dust(worldX + gp.tileSize / 2.0, worldY + gp.tileSize - 6, dirX, dirY, count);
+    }
+
+    private void updateDeath() {
+        if (deathTicks <= 0) {
+            return;
+        }
+        if (hurtFlashTicks > 0) {
+            hurtFlashTicks--;
+        }
+        deathTicks--;
+        if (deathTicks % 12 == 0 && deathTicks > DEATH_FADE_TICKS / 2) {
+            gp.effects.burst(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 4, 1.2, EffectsManager.SPORES);
+        }
+        if (deathTicks == 0) {
+            gp.onPlayerDied();
+        }
+    }
+
     private void updateFacingFromVelocity() {
         moving = Math.abs(velX) >= STOP_EPSILON || Math.abs(velY) >= STOP_EPSILON;
         if (moving) {
@@ -682,7 +770,7 @@ public class Player extends Entity {
     }
 
     public void draw(Graphics2D g2){
-        if (scriptedHidden) {
+        if (scriptedHidden || (!alive && deathTicks <= 0)) {
             return;
         }
 
@@ -690,18 +778,36 @@ public class Player extends Entity {
         int footX = screenX + gp.tileSize / 2 + scriptedDrawOffsetX;
         int footY = screenY + gp.tileSize + scriptedDrawOffsetY;
 
-        Composite oldComposite = g2.getComposite();
-        if (isHurtInvincible() && (hurtInvincibleCounter / 5) % 2 == 0) {
-            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f));
+        int extraWidth = (int) Math.round(squash * SQUASH_ART_PIXELS);
+        int extraHeight = -extraWidth;
+        float alpha = 1f;
+        if (!alive) {
+            double fallen = 1 - deathTicks / (double) DEATH_TICKS;
+            extraWidth += (int) Math.round(4 * fallen);
+            extraHeight -= (int) Math.round(10 * fallen);
+            alpha = Math.min(1f, deathTicks / (float) DEATH_FADE_TICKS);
+        } else if (hurtFlashTicks == 0 && isHurtInvincible() && (hurtInvincibleCounter / 5) % 2 == 0) {
+            alpha = 0.6f;
         }
-        boolean weaponVisible = isWeaponDrawn(frame);
+
+        Composite oldComposite = g2.getComposite();
+        if (alpha < 1f) {
+            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+        }
+        boolean weaponVisible = alive && isWeaponDrawn(frame);
         boolean weaponBehind = weaponVisible && aim.dy < 0;
         if (weaponBehind) {
-            drawWeapon(g2, frame, footX, footY);
+            drawWeapon(g2, frame, footX, footY, extraWidth, extraHeight);
         }
-        frame.draw(g2, footX, footY, gp.scale);
+        frame.draw(g2, footX, footY, gp.scale, extraWidth, extraHeight);
+        if (hurtFlashTicks > 0) {
+            float flash = hurtFlashTicks > HURT_FLASH_TICKS / 2 ? 1f : 0.55f;
+            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, flash * alpha));
+            frame.drawWhite(g2, footX, footY, gp.scale, extraWidth, extraHeight);
+            g2.setComposite(alpha < 1f ? AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha) : oldComposite);
+        }
         if (weaponVisible && !weaponBehind) {
-            drawWeapon(g2, frame, footX, footY);
+            drawWeapon(g2, frame, footX, footY, extraWidth, extraHeight);
         }
         g2.setComposite(oldComposite);
 
@@ -723,10 +829,10 @@ public class Player extends Entity {
         return combatState == CombatState.RANGE || (combatState == CombatState.MELEE && meleeAttacking);
     }
 
-    private void drawWeapon(Graphics2D g2, SpriteSheet.Frame frame, int footX, int footY) {
+    private void drawWeapon(Graphics2D g2, SpriteSheet.Frame frame, int footX, int footY, int extraWidth, int extraHeight) {
         int scale = gp.scale;
-        int handX = frame.originX(footX, scale) + frame.handX() * scale;
-        int handY = frame.originY(footY, scale) + frame.handY() * scale;
+        int handX = frame.handScreenX(footX, scale, extraWidth);
+        int handY = frame.handScreenY(footY, scale, extraHeight);
         if (combatState == CombatState.RANGE) {
             double angle = aim.angle();
             int kick = recoilKickTicks > 0 ? -1 : 0;
@@ -761,6 +867,8 @@ public class Player extends Entity {
         meleeFrame = 0;
         resetMeleeHitEnemies();
         gp.playSoundEffect(Sound.SWORD);
+        squash = 0.45;
+        spawnFootDust(-aim.unitX, -aim.unitY, 2);
 
         addMovementImpulse(meleeWeapon.impulseFor(aim));
     }
@@ -986,6 +1094,10 @@ public class Player extends Entity {
 
         hurtInvincibleCounter = HURT_INVINCIBLE_FRAMES;
         gp.playSoundEffect(randomHurtSound());
+        hurtFlashTicks = HURT_FLASH_TICKS;
+        squash = 1.0;
+        gp.effects.shake(10, 6);
+        gp.effects.burst(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 8, 2.5, EffectsManager.HURT);
     }
 
     @Override
@@ -1068,6 +1180,9 @@ public class Player extends Entity {
         resetFacingAndAim();
         gp.keyH.clearGameplayInput();
         gp.playSoundEffect(Sound.PLAYER_DEATH);
-        gp.onPlayerDied();
+        deathTicks = DEATH_TICKS;
+        hurtFlashTicks = HURT_FLASH_TICKS;
+        gp.effects.shake(16, 9);
+        gp.effects.burst(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 26, 3.0, EffectsManager.SPORES);
     }
 }

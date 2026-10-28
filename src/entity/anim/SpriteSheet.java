@@ -120,28 +120,42 @@ public final class SpriteSheet {
             return hand.y;
         }
 
-        public int originX(int footX, int scale) {
-            return footX - anchorX() * scale;
-        }
-
-        public int originY(int footY, int scale) {
-            return footY - sheet.anchorY * scale;
-        }
-
         public int anchorX() {
             return mirrored ? sheet.frameWidth - sheet.anchorX : sheet.anchorX;
         }
 
         public void draw(Graphics2D g2, int footX, int footY, int scale) {
-            int w = sheet.frameWidth * scale;
-            int h = sheet.frameHeight * scale;
-            int x = originX(footX, scale);
-            int y = originY(footY, scale);
+            draw(g2, footX, footY, scale, 0, 0, image);
+        }
+
+        public void drawWhite(Graphics2D g2, int footX, int footY, int scale, int extraWidth, int extraHeight) {
+            draw(g2, footX, footY, scale, extraWidth, extraHeight, Silhouette.white(image));
+        }
+
+        public void draw(Graphics2D g2, int footX, int footY, int scale, int extraWidth, int extraHeight) {
+            draw(g2, footX, footY, scale, extraWidth, extraHeight, image);
+        }
+
+        private void draw(Graphics2D g2, int footX, int footY, int scale, int extraWidth, int extraHeight, BufferedImage source) {
+            int w = (sheet.frameWidth + extraWidth) * scale;
+            int h = (sheet.frameHeight + extraHeight) * scale;
+            int x = footX - (int) Math.round(anchorX() * (double) w / sheet.frameWidth);
+            int y = footY - (int) Math.round(sheet.anchorY * (double) h / sheet.frameHeight);
             if (mirrored) {
-                g2.drawImage(image, x + w, y, -w, h, null);
+                g2.drawImage(source, x + w, y, -w, h, null);
             } else {
-                g2.drawImage(image, x, y, w, h, null);
+                g2.drawImage(source, x, y, w, h, null);
             }
+        }
+
+        public int handScreenX(int footX, int scale, int extraWidth) {
+            double stretch = (sheet.frameWidth + extraWidth) / (double) sheet.frameWidth;
+            return footX + (int) Math.round((handX() - anchorX()) * scale * stretch);
+        }
+
+        public int handScreenY(int footY, int scale, int extraHeight) {
+            double stretch = (sheet.frameHeight + extraHeight) / (double) sheet.frameHeight;
+            return footY + (int) Math.round((handY() - sheet.anchorY) * scale * stretch);
         }
     }
 

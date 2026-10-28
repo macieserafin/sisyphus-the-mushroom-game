@@ -19,6 +19,7 @@ import story.StorySequences;
 import tile.TileManager;
 import world.BulletManager;
 import world.CollisionChecker;
+import world.EffectsManager;
 import world.WorldEntities;
 
 import javax.swing.*;
@@ -84,6 +85,7 @@ public class GamePanel extends JPanel implements Runnable {
     public TileManager tileM = new TileManager(this);
     public WorldEntities entities = new WorldEntities(this);
     public BulletManager bulletManager = new BulletManager(this);
+    public EffectsManager effects = new EffectsManager(this);
     public LevelManager levelManager = new LevelManager(this);
     public DebugSettings debugSettings = new DebugSettings();
     private int hitStopFrames = 0;
@@ -229,6 +231,7 @@ public class GamePanel extends JPanel implements Runnable {
                 return;
             }
             bulletManager.update();
+            effects.update();
             if (storySequenceManager.isActive()) {
                 return;
             }
@@ -296,7 +299,11 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         player.updateCamera();
+        int shakeX = effects.shakeX();
+        int shakeY = effects.shakeY();
+        g2.translate(shakeX, shakeY);
         tileM.draw(g2);
+        effects.drawGround(g2);
 
         bulletManager.draw(g2);
 
@@ -315,6 +322,8 @@ public class GamePanel extends JPanel implements Runnable {
         for(Enemy enemy : entities.enemies()) {
             enemy.drawOverlay(g2);
         }
+        effects.drawOver(g2);
+        g2.translate(-shakeX, -shakeY);
 
         ui.draw(g2);
 

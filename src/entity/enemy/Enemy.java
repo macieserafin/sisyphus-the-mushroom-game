@@ -1,12 +1,15 @@
 package entity.enemy;
 
 import entity.Entity;
+import entity.anim.Silhouette;
 import entity.combat.Hit;
 import entity.combat.HitResult;
 import main.GamePanel;
 import main.Sound;
+import world.EffectsManager;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.Random;
 
 public class Enemy extends Entity {
@@ -196,6 +199,7 @@ public class Enemy extends Entity {
         }
 
         takeDamage(hit.damage());
+        spawnHitSparks(hit);
         if (hit.knockbackForce() > 0) {
             applyKnockbackFrom(hit.sourceWorldX(), hit.sourceWorldY(), hit.knockbackForce());
         }
@@ -207,7 +211,20 @@ public class Enemy extends Entity {
             return;
         }
         deathHandled = true;
+        Rectangle box = getWorldHitBox();
+        gp.effects.burst(box.getCenterX(), box.getCenterY(), 14, 2.2, EffectsManager.SPORES);
         onDeath();
+    }
+
+    protected void spawnHitSparks(Hit hit) {
+        Rectangle box = getWorldHitBox();
+        double centerX = box.getCenterX();
+        double centerY = box.getCenterY();
+        double dirX = centerX - hit.sourceWorldX();
+        double dirY = centerY - hit.sourceWorldY();
+        double length = Math.max(1e-6, Math.hypot(dirX, dirY));
+        double edge = Math.min(box.width, box.height) / 2.0;
+        gp.effects.sparks(centerX - dirX / length * edge, centerY - dirY / length * edge, dirX, dirY, 6, EffectsManager.SPARK);
     }
 
     public boolean isReadyForRemoval() {
@@ -309,20 +326,17 @@ public class Enemy extends Entity {
         if (damageFlashFramesLeft <= 0 || !alive) {
             return;
         }
-
-        int screenX = getDrawScreenX();
-        int screenY = getDrawScreenY();
+        BufferedImage image = currentImage();
+        if (image == null) {
+            return;
+        }
 
         Graphics2D g2d = (Graphics2D) g2;
         Composite oldComposite = g2d.getComposite();
-        Color oldColor = g2d.getColor();
-
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.42f));
-        g2d.setColor(Color.WHITE);
-        g2d.fillRect(screenX, screenY, drawWidth, drawHeight);
-
+        float strength = damageFlashFramesLeft > DAMAGE_FLASH_FRAMES / 2 ? 0.9f : 0.45f;
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, strength));
+        g2d.drawImage(Silhouette.white(image), getDrawScreenX(), getDrawScreenY(), drawWidth, drawHeight, null);
         g2d.setComposite(oldComposite);
-        g2d.setColor(oldColor);
     }
 
     protected void drawHealthBar(Graphics g2) {

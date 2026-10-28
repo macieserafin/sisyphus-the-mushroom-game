@@ -272,6 +272,7 @@ public class LevelManager {
         clearNPCs();
         clearEnemies();
         clearBullets();
+        gp.effects.clear();
     }
 
     public void clearObjects() {

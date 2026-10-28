@@ -218,6 +218,7 @@ public class Enemy_BYT extends Enemy {
             takeDamage(damage);
         }
         hitFlashFrames = 6;
+        spawnHitSparks(hit);
 
         // Hits can arrive while bullets are being iterated, so the execution starts on the next update.
         if (health <= executionHealth()) {
