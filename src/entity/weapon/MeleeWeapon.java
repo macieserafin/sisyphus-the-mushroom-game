@@ -21,7 +21,6 @@ public interface MeleeWeapon {
     double controlAccelMultiplier();
     int totalFrames();
     boolean isStrikeFrame(int frame);
-    boolean useStrikeSprite(int frame);
     double maxSpeedForFrame(int frame, double baseMaxSpeed);
     double dampingForFrame(int frame);
     MovementImpulse impulseFor(Direction8 direction);

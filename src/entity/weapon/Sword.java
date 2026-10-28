@@ -27,7 +27,6 @@ public class Sword implements MeleeWeapon {
     private static final int HIT_STOP_FRAMES = 2;
     private static final double SWING_ARC_RADIANS = Math.toRadians(140);
     private final PlayerCombatAnimations animations = PlayerCombatAnimations.loadDefaultMelee();
-    private final WeaponSprite sprite = WeaponSprite.load("short_sword");
 
     @Override
     public String displayName() {
@@ -41,7 +40,7 @@ public class Sword implements MeleeWeapon {
 
     @Override
     public WeaponSprite sprite() {
-        return sprite;
+        return WeaponSprite.load("short_sword");
     }
 
     @Override
@@ -79,10 +78,6 @@ public class Sword implements MeleeWeapon {
 
     public boolean isStrikeFrame(int frame) {
         return frame >= WINDUP_FRAMES && frame < WINDUP_FRAMES + STRIKE_FRAMES;
-    }
-
-    public boolean useStrikeSprite(int frame) {
-        return isStrikeFrame(frame);
     }
 
     public double maxSpeedForFrame(int frame, double baseMaxSpeed) {

@@ -41,6 +41,21 @@ public final class WeaponSprite {
         return sprite;
     }
 
+    public static synchronized int reloadAll() {
+        Map<String, WeaponSprite> reloaded = new HashMap<>();
+        for (String name : CACHE.keySet()) {
+            String path = "weapons/" + name;
+            try {
+                reloaded.put(name, new WeaponSprite(readImage(path + ".png"), readProperties(path + ".properties")));
+            } catch (RuntimeException e) {
+                throw new IllegalStateException(path + ": " + e.getMessage(), e);
+            }
+        }
+        CACHE.clear();
+        CACHE.putAll(reloaded);
+        return reloaded.size();
+    }
+
     public double length() {
         return Math.hypot(tipX - gripX, tipY - gripY);
     }
@@ -113,7 +128,7 @@ public final class WeaponSprite {
     }
 
     private static Properties readProperties(String path) {
-        try (InputStream stream = WeaponSprite.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream stream = ArtFiles.open(path)) {
             if (stream == null) {
                 throw new IllegalStateException("Missing weapon sprite description: " + path);
             }
@@ -126,7 +141,7 @@ public final class WeaponSprite {
     }
 
     private static BufferedImage readImage(String path) {
-        try (InputStream stream = WeaponSprite.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream stream = ArtFiles.open(path)) {
             if (stream == null) {
                 throw new IllegalStateException("Missing weapon sprite image: " + path);
             }

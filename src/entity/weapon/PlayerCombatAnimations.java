@@ -3,27 +3,27 @@ package entity.weapon;
 import entity.anim.SpriteSheet;
 
 public class PlayerCombatAnimations {
-    private final SpriteSheet shoot;
-    private final SpriteSheet attack;
+    private final String shoot;
+    private final String attack;
 
-    private PlayerCombatAnimations(SpriteSheet shoot, SpriteSheet attack) {
+    private PlayerCombatAnimations(String shoot, String attack) {
         this.shoot = shoot;
         this.attack = attack;
     }
 
     public static PlayerCombatAnimations loadDefaultRanged() {
-        return new PlayerCombatAnimations(SpriteSheet.load("player/anim/player_shoot"), null);
+        return new PlayerCombatAnimations("player/anim/player_shoot", null);
     }
 
     public static PlayerCombatAnimations loadDefaultMelee() {
-        return new PlayerCombatAnimations(null, SpriteSheet.load("player/anim/player_attack"));
+        return new PlayerCombatAnimations(null, "player/anim/player_attack");
     }
 
     public SpriteSheet shoot() {
-        return shoot;
+        return shoot == null ? null : SpriteSheet.load(shoot);
     }
 
     public SpriteSheet attack() {
-        return attack;
+        return attack == null ? null : SpriteSheet.load(attack);
     }
 }

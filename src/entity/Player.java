@@ -20,6 +20,7 @@ import entity.weapon.RangedWeapon;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -601,6 +602,7 @@ public class Player extends Entity {
             hurtFlashTicks--;
         }
         deathTicks--;
+        animator.updateDeath();
         if (deathTicks % 12 == 0 && deathTicks > DEATH_FADE_TICKS / 2) {
             gp.effects.burst(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 4, 1.2, EffectsManager.SPORES);
         }
@@ -637,14 +639,17 @@ public class Player extends Entity {
     }
 
     private void updateAnimation() {
-        animator.locomote(moving, vectorLength(velX, velY) / gp.scale, facing);
+        animator.hurt(!scriptedHold && (hurtFlashTicks > 0 || hurtKnockbackCounter > 0));
+        animator.locomote(moving, keyH.shiftPressed, vectorLength(velX, velY) / gp.scale, facing);
         if (aim == null) {
             animator.clearPose();
         } else if (combatState == CombatState.RANGE) {
-            animator.holdPose(PlayerAnimator.State.SHOOT, rangedWeapon.animations().shoot(), 0, aim);
+            SpriteSheet sheet = rangedWeapon.animations().shoot();
+            animator.holdPose(PlayerAnimator.State.SHOOT, sheet, PlayerAnimator.shootFrame(sheet, recoilKickTicks > 0), aim);
         } else if (combatState == CombatState.MELEE && meleeAttacking) {
-            int poseFrame = meleeWeapon.useStrikeSprite(meleeFrame) ? 1 : 0;
-            animator.holdPose(PlayerAnimator.State.ATTACK, meleeWeapon.animations().attack(), poseFrame, aim);
+            SpriteSheet sheet = meleeWeapon.animations().attack();
+            int poseFrame = sheet == null ? 0 : PlayerAnimator.attackFrame(meleeWeapon, meleeFrame, sheet.frameCount);
+            animator.holdPose(PlayerAnimator.State.ATTACK, sheet, poseFrame, aim);
         } else {
             animator.clearPose();
         }
@@ -768,9 +773,11 @@ public class Player extends Entity {
         int extraHeight = -extraWidth;
         float alpha = 1f;
         if (!alive) {
-            double fallen = 1 - deathTicks / (double) DEATH_TICKS;
-            extraWidth += (int) Math.round(4 * fallen);
-            extraHeight -= (int) Math.round(10 * fallen);
+            if (!animator.hasDeathAnimation()) {
+                double fallen = 1 - deathTicks / (double) DEATH_TICKS;
+                extraWidth += (int) Math.round(4 * fallen);
+                extraHeight -= (int) Math.round(10 * fallen);
+            }
             alpha = Math.min(1f, deathTicks / (float) DEATH_FADE_TICKS);
         } else if (hurtFlashTicks == 0 && isHurtInvincible() && (hurtInvincibleCounter / 5) % 2 == 0) {
             alpha = 0.6f;
@@ -805,7 +812,60 @@ public class Player extends Entity {
             g2.drawRect(screenX + hitBox.x, screenY + hitBox.y, hitBox.width, hitBox.height);
 
             drawMeleeHitBox(g2);
+            drawAnimationDebug(g2, frame, footX, footY, extraWidth, extraHeight);
         }
+    }
+
+    private void drawAnimationDebug(Graphics2D g2, SpriteSheet.Frame frame, int footX, int footY, int extraWidth, int extraHeight) {
+        Color oldColor = g2.getColor();
+        Font oldFont = g2.getFont();
+        int scale = gp.scale;
+
+        g2.setColor(Color.CYAN);
+        g2.drawLine(footX - 2 * scale, footY, footX + 2 * scale, footY);
+        g2.drawLine(footX, footY - 2 * scale, footX, footY + 2 * scale);
+
+        if (frame.hasHand()) {
+            int handX = frame.handScreenX(footX, scale, extraWidth);
+            int handY = frame.handScreenY(footY, scale, extraHeight);
+            g2.setColor(Color.MAGENTA);
+            g2.drawRect(handX, handY, scale - 1, scale - 1);
+            if (alive && isWeaponDrawn(frame)) {
+                double angle = combatState == CombatState.RANGE ? aim.angle() : WeaponRenderer.swingPose(meleeWeapon, meleeFrame, aim).bladeAngle;
+                int push = combatState == CombatState.RANGE && recoilKickTicks > 0 ? -1 : 0;
+                int gripX = handX + (int) Math.round(Math.cos(angle) * push) * scale;
+                int gripY = handY + (int) Math.round(Math.sin(angle) * push) * scale;
+                g2.setColor(Color.YELLOW);
+                g2.drawRect(gripX - 1, gripY - 1, scale + 1, scale + 1);
+            }
+        }
+
+        String sheetName = frame.sheet.name.substring(frame.sheet.name.lastIndexOf('/') + 1);
+        boolean chordOpen = heldAim != null && !isAimSettled();
+        String[] lines = {
+                animator.state() + "  " + sheetName + "  #" + frame.index + "/" + frame.sheet.frameCount,
+                "dir " + animator.direction() + (frame.mirrored ? " (mirrored)" : "") + "  facing " + facing,
+                "aim " + aim + "  held " + heldAim + (chordOpen ? "  chord " + aimHeldTicks + "/" + AIM_CHORD_TICKS : ""),
+                String.format(Locale.ROOT, "squash %.2f  (%+d px)", squash, extraWidth)
+        };
+        g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+        FontMetrics metrics = g2.getFontMetrics();
+        int lineHeight = metrics.getHeight();
+        int width = 0;
+        for (String line : lines) {
+            width = Math.max(width, metrics.stringWidth(line));
+        }
+        int boxX = screenX + gp.tileSize + 6;
+        int boxY = screenY - gp.tileSize / 2;
+        g2.setColor(new Color(0, 0, 0, 170));
+        g2.fillRect(boxX - 3, boxY - 2, width + 6, lineHeight * lines.length + 4);
+        g2.setColor(Color.WHITE);
+        for (int i = 0; i < lines.length; i++) {
+            g2.drawString(lines[i], boxX, boxY + metrics.getAscent() + i * lineHeight);
+        }
+
+        g2.setFont(oldFont);
+        g2.setColor(oldColor);
     }
 
     private boolean isWeaponDrawn(SpriteSheet.Frame frame) {
@@ -1168,6 +1228,7 @@ public class Player extends Entity {
         gp.playSoundEffect(Sound.PLAYER_DEATH);
         deathTicks = DEATH_TICKS;
         hurtFlashTicks = HURT_FLASH_TICKS;
+        animator.die();
         gp.effects.shake(16, 9);
         gp.effects.burst(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 26, 3.0, EffectsManager.SPORES);
     }

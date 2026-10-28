@@ -8,11 +8,14 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 public final class SpriteSheet {
     private static final Map<String, SpriteSheet> CACHE = new HashMap<>();
+    private static final Set<String> MISSING = new HashSet<>();
 
     public final String name;
     public final int frameWidth;
@@ -69,18 +72,58 @@ public final class SpriteSheet {
         return sheet;
     }
 
+    public static synchronized SpriteSheet loadOptional(String path) {
+        SpriteSheet cached = CACHE.get(path);
+        if (cached != null || MISSING.contains(path)) {
+            return cached;
+        }
+        if (!ArtFiles.exists(path + ".properties") || !ArtFiles.exists(path + ".png")) {
+            MISSING.add(path);
+            return null;
+        }
+        return load(path);
+    }
+
+    public static synchronized int reloadAll() {
+        Map<String, SpriteSheet> reloaded = new HashMap<>();
+        for (String path : CACHE.keySet()) {
+            reloaded.put(path, reload(path));
+        }
+        Set<String> stillMissing = new HashSet<>();
+        for (String path : MISSING) {
+            if (ArtFiles.exists(path + ".properties") && ArtFiles.exists(path + ".png")) {
+                reloaded.put(path, reload(path));
+            } else {
+                stillMissing.add(path);
+            }
+        }
+        CACHE.clear();
+        CACHE.putAll(reloaded);
+        MISSING.clear();
+        MISSING.addAll(stillMissing);
+        return reloaded.size();
+    }
+
+    private static SpriteSheet reload(String path) {
+        try {
+            return new SpriteSheet(path, readProperties(path + ".properties"), readImage(path + ".png"));
+        } catch (RuntimeException e) {
+            throw new IllegalStateException(path + ": " + e.getMessage(), e);
+        }
+    }
+
     public Frame frame(Direction8 facing, int index) {
         Direction8 dir = facing == null ? Direction8.S : facing;
         int col = Math.floorMod(index, frameCount);
         switch (directions) {
             case 1:
-                return new Frame(this, frames[0][col], hands[0][col], false);
+                return new Frame(this, frames[0][col], hands[0][col], false, col);
             case 5:
                 Direction8 east = dir.mirroredToEast();
                 int row = fiveRow(east);
-                return new Frame(this, frames[row][col], hands[row][col], east != dir);
+                return new Frame(this, frames[row][col], hands[row][col], east != dir, col);
             default:
-                return new Frame(this, frames[dir.ordinal()][col], hands[dir.ordinal()][col], false);
+                return new Frame(this, frames[dir.ordinal()][col], hands[dir.ordinal()][col], false, col);
         }
     }
 
@@ -99,13 +142,15 @@ public final class SpriteSheet {
         public final SpriteSheet sheet;
         public final BufferedImage image;
         public final boolean mirrored;
+        public final int index;
         private final Point hand;
 
-        Frame(SpriteSheet sheet, BufferedImage image, Point hand, boolean mirrored) {
+        Frame(SpriteSheet sheet, BufferedImage image, Point hand, boolean mirrored, int index) {
             this.sheet = sheet;
             this.image = image;
             this.hand = hand;
             this.mirrored = mirrored;
+            this.index = index;
         }
 
         public boolean hasHand() {
@@ -196,7 +241,7 @@ public final class SpriteSheet {
     }
 
     private static Properties readProperties(String path) {
-        try (InputStream stream = SpriteSheet.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream stream = ArtFiles.open(path)) {
             if (stream == null) {
                 throw new IllegalStateException("Missing sprite sheet description: " + path);
             }
@@ -209,7 +254,7 @@ public final class SpriteSheet {
     }
 
     private static BufferedImage readImage(String path) {
-        try (InputStream stream = SpriteSheet.class.getClassLoader().getResourceAsStream(path)) {
+        try (InputStream stream = ArtFiles.open(path)) {
             if (stream == null) {
                 throw new IllegalStateException("Missing sprite sheet image: " + path);
             }

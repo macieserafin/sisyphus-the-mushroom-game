@@ -19,7 +19,6 @@ public class Shotgun implements RangedWeapon {
     private int shotCooldownFrames = 28;
     private double bulletSpeed = 9.0;
     private final PlayerCombatAnimations animations = PlayerCombatAnimations.loadDefaultRanged();
-    private final WeaponSprite sprite = WeaponSprite.load("shotgun");
 
     @Override
     public String displayName() {
@@ -33,7 +32,7 @@ public class Shotgun implements RangedWeapon {
 
     @Override
     public WeaponSprite sprite() {
-        return sprite;
+        return WeaponSprite.load("shotgun");
     }
 
     @Override

@@ -94,6 +94,9 @@ public class KeyHandler implements KeyListener {
             if (code == KeyEvent.VK_F4 && gp.debugSettings.isOverlayEnabled()) {
                 gp.debugDamageActiveBoss(100);
             }
+            if (code == KeyEvent.VK_F5 && gp.debugSettings.isOverlayEnabled()) {
+                gp.debugReloadArt();
+            }
 
             if (code == KeyEvent.VK_ESCAPE) {
                 gp.pauseGame();

@@ -4,6 +4,8 @@ import dialogue.DialogueLine;
 import dialogue.DialogueManager;
 import dialogue.DialogueSpeaker;
 import entity.Player;
+import entity.anim.SpriteSheet;
+import entity.anim.WeaponSprite;
 import entity.combat.Hit;
 import entity.combat.HitType;
 import entity.enemy.Enemy;
@@ -490,6 +492,17 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
         boss.receiveHit(new Hit(damage, HitType.MELEE, player, player.worldX, player.worldY, 0, null));
+    }
+
+    public void debugReloadArt() {
+        try {
+            int sheets = SpriteSheet.reloadAll();
+            int weapons = WeaponSprite.reloadAll();
+            ui.showMessage("Art reloaded: " + sheets + " sheets, " + weapons + " weapons");
+        } catch (RuntimeException e) {
+            ui.showMessage("Art reload failed: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     public void startHitStop(int frames) {
