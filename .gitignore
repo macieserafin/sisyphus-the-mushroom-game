@@ -38,3 +38,11 @@ Desktop.ini
 
 ### Editor backups ###
 *~
+
+### Private / not for public distribution ###
+res/
+launcher/
+private-docs/
+docs/
+*.png~
+*.wav
