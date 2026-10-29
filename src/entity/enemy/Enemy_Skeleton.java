@@ -28,6 +28,7 @@ public class Enemy_Skeleton extends Enemy {
     public Enemy_Skeleton(GamePanel gp) {
         super(gp);
         setupEnemyStats("Skeleton", 24, 2, 1);
+        mushroomValue = 2;
         setupCollisionAreas(new Rectangle(14, 36, 20, 12), new Rectangle(10, 0, 28, 48));
         // Native 16px art uses the same integer scale as the map tiles.
         setupDrawArea(gp.tileSize, gp.tileSize, 0, 0);

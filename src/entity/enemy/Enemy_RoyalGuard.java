@@ -73,6 +73,7 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         super(gp, true);
         this.kind = kind;
         setupEnemyStats(kind == Kind.CRYSTAL ? "Crystal Guard" : "Gel Guard", kind == Kind.CRYSTAL ? CRYSTAL_STUN_BAR : GEL_STUN_BAR, 1, 1);
+        mushroomValue = 3;
         setupCollisionAreas(
                 new Rectangle(-6, 20, 60, 28),
                 new Rectangle(-11, -2, 70, 50)

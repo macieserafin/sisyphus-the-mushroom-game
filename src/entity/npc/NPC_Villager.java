@@ -1,6 +1,7 @@
 package entity.npc;
 
 import main.GamePanel;
+import main.Shop;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -19,6 +20,8 @@ public class NPC_Villager extends NPC {
     private final Random random = new Random();
     private int conversationIndex = 0;
     private int walkPixelsLeft = 0;
+    private Shop shop;
+    private boolean teacher;
 
     public NPC_Villager(GamePanel gp, String name, String sprite, Color accent, boolean wanders) {
         this(gp, name, sprite, accent, wanders, false);
@@ -114,16 +117,50 @@ public class NPC_Villager extends NPC {
         walkPixelsLeft = (random.nextInt(2) + 1) * gp.tileSize;
     }
 
+    // A teacher asks "Talk or Skills?" and opens the skill tree.
+    public NPC_Villager teaches() {
+        teacher = true;
+        return this;
+    }
+
+    // Shopkeepers ask "Talk or Shop?" before anything else.
+    public NPC_Villager sells(Shop shop) {
+        this.shop = shop;
+        return this;
+    }
+
     @Override
     public void speak() {
         if (silent) {
             return;
         }
+        if (shop == null && !teacher) {
+            talk();
+            return;
+        }
+        stopToFacePlayer();
+        walkPixelsLeft = 0;
+        if (teacher) {
+            gp.shopMenu.openTrainer(this, false);
+        } else {
+            gp.shopMenu.open(this, shop);
+        }
+    }
+
+    private void stopToFacePlayer() {
         facePlayer();
         if (!"idle".equals(direction)) {
             idleFacing = direction;
         }
         direction = "idle";
+    }
+
+    @Override
+    public void talk() {
+        if (silent) {
+            return;
+        }
+        stopToFacePlayer();
         if (conversations.isEmpty()) {
             return;
         }

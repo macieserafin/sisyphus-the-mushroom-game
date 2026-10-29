@@ -27,6 +27,7 @@ import world.WorldEntities;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -82,6 +83,9 @@ public class GamePanel extends JPanel implements Runnable {
     public DialogueManager dialogueManager = new DialogueManager(this);
     public StoryFlags storyFlags = new StoryFlags();
     public QuestLog questLog = new QuestLog();
+    private final ArrayDeque<String> questNotices = new ArrayDeque<>();
+    public QuestMenu questMenu = new QuestMenu(this);
+    public SkillTreeMenu skillTreeMenu = new SkillTreeMenu(this);
     public ModMenu modMenu = new ModMenu(this);
     public DisplayManager display = new DisplayManager(this);
     public AudioSettings audio = new AudioSettings(this);
@@ -98,6 +102,9 @@ public class GamePanel extends JPanel implements Runnable {
     public EnemyShotManager enemyShots = new EnemyShotManager(this);
     public LevelManager levelManager = new LevelManager(this);
     public DebugSettings debugSettings = new DebugSettings();
+    public MushroomWallet wallet = new MushroomWallet();
+    public Progression progression = new Progression();
+    public ShopMenu shopMenu = new ShopMenu(this);
     private int hitStopFrames = 0;
 
     public Player player = new Player(this, keyH);
@@ -204,6 +211,23 @@ public class GamePanel extends JPanel implements Runnable {
         if (gameState == GameState.PAUSED) {
             pauseMenu.update();
             return;
+        }
+        if (gameState == GameState.SHOP) {
+            shopMenu.update();
+            return;
+        }
+        if (gameState == GameState.QUESTS) {
+            questMenu.update();
+            return;
+        }
+        if (gameState == GameState.SKILLS) {
+            skillTreeMenu.update();
+            return;
+        }
+        questLog.sync(this);
+        questNotices.addAll(questLog.drainNotices());
+        if (!ui.messageOn && !questNotices.isEmpty() && gameState == GameState.PLAYING) {
+            ui.showMessage(questNotices.poll());
         }
 
         if (prologueSkipRequested) {
@@ -380,7 +404,8 @@ public class GamePanel extends JPanel implements Runnable {
 
         storyFlags = new StoryFlags();
         prologueTutorialManager = new PrologueTutorialManager(this);
-        questLog.clear();
+        questLog.reset();
+        questNotices.clear();
         villageAwakeningPending = false;
         restartAfterDeathPending = false;
         tutorialRespawnPending = false;
@@ -534,8 +559,13 @@ public class GamePanel extends JPanel implements Runnable {
         }
         bossRetryAvailable = false;
 
+        boolean diedInRun = levelManager.isRunActive();
+        int kept = diedInRun ? wallet.loseRun() : 0;
         levelManager.loadHub();
         gameState = GameState.PLAYING;
+        if (diedInRun) {
+            ui.showMessage("Kept " + kept + " mushrooms");
+        }
         playAreaMusic();
         dialogueManager.showAmbient(BYT_VOICE, WAKE_UP_TAUNTS[random.nextInt(WAKE_UP_TAUNTS.length)], DialogueLine.Priority.HIGH, 60 * 4);
     }

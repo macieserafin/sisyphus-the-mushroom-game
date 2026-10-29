@@ -31,6 +31,7 @@ public class UI {
     private final Map<String, BufferedImage> visualNovelBackgroundCache = new HashMap<>();
 
     public boolean messageOn = false;
+    private final Font toastFont = new Font("SansSerif", Font.BOLD, 13);
     public String message = "";
     int messageCounter = 0;
 
@@ -109,6 +110,15 @@ public class UI {
         }
         if (gp.gameState == GameState.PAUSED) {
             gp.pauseMenu.draw(this.g2);
+        }
+        if (gp.gameState == GameState.SHOP) {
+            gp.shopMenu.draw(this.g2);
+        }
+        if (gp.gameState == GameState.QUESTS) {
+            gp.questMenu.draw(this.g2);
+        }
+        if (gp.gameState == GameState.SKILLS) {
+            gp.skillTreeMenu.draw(this.g2);
         }
         if (gp.gameState != GameState.MOD_MENU) drawBlink();
     }
@@ -340,11 +350,25 @@ public class UI {
         drawDialogueWindow(x, y, DIALOGUE_WIDTH, DIALOGUE_HEIGHT, line);
     }
 
+    // Small toast near the top of the screen, between the status HUD and the minimap, so it never covers the player.
     private void drawMessageToast() {
-        int scale = 2;
-        int width = UiSkin.PixelFont.width(message, scale) + 42;
+        Font oldFont = g2.getFont();
+        Object oldAa = g2.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g2.setFont(toastFont);
+        FontMetrics fm = g2.getFontMetrics();
+        int width = fm.stringWidth(message) + 30;
         int x = gp.screenWidth / 2 - width / 2;
-        UiSkin.plaque(g2, x, 186, width, 30, message, UiSkin.RED);
+        int y = 92;
+        UiSkin.plaque(g2, x, y, width, 24, null, UiSkin.RED);
+        int tx = gp.screenWidth / 2 - fm.stringWidth(message) / 2;
+        int ty = y + 12 + (fm.getAscent() - fm.getDescent()) / 2;
+        g2.setColor(new Color(0, 0, 0, 150));
+        g2.drawString(message, tx + 1, ty + 1);
+        g2.setColor(UiSkin.TEXT);
+        g2.drawString(message, tx, ty);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, oldAa);
+        g2.setFont(oldFont);
     }
 
     private void drawVisualNovelScene() {

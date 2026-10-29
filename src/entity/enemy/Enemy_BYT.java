@@ -123,6 +123,7 @@ public class Enemy_BYT extends Enemy {
         super(gp);
         direction = "idle";
         setupEnemyStats("BYT", MAX_HEALTH, 1, CONTACT_DAMAGE);
+        mushroomValue = 0;
         setupDrawArea(
                 SPRITE_WIDTH,
                 SPRITE_HEIGHT,

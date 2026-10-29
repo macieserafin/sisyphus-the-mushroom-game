@@ -2,6 +2,7 @@ package entity;
 
 import main.GamePanel;
 import main.KeyHandler;
+import main.Skill;
 import main.Sound;
 import entity.combat.Hit;
 import entity.combat.HitResult;
@@ -62,7 +63,8 @@ public class Player extends Entity {
     private static final double ROLL_KNOCKBACK = 10.0;
     private static final int ROLL_BOUNCE_INVINCIBLE_TICKS = 24;
     // Shield: absorbs hits before the hearts and regenerates one point at a time after a while without being hit.
-    private static final int MAX_SHIELD = 2;
+    private static final int BASE_MAX_SHIELD = 2;
+    private static final int BASE_MAX_HEALTH = 3;
     private static final int SHIELD_REGEN_DELAY = 240;
     private static final int SHIELD_REGEN_TICKS = 180;
     private static final Color[] SHIELD_SHARDS = {new Color(0xE8FAFF), new Color(0x9AD8F0), new Color(0x2A6A9A)};
@@ -84,6 +86,8 @@ public class Player extends Entity {
     private double velX = 0.0;
     private double velY = 0.0;
     private double maxSpeed = BASE_MAX_SPEED;
+    // Power-ups picked up during a run; setDefaultValues() clears them when the run ends.
+    private double runDamageMultiplier = 1.0;
 
     private double worldXf;
     private double worldYf;
@@ -114,7 +118,8 @@ public class Player extends Entity {
     private final Set<Enemy> rollHitEnemies = new HashSet<>();
     private int swapBonusTicks;
     private CombatState pendingMode;
-    private int shield = MAX_SHIELD;
+    private int maxShield = BASE_MAX_SHIELD;
+    private int shield = BASE_MAX_SHIELD;
     private int ticksSinceHit;
     private int shieldRegenTicks;
     // dash afterimages: world x, world y, age in ticks
@@ -171,9 +176,12 @@ public class Player extends Entity {
     public void setDefaultValues() {
         setWorldPosition(gp.tileSize * 23, gp.tileSize * 21);
 
-        maxSpeed = BASE_MAX_SPEED;
+        // base stats plus the permanent upgrades bought in the village
+        maxSpeed = BASE_MAX_SPEED + gp.progression.bonusSpeed();
         speed = (int)Math.round(maxSpeed);
-        maxHealth = 3;
+        runDamageMultiplier = 1.0;
+        maxHealth = BASE_MAX_HEALTH + gp.progression.healthUpgrades();
+        maxShield = BASE_MAX_SHIELD + gp.progression.shieldUpgrades();
         health = maxHealth;
         alive = true;
         hasKey = 0;
@@ -189,7 +197,7 @@ public class Player extends Entity {
         pendingMode = null;
         rollTicks = 0;
         dashTicks = 0;
-        shield = MAX_SHIELD;
+        shield = maxShield;
         ticksSinceHit = 0;
         shieldRegenTicks = 0;
         rollCooldown = 0;
@@ -413,14 +421,15 @@ public class Player extends Entity {
             dirX = facing.unitX;
             dirY = facing.unitY;
         }
-        if (combatState == CombatState.MELEE && rollCooldown == 0) {
+        // roll and dash are learned from Master Kuro; until then SPACE does nothing
+        if (combatState == CombatState.MELEE && rollCooldown == 0 && gp.progression.hasSkill(Skill.ROLL)) {
             startManeuver(dirX, dirY);
             rollHitEnemies.clear();
             rollTicks = ROLL_TICKS;
             rollCooldown = ROLL_COOLDOWN_TICKS;
             squash = 0.6;
             spawnFootDust(-dirX, -dirY, 5);
-        } else if (combatState == CombatState.RANGE && dashCooldown == 0) {
+        } else if (combatState == CombatState.RANGE && dashCooldown == 0 && gp.progression.hasSkill(Skill.DASH)) {
             startManeuver(dirX, dirY);
             dashTicks = DASH_TICKS;
             dashCooldown = DASH_COOLDOWN_TICKS;
@@ -526,12 +535,12 @@ public class Player extends Entity {
     }
 
     public int maxShield() {
-        return MAX_SHIELD;
+        return maxShield;
     }
 
     // 0..1 progress of the next shield point (0 while still waiting after a hit)
     public double shieldRegenProgress() {
-        if (shield >= MAX_SHIELD || ticksSinceHit <= SHIELD_REGEN_DELAY) {
+        if (shield >= maxShield || ticksSinceHit <= SHIELD_REGEN_DELAY) {
             return 0;
         }
         return shieldRegenTicks / (double) SHIELD_REGEN_TICKS;
@@ -544,6 +553,24 @@ public class Player extends Entity {
         }
         health = Math.min(maxHealth, health + amount);
         return true;
+    }
+
+    public void addMaxHealth(int amount) {
+        maxHealth += amount;
+        health = Math.min(maxHealth, health + amount);
+    }
+
+    public void addMaxShield(int amount) {
+        maxShield += amount;
+        shield = Math.min(maxShield, shield + amount);
+    }
+
+    public double runDamageMultiplier() {
+        return runDamageMultiplier;
+    }
+
+    public void addRunDamage(double fraction) {
+        runDamageMultiplier += fraction;
     }
 
     // Damage multiplier for a hit the player just landed: the first one right after a mode switch is a swap strike.
@@ -604,7 +631,7 @@ public class Player extends Entity {
             swapBonusTicks--;
         }
         ticksSinceHit++;
-        if (shield < MAX_SHIELD && ticksSinceHit > SHIELD_REGEN_DELAY && ++shieldRegenTicks >= SHIELD_REGEN_TICKS) {
+        if (shield < maxShield && ticksSinceHit > SHIELD_REGEN_DELAY && ++shieldRegenTicks >= SHIELD_REGEN_TICKS) {
             shield++;
             shieldRegenTicks = 0;
             double cx = worldX + gp.tileSize / 2.0, cy = worldY + gp.tileSize / 2.0;
@@ -1519,7 +1546,7 @@ public class Player extends Entity {
     public void debugRestoreVitals() {
         if (!alive) setDefaultValues();
         health = maxHealth;
-        shield = MAX_SHIELD;
+        shield = maxShield;
         ticksSinceHit = 0;
         shieldRegenTicks = 0;
     }

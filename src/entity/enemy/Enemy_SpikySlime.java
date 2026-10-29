@@ -23,6 +23,7 @@ public class Enemy_SpikySlime extends Enemy_Slime {
         super(gp);
         name = "Spiky Slime";
         setupEnemyStats("Spiky Slime", 14, 1, 1);
+        mushroomValue = 2;
         useVariant("spiky", PALETTE, true);
     }
 

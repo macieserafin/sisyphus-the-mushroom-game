@@ -3,6 +3,7 @@ package level;
 import entity.enemy.Enemy;
 import main.GamePanel;
 import main.GameState;
+import story.QuestLog;
 
 public class LevelManager {
     private static final String HUB_MAP_PATH = "maps/village.txt";
@@ -66,6 +67,7 @@ public class LevelManager {
         gp.keyH.clearGameplayInput();
         gp.tileM.loadMap(HUB_MAP_PATH);
         gp.player.setWorldPosition(col * gp.tileSize, row * gp.tileSize);
+        gp.progression.applyWeapons(gp.player);
         gp.aSetter.setVillageObjects();
         gp.aSetter.setVillageNPCs();
         gp.playAreaMusic();
@@ -80,6 +82,7 @@ public class LevelManager {
         // A few pixels up, so the player does not start out touching the exit door below.
         gp.player.setWorldPosition(interior.spawnCol() * gp.tileSize, interior.spawnRow() * gp.tileSize - 4);
         gp.aSetter.setInterior(interior);
+        gp.questLog.visitHouse(interior.name());
     }
 
     public void loadStoryLobby() {
@@ -119,7 +122,12 @@ public class LevelManager {
 
         runActive = true;
         floorNumber = 1;
+        gp.wallet.startRun();
         loadManualRunFloor();
+    }
+
+    public boolean isRunActive() {
+        return runActive;
     }
 
     public void loadManualRunFloor() {
@@ -157,8 +165,16 @@ public class LevelManager {
         gp.ui.showMessage("The King is waiting");
     }
 
+    public void placePlayerAtBossArenaSpawn() {
+        gp.player.setWorldPosition(
+                BOSS_ARENA_PLAYER_SPAWN_COL * gp.tileSize,
+                BOSS_ARENA_PLAYER_SPAWN_ROW * gp.tileSize
+        );
+    }
+
     private void loadBossArena() {
         bossDefeated = false;
+        gp.questLog.complete(QuestLog.FOREST);
 
         clearLevel();
         gp.tileM.loadMap(BOSS_ARENA_MAP_PATH);
@@ -205,6 +221,9 @@ public class LevelManager {
 
         bossDefeated = true;
         activeBoss = null;
+        if (runActive) {
+            gp.questLog.complete(QuestLog.KING);
+        }
         gp.aSetter.setBossArenaRewardObject();
         gp.ui.showMessage("Boss defeated");
         gp.playAreaMusic();
@@ -221,6 +240,8 @@ public class LevelManager {
     }
 
     public void finishRun() {
+        int banked = gp.wallet.bankRun();
+        gp.questLog.complete(QuestLog.HOME);
         runActive = false;
         floorNumber = 0;
         bossReturnPositionSaved = false;
@@ -231,7 +252,7 @@ public class LevelManager {
         gp.player.setDefaultValues();
         loadHub();
         gp.gameState = GameState.PLAYING;
-        gp.ui.showMessage("Run finished");
+        gp.ui.showMessage("Run finished: +" + banked + " mushrooms banked");
     }
 
     public void goToNextFloor() {

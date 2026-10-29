@@ -101,6 +101,11 @@ public class NPC extends Entity {
 
     @Override
     public void speak() {
+        talk();
+    }
+
+    // Plain conversation; speak() may offer a shop first.
+    public void talk() {
         gp.dialogueManager.startBlocking(dialogueSpeaker(), dialogueLines());
         facePlayer();
     }

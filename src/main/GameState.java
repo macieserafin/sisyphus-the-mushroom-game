@@ -7,5 +7,8 @@ public enum GameState {
     CUTSCENE,
     DEAD,
     MENU,
-    MOD_MENU
+    MOD_MENU,
+    SHOP,
+    QUESTS,
+    SKILLS
 }

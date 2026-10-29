@@ -127,6 +127,7 @@ public class Enemy_SlimeKing extends Enemy {
         super(gp);
         direction = "idle";
         setupEnemyStats("Slime King", MAX_HEALTH, 1, 1);
+        mushroomValue = 40;
         setupCollisionAreas(
                 new Rectangle(-40, 8, 128, 40),
                 new Rectangle(-48, -52, 144, 100)
@@ -866,6 +867,7 @@ public class Enemy_SlimeKing extends Enemy {
         int row = (int) Math.floor(f[1] / gp.tileSize) - 1;
         col = Math.max(1, Math.min(gp.tileM.getWorldCols() - 2, col));
         row = Math.max(1, Math.min(gp.tileM.getWorldRows() - 2, row));
+        minion.mushroomValue = 0; // summoned without end, so they must not be farmed
         gp.entities.addEnemy(minion, col, row);
         minion.alert();
         minions.add(minion);

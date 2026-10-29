@@ -17,10 +17,15 @@ public class Hud {
     private static final int ABILITY_SIZE = 34;
     private static final int MINIMAP_SIZE = 120;
     private static final int RIGHT_PANEL_WIDTH = 156;
+    private static final int QUESTS_SHOWN = 4;
+    private static final int QUEST_PANEL_WIDTH = 184;
+    private static final Color SIDE_QUEST_COLOR = new Color(0x8FD0C8);
 
     private final GamePanel gp;
     private final Font smallFont = new Font("SansSerif", Font.PLAIN, 12);
     private final Font boldFont = new Font("SansSerif", Font.BOLD, 15);
+    private final Font questTitleFont = new Font("SansSerif", Font.BOLD, 12);
+    private final Font questTextFont = new Font("SansSerif", Font.PLAIN, 11);
     private final Color[] tileColors;
 
     private int[][] minimapGround;
@@ -43,7 +48,7 @@ public class Hud {
 
         int rightX = gp.screenWidth - MARGIN - RIGHT_PANEL_WIDTH;
         int rightBottom = drawMinimap(g2, rightX, MARGIN + 14);
-        drawQuests(g2, rightX, rightBottom + 26);
+        drawQuests(g2, rightX + RIGHT_PANEL_WIDTH - QUEST_PANEL_WIDTH, rightBottom + 26);
 
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, oldTextAa);
         g2.setStroke(oldStroke);
@@ -79,8 +84,9 @@ public class Hud {
         UiSkin.plaque(g2, heartsX, tabY, 84, 27, "MELEE", melee ? UiSkin.GLOW : UiSkin.DIM);
         UiSkin.plaque(g2, heartsX + 87, tabY, 84, 27, "RANGE", melee ? UiSkin.DIM : UiSkin.GLOW);
         int slotY = tabY + 33;
-        drawAbility(g2, heartsX, slotY, UiSkin.Icon.ROLL, gp.player.rollReadiness(), melee);
-        drawAbility(g2, heartsX + ABILITY_SIZE + 6, slotY, UiSkin.Icon.DASH, gp.player.dashReadiness(), !melee);
+        drawAbility(g2, heartsX, slotY, UiSkin.Icon.ROLL, gp.player.rollReadiness(), melee, gp.progression.hasSkill(Skill.ROLL));
+        drawAbility(g2, heartsX + ABILITY_SIZE + 6, slotY, UiSkin.Icon.DASH, gp.player.dashReadiness(), !melee, gp.progression.hasSkill(Skill.DASH));
+        drawMushrooms(g2, heartsX + 2 * ABILITY_SIZE + 16, slotY);
 
         if (gp.player.hasKey > 0) {
             int keyX = heartsX + 177;
@@ -91,9 +97,32 @@ public class Hud {
         }
     }
 
+    // Mushroom counter: in a run the mushrooms carried (not safe yet) above the bank, in the hub only the bank.
+    private void drawMushrooms(Graphics2D g2, int x, int y) {
+        boolean inRun = gp.levelManager.isRunActive();
+        UiSkin.icon(g2, UiSkin.Icon.MUSHROOM, x + 12, y + ABILITY_SIZE / 2, 2, true);
+        int textX = x + 30;
+        shadowText(g2, String.valueOf(inRun ? gp.wallet.run() : gp.wallet.banked()), textX, y + 17, boldFont, UiSkin.GOLD);
+        shadowText(g2, inRun ? "bank " + gp.wallet.banked() : "banked", textX, y + 31, smallFont, UiSkin.TEXT_DIM);
+    }
+
+    private static void shadowText(Graphics2D g2, String text, int x, int y, Font font, Color color) {
+        g2.setFont(font);
+        g2.setColor(new Color(0, 0, 0, 170));
+        g2.drawString(text, x + 1, y + 1);
+        g2.setColor(color);
+        g2.drawString(text, x, y);
+    }
+
     // Ability square (roll for melee, dash for ranged): it fills from the bottom while recharging and the icon lights up
-    // once it is full and usable in the current mode.
-    private void drawAbility(Graphics2D g2, int x, int y, UiSkin.Icon icon, double readiness, boolean active) {
+    // once it is full and usable in the current mode. Not learned yet: dark, with a lock.
+    private void drawAbility(Graphics2D g2, int x, int y, UiSkin.Icon icon, double readiness, boolean active, boolean learned) {
+        if (!learned) {
+            UiSkin.inset(g2, x, y, ABILITY_SIZE, ABILITY_SIZE);
+            UiSkin.icon(g2, icon, x + ABILITY_SIZE / 2, y + ABILITY_SIZE / 2, 2, false);
+            UiSkin.icon(g2, UiSkin.Icon.LOCK, x + ABILITY_SIZE - 8, y + ABILITY_SIZE - 8, 1, true);
+            return;
+        }
         double fill = Math.max(0, Math.min(1, readiness));
         boolean ready = fill >= 1;
         UiSkin.inset(g2, x, y, ABILITY_SIZE, ABILITY_SIZE);
@@ -221,34 +250,36 @@ public class Hud {
         return tileColors[id];
     }
 
+    // Tracker under the minimap: only the names of the active quests (story first); objectives and progress
+    // live in the journal (J).
     private void drawQuests(Graphics2D g2, int x, int y) {
-        List<QuestLog.Quest> quests = gp.questLog.active();
-        int lineH = 15;
-        int height = 30 + Math.max(1, quests.size()) * (lineH * 2 + 6) + 6;
-        UiSkin.frame(g2, x, y, RIGHT_PANEL_WIDTH, height);
-        UiSkin.header(g2, x + RIGHT_PANEL_WIDTH / 2, y - 14, "QUESTS");
+        List<QuestLog.Quest> active = gp.questLog.active();
+        int shown = Math.min(QUESTS_SHOWN, active.size());
+        int lineH = 18;
+        int height = 30 + Math.max(1, shown) * lineH + 20;
+        UiSkin.frame(g2, x, y, QUEST_PANEL_WIDTH, height);
+        UiSkin.header(g2, x + QUEST_PANEL_WIDTH / 2, y - 14, "QUESTS");
 
-        g2.setFont(smallFont);
-        FontMetrics fm = g2.getFontMetrics();
-        int textX = x + 18;
-        int textW = RIGHT_PANEL_WIDTH - 36;
-        int ty = y + 32;
-        if (quests.isEmpty()) {
+        int textX = x + 16;
+        int textW = QUEST_PANEL_WIDTH - 32;
+        int ty = y + 34;
+        g2.setFont(questTitleFont);
+        if (shown == 0) {
             g2.setColor(UiSkin.TEXT_DIM);
-            g2.drawString("No active quests", textX, ty + 4);
-            return;
+            g2.drawString("No active quests", textX, ty);
         }
-        for (QuestLog.Quest quest : quests) {
-            g2.setColor(UiSkin.GOLD);
-            g2.fillRect(textX, ty - 7, 3, 3);
-            g2.setFont(smallFont.deriveFont(Font.BOLD));
+        for (int i = 0; i < shown; i++) {
+            QuestLog.Quest quest = active.get(i);
+            g2.setColor(quest.main ? UiSkin.GOLD : SIDE_QUEST_COLOR);
+            g2.fillRect(textX, ty - 7, 4, 4);
             g2.setColor(UiSkin.TEXT);
-            g2.drawString(trim(g2.getFontMetrics(), quest.title(), textW - 8), textX + 8, ty);
-            g2.setFont(smallFont);
-            g2.setColor(UiSkin.TEXT_DIM);
-            g2.drawString(trim(fm, quest.description(), textW - 8), textX + 8, ty + lineH);
-            ty += lineH * 2 + 6;
+            g2.drawString(trim(g2.getFontMetrics(), quest.title, textW - 9), textX + 9, ty);
+            ty += lineH;
         }
+        g2.setFont(questTextFont);
+        g2.setColor(UiSkin.TEXT_DIM);
+        String more = active.size() > shown ? "+" + (active.size() - shown) + " more   " : "";
+        g2.drawString(more + "[J] Journal", textX, y + height - 12);
     }
 
     private String trim(FontMetrics fm, String text, int width) {

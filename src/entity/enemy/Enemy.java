@@ -8,6 +8,8 @@ import entity.combat.HitType;
 import entity.CombatState;
 import main.GamePanel;
 import main.Sound;
+import object.MushroomPickup;
+import story.QuestLog;
 import world.EffectsManager;
 
 import java.awt.*;
@@ -35,6 +37,8 @@ public class Enemy extends Entity {
     private final int contactDamageCooldownFrames = 60;
     private int damageFlashFramesLeft = 0;
     private boolean deathHandled = false;
+    // Mushrooms dropped on death during a run. Bosses are worth more, summoned minions nothing.
+    protected int mushroomValue = 1;
     private final Random random = new Random();
 
     // Marks: player shots stack marks (bosses), a sword hit detonates them for heavy damage.
@@ -288,6 +292,7 @@ public class Enemy extends Entity {
         double resist = resistance(hit.type());
         multiplier *= resist;
         multiplier *= adaptationMultiplier(hit.type());
+        multiplier *= gp.player.runDamageMultiplier();
         multiplier *= gp.debugSettings.playerDamageMultiplier();
         registerAdaptation(hit.type());
         int damage = (int) Math.round(hit.damage() * multiplier);
@@ -412,6 +417,12 @@ public class Enemy extends Entity {
         deathHandled = true;
         Rectangle box = getWorldHitBox();
         gp.effects.burst(box.getCenterX(), box.getCenterY(), 14, 2.2, EffectsManager.SPORES);
+        if (mushroomValue > 0 && gp.levelManager.isRunActive()) {
+            MushroomPickup.scatter(gp, box.getCenterX(), box.getMaxY(), mushroomValue);
+        }
+        if (gp.levelManager.isRunActive()) {
+            gp.questLog.advance(QuestLog.PESTS, 1);
+        }
         onDeath();
     }
 

@@ -10,6 +10,7 @@ import entity.enemy.Enemy_SpikySlime;
 import entity.npc.NPC;
 import entity.npc.NPC_Villager;
 import main.GamePanel;
+import main.Shop;
 import object.Boots;
 import object.Chest;
 import object.Door;
@@ -106,6 +107,7 @@ public class AssetSetter {
         switch (interior) {
             case SMITHY:
                 NPC smith = new NPC_Villager(gp, "Blacksmith", "blacksmith", new Color(230, 140, 90), true)
+                        .sells(Shop.smith(gp))
                         .conversation("Another one woke up, huh? Mind the sparks.",
                                 "Bring me what the forest leaves behind and I'll make your blade remember it.")
                         .conversation("Upgrades? Soon. The forge needs feeding first, and you need pockets.")
@@ -115,9 +117,9 @@ public class AssetSetter {
                 break;
             case SHOP:
                 NPC merchant = new NPC_Villager(gp, "Spore Merchant", "merchant", new Color(200, 160, 240), true)
+                        .sells(Shop.merchant(gp))
                         .talkRange(2.4)
-                        .conversation("Welcome, welcome! Everything here costs mushrooms. You have none. That is fine. Look anyway.",
-                                "The shelves will open when you come back with something squishy.")
+                        .conversation("Welcome, welcome! Everything here costs mushrooms. The forest pays in them, if you survive it.")
                         .conversation("I was a man once. Then a better offer came along.")
                         .conversation("Don't touch the jar on the left. It's touching you back.");
                 merchant.setHomeArea(3, 3, 11, 3);
@@ -125,10 +127,11 @@ public class AssetSetter {
                 break;
             case DOJO:
                 NPC master = new NPC_Villager(gp, "Master Kuro", "karate_master", new Color(240, 80, 70), false)
+                        .teaches()
                         .facing("down")
                         .conversation("You fight like someone who has died before. Good. Fear is a poor teacher, death is a patient one.",
                                 "The rack on the left holds blades, the cabinet on the right holds guns. Choose what you carry into the forest.")
-                        .conversation("Techniques? Not yet. Come back with scars worth learning from.")
+                        .conversation("Techniques are not free. Mushrooms, for now. Later, only what you have earned in blood. Ask me about skills.")
                         .conversation("Breathe in through the nose. Out through the spores.");
                 spawnNPC(master, 7, 4);
                 spawnObject(new LoadoutRack(true), Interior.DOJO_WEAPON_RACK_COL, Interior.DOJO_WEAPON_RACK_ROW);
@@ -136,6 +139,7 @@ public class AssetSetter {
                 break;
             case MYCOLOGIST:
                 NPC mycologist = new NPC_Villager(gp, "Ilse the Witch", "mycologist", new Color(150, 200, 130), true)
+                        .sells(Shop.witch(gp))
                         .conversation("Ah, the newest sprout. Sit. Don't touch the pot. You died, you woke up on the plaza. That's the rule here.",
                                 "Go through the gate, fight what you find, and the forest pays you in mushrooms. Bring them back. The village grows with you.")
                         .conversation("Every boss you put down leaves something behind. Watch the empty plots. They fill up.")
@@ -147,6 +151,7 @@ public class AssetSetter {
                 break;
             case SAGE:
                 NPC sage = new NPC_Villager(gp, "Old Aldous", "sage", new Color(200, 205, 220), true)
+                        .sells(Shop.sage(gp))
                         .conversation("Hm? Another one. Come in, mind the hole in the roof. The rain only falls on the books.",
                                 "I was here before the village. Before the gate. Before the lead came.")
                         .conversation("Your kind brought iron and powder into a forest that only knew spores. The forest has been learning ever since.")
@@ -177,6 +182,8 @@ public class AssetSetter {
         spawnObject(new Key(), 104, 46);
         spawnObject(new Door(), 90, 28);
         spawnObject(new Chest(), 80, 26);
+        spawnObject(new Chest(), 60, 27);  // forest lake
+        spawnObject(new Chest(), 90, 94);  // ruined quarry
         spawnObject(new Portal(TransitionTarget.bossArena()), 146, 5);
         spawnObject(new Portal(TransitionTarget.bossArena()), 147, 5);
     }

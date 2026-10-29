@@ -109,6 +109,10 @@ public class KeyHandler implements KeyListener {
                 gp.pauseGame();
                 return;
             }
+            if (code == KeyEvent.VK_J) {
+                gp.questMenu.open();
+                return;
+            }
 
             if (code == KeyEvent.VK_ENTER) {
                 enterPressed = true;
@@ -116,6 +120,15 @@ public class KeyHandler implements KeyListener {
         }
         else if(gp.gameState == GameState.PAUSED) {
             gp.pauseMenu.keyPressed(code);
+        }
+        else if(gp.gameState == GameState.SHOP) {
+            gp.shopMenu.keyPressed(code);
+        }
+        else if(gp.gameState == GameState.QUESTS) {
+            gp.questMenu.keyPressed(code);
+        }
+        else if(gp.gameState == GameState.SKILLS) {
+            gp.skillTreeMenu.keyPressed(code);
         }
         else if(gp.gameState == GameState.DIALOGUE) {
             if (code == KeyEvent.VK_ENTER) {

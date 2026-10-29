@@ -2,6 +2,7 @@ package object;
 
 import entity.Player;
 import main.GamePanel;
+import story.QuestLog;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;
@@ -36,6 +37,7 @@ public class Door extends SuperObject {
 
         if (keyNeeded) {
             player.hasKey--;
+            gp.questLog.complete(QuestLog.GROTTO);
         }
 
         gp.entities.removeObject(this);
