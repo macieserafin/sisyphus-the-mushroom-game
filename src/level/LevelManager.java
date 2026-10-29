@@ -7,14 +7,17 @@ import main.GameState;
 public class LevelManager {
     private static final String HUB_MAP_PATH = "maps/village.txt";
     private static final String PROLOGUE_MAP_PATH = "maps/prologue_void.txt";
-    private static final String RUN_FLOOR_MAP_PATH = "maps/run_forest_test.txt";
+    private static final String RUN_FLOOR_MAP_PATH = "maps/level1_forest.txt";
     private static final String BOSS_ARENA_MAP_PATH = "maps/boss_slime_arena.txt";
+    private static final String BYT_ARENA_MAP_PATH = "maps/byt_arena.txt";
     private static final int PROLOGUE_PLAYER_SPAWN_COL = 12;
     private static final int PROLOGUE_PLAYER_SPAWN_ROW = 13;
-    private static final int RUN_PLAYER_SPAWN_COL = 100;
-    private static final int RUN_PLAYER_SPAWN_ROW = 182;
-    private static final int BOSS_ARENA_PLAYER_SPAWN_COL = 12;
-    private static final int BOSS_ARENA_PLAYER_SPAWN_ROW = 13;
+    private static final int RUN_PLAYER_SPAWN_COL = 22;
+    private static final int RUN_PLAYER_SPAWN_ROW = 108;
+    private static final int BOSS_ARENA_PLAYER_SPAWN_COL = 17;
+    private static final int BOSS_ARENA_PLAYER_SPAWN_ROW = 22;
+    private static final int BYT_ARENA_PLAYER_SPAWN_COL = 12;
+    private static final int BYT_ARENA_PLAYER_SPAWN_ROW = 13;
 
     private final GamePanel gp;
     private boolean runActive = false;
@@ -177,10 +180,10 @@ public class LevelManager {
 
         clearLevel();
         gp.keyH.clearGameplayInput();
-        gp.tileM.loadMap(BOSS_ARENA_MAP_PATH);
+        gp.tileM.loadMap(BYT_ARENA_MAP_PATH);
         gp.player.setWorldPosition(
-                BOSS_ARENA_PLAYER_SPAWN_COL * gp.tileSize,
-                BOSS_ARENA_PLAYER_SPAWN_ROW * gp.tileSize
+                BYT_ARENA_PLAYER_SPAWN_COL * gp.tileSize,
+                BYT_ARENA_PLAYER_SPAWN_ROW * gp.tileSize
         );
         activeBoss = gp.aSetter.setPrologueBytArenaEnemy();
         gp.ui.showMessage("BYT");

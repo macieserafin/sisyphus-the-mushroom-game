@@ -21,14 +21,22 @@ import java.util.Objects;
 public final class TileSet {
     public static final int ANIMATION_FRAME_TICKS = 20;
 
+    // Blend priorities: a higher terrain spills its edge onto a lower one. Only the order matters.
     private static final int DEEP_WATER = 0;
-    private static final int WATER = 1;
-    private static final int SAND = 2;
-    private static final int EARTH = 3;
-    private static final int STONE_FLOOR = 4;
-    private static final int MYCELIUM = 5;
-    private static final int GRASS = 6;
-    private static final int DARK_GRASS = 7;
+    private static final int WATER = 10;
+    private static final int SAND = 20;
+    private static final int CAVE_FLOOR = 25;
+    private static final int EARTH = 30;
+    private static final int DIRT_PATH = 32;
+    private static final int FOREST_FLOOR = 35;
+    private static final int STONE_FLOOR = 40;
+    private static final int MYCELIUM = 50;
+    private static final int GRASS = 60;
+    private static final int MOSS = 65;
+    private static final int DARK_GRASS = 70;
+    private static final int ROCK_RIDGE = 90;
+    private static final int CAVE_WALL = 92;
+    private static final int CANOPY = 95;
     private static final int PLAZA = EARTH;
     private static final int NONE = -1;
 
@@ -185,6 +193,101 @@ public final class TileSet {
         grid("market_stall", "Market stall", 3, 2, "XXX", "XXX");
         grid("dead_tree", "Dead tree", 2, 3, "..", "XX", "XX");
         grid("ruin_wall", "Ruined wall", 3, 2, "XXX", "XXX");
+
+        // Forest of the first story level and the training clearing.
+        int forestFloor = DEFS.size();
+        ground("forest_floor", "Forest floor", false, FOREST_FLOOR, forestFloor, "forest_floor");
+        ground("forest_floor_2", "Forest floor (leaves)", false, FOREST_FLOOR, forestFloor, "forest_floor_2");
+        ground("moss", "Moss", false, MOSS, DEFS.size(), "moss");
+        ground("dirt_path", "Forest path", false, DIRT_PATH, DEFS.size(), "dirt_path");
+        int canopy = DEFS.size();
+        ground("canopy", "Forest canopy", true, CANOPY, canopy, "canopy");
+        ground("canopy_dark", "Deep forest canopy", true, CANOPY, canopy, "canopy_dark");
+        ground("canopy_face", "Forest edge (trunks)", true, NONE, -1, "canopy_face");
+        ground("rock_ridge", "Rocky ridge", true, ROCK_RIDGE, DEFS.size(), "rock_ridge");
+        ground("cliff_face", "Cliff face", true, NONE, -1, "cliff_face");
+
+        object("fern", "Fern", false, "fern");
+        object("fern_2", "Wide fern", false, "fern_2");
+        object("grass_tuft", "Grass tuft", false, "grass_tuft");
+        object("mushrooms_brown", "Brown mushrooms", false, "mushrooms_brown");
+        object("glowcaps", "Glowcaps", false, "glowcaps", "glowcaps_2");
+        object("flowers_purple", "Purple flowers", false, "flowers_purple");
+        object("flowers_white", "White flowers", false, "flowers_white");
+        object("roots", "Roots", false, "roots");
+        object("leaf_pile", "Leaf pile", false, "leaf_pile");
+        object("mossy_rock", "Mossy rock", true, "mossy_rock");
+        object("berry_bush", "Berry bush", true, "berry_bush");
+        object("bramble", "Bramble", true, "bramble");
+        object("stump_moss", "Mossy stump", true, "stump_moss");
+        object("spider_web", "Spider web", false, "spider_web");
+        object("puddle", "Puddle", false, "puddle");
+        object("fireflies", "Fireflies", false, "fireflies", "fireflies_2", "fireflies_3");
+        object("bones_small", "Old bones", false, "bones_small");
+        object("campfire", "Campfire", true, "campfire", "campfire_2", "campfire_3");
+        object("archery_target", "Archery target", true, "archery_target");
+        object("tall_shroom", "Tall purple mushroom", true, "tall_shroom");
+
+        grid("forest_tree", "Forest tree", 3, 3, "...", "...", ".X.");
+        grid("forest_tree_dark", "Dark forest tree", 3, 3, "...", "...", ".X.");
+        grid("giant_bluecap", "Giant bluecap", 3, 3, "...", "...", ".X.");
+        grid("giant_purplecap", "Giant purplecap", 3, 3, "...", "...", ".X.");
+        grid("toadstool_cluster", "Toadstool cluster", 2, 2, "..", "XX");
+        grid("boulder", "Boulder", 2, 2, "XX", "XX");
+        grid("fallen_log", "Fallen log", 3, 1, "XXX");
+        grid("cave_entrance", "Cave entrance", 4, 3, "XXXX", "X..X", "X..X");
+
+        // BYT's ruin: grey stone and purple-black void.
+        ground("void_floor", "Void flagstones", false, NONE, -1, "void_floor");
+        ground("void_floor_cracked", "Cracked void flagstones", false, NONE, -1, "void_floor_cracked");
+        ground("ash_stone", "Ash slab", false, NONE, -1, "ash_stone");
+        ground("void_rift", "Void rift", false, NONE, -1, "void_rift", "void_rift_2", "void_rift_3");
+        ground("void_wall", "Void ruin wall", true, NONE, -1, "void_wall");
+        ground("void_wall_top", "Void ruin wall top", true, NONE, -1, "void_wall_top");
+        ground("abyss", "Abyss", true, NONE, -1, "abyss", "abyss_2");
+
+        object("broken_pillar_dark", "Broken grey pillar", true, "broken_pillar_dark");
+        object("void_crystal", "Void crystal", true, "void_crystal", "void_crystal_2");
+        object("dead_bush", "Dead bush", false, "dead_bush");
+        object("rubble_dark", "Grey rubble", false, "rubble_dark");
+        object("bones_ash", "Ashen bones", false, "bones_ash");
+        object("void_candles", "Void candles", false, "void_candles", "void_candles_2");
+        object("void_brazier", "Void brazier", true, "void_brazier", "void_brazier_2", "void_brazier_3");
+        object("grave_stone", "Gravestone", true, "grave_stone");
+        object("chains", "Chains", false, "chains");
+        object("fog_wisp", "Fog", false, "fog_wisp", "fog_wisp_2", "fog_wisp_3");
+
+        grid("grey_pillar", "Grey rune pillar", 1, 3, ".", ".", "X");
+        grid("void_obelisk", "Void obelisk", 2, 3, "..", "XX", "XX");
+
+        // Treasure cave of the Slime King.
+        int caveFloor = DEFS.size();
+        ground("cave_floor", "Cave floor", false, CAVE_FLOOR, caveFloor, "cave_floor");
+        ground("cave_floor_2", "Cave floor (pebbles)", false, CAVE_FLOOR, caveFloor, "cave_floor_2");
+        ground("cave_floor_gold", "Cave floor (gold)", false, CAVE_FLOOR, caveFloor, "cave_floor_gold");
+        ground("cave_wall", "Cave rock", true, CAVE_WALL, DEFS.size(), "cave_wall");
+        ground("cave_wall_face", "Cave wall", true, NONE, -1, "cave_wall_face");
+
+        object("gold_coins", "Gold coins", false, "gold_coins");
+        object("gold_pile", "Gold pile", false, "gold_pile");
+        object("gold_bars", "Gold bars", false, "gold_bars");
+        object("treasure_chest_gold", "Open treasure chest", true, "treasure_chest_gold");
+        object("goblet", "Spilled goblet", false, "goblet");
+        object("skull", "Skull", false, "skull");
+        object("skeleton_remains", "Skeleton remains", false, "skeleton_remains");
+        object("ribcage", "Ribcage", true, "ribcage");
+        object("stalagmite", "Stalagmite", true, "stalagmite");
+        object("cave_crystal", "Emerald crystal", true, "cave_crystal", "cave_crystal_2");
+        object("cave_amethyst", "Amethyst crystal", true, "cave_amethyst", "cave_amethyst_2");
+        ground("wall_torch", "Cave wall (torch)", true, NONE, -1, "wall_torch", "wall_torch_2", "wall_torch_3");
+        object("slime_goo", "Slime goo", false, "slime_goo");
+        object("rusty_sword", "Rusty sword", false, "rusty_sword");
+        object("broken_shield", "Broken shield", false, "broken_shield");
+
+        grid("gold_heap", "Gold heap", 2, 2, "XX", "XX");
+        grid("beast_skull", "Beast skull", 3, 2, "XXX", "XXX");
+        grid("dead_knight", "Fallen knight", 2, 1, "..");
+        grid("stalagmite_big", "Tall stalagmite", 1, 2, ".", "X");
     }
 
     private TileSet() {
