@@ -100,6 +100,7 @@ public class LevelManager {
     }
 
     public void finishPrologueBytEncounter() {
+        gp.ui.blink(0, 45, 70);
         gp.player.resetLoadout();
         gp.storyFlags.completePrologueBytEncounter();
         gp.keyH.clearGameplayInput();
@@ -143,6 +144,17 @@ public class LevelManager {
         bossReturnWorldX = gp.player.worldX;
         bossReturnWorldY = gp.player.worldY + gp.tileSize;
         bossReturnPositionSaved = true;
+        loadBossArena();
+    }
+
+    // After dying to the boss: the same fight again, keeping the run and the way back that entering the arena saved.
+    public void retryBossArena() {
+        gp.player.setWeaponsLockedByArea(false);
+        loadBossArena();
+        gp.ui.showMessage("The King is waiting");
+    }
+
+    private void loadBossArena() {
         bossDefeated = false;
 
         clearLevel();
@@ -173,6 +185,14 @@ public class LevelManager {
         activeBoss = gp.aSetter.setPrologueBytArenaEnemy();
         gp.ui.showMessage("BYT");
         gp.playAreaMusic();
+    }
+
+    public void debugEnterSlimeKingArena() {
+        runActive = true;
+        floorNumber = 1;
+        bossReturnPositionSaved = false;
+        gp.player.setWeaponsLockedByArea(false);
+        loadBossArena();
     }
 
     public void onBossDefeated() {
@@ -287,5 +307,6 @@ public class LevelManager {
 
     public void clearBullets() {
         gp.bulletManager.clearBullets();
+        gp.enemyShots.clear();
     }
 }

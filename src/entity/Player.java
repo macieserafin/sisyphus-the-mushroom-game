@@ -50,6 +50,30 @@ public class Player extends Entity {
     private static final int TURN_DUST_COOLDOWN_TICKS = 14;
     private static final int SPRINT_DUST_INTERVAL_TICKS = 9;
     private static final double FACING_HYSTERESIS_RADIANS = Math.toRadians(10);
+    // The slash trail reaches past the blade tip, matching the melee hitbox reach.
+    private static final int SMEAR_REACH_ART_PIXELS = 3;
+    // Roll (melee mode): slow, cannot be hurt. Dash (ranged mode): very fast, still hittable.
+    private static final int ROLL_TICKS = 28;
+    private static final double ROLL_START_SPEED = 6.4;
+    private static final double ROLL_END_SPEED = 2.6;
+    private static final int ROLL_COOLDOWN_TICKS = 180;
+    // rolling into an enemy hurts it and throws it clear of the roll; a boss throws the player back instead
+    private static final int ROLL_DAMAGE = 4;
+    private static final double ROLL_KNOCKBACK = 10.0;
+    private static final int ROLL_BOUNCE_INVINCIBLE_TICKS = 24;
+    // Shield: absorbs hits before the hearts and regenerates one point at a time after a while without being hit.
+    private static final int MAX_SHIELD = 2;
+    private static final int SHIELD_REGEN_DELAY = 240;
+    private static final int SHIELD_REGEN_TICKS = 180;
+    private static final Color[] SHIELD_SHARDS = {new Color(0xE8FAFF), new Color(0x9AD8F0), new Color(0x2A6A9A)};
+    // the first hit within this window after switching modes is a swap strike (+50%)
+    private static final int SWAP_BONUS_TICKS = 30;
+    private static final double SWAP_BONUS = 1.5;
+    private static final int DASH_TICKS = 9;
+    private static final double DASH_SPEED = 13.0;
+    private static final double DASH_END_SPEED = 5.0;
+    private static final int DASH_COOLDOWN_TICKS = 60;
+    private static final int DASH_TRAIL_TICKS = 8;
 
     KeyHandler keyH;
 
@@ -79,6 +103,22 @@ public class Player extends Entity {
     private double lastSpeed;
     private int turnDustCooldown;
     private int sprintDustCounter;
+
+    private int rollTicks;
+    private int dashTicks;
+    private int rollCooldown;
+    private int dashCooldown;
+    private double maneuverDirX;
+    private double maneuverDirY;
+    private boolean spaceHeldLastFrame;
+    private final Set<Enemy> rollHitEnemies = new HashSet<>();
+    private int swapBonusTicks;
+    private CombatState pendingMode;
+    private int shield = MAX_SHIELD;
+    private int ticksSinceHit;
+    private int shieldRegenTicks;
+    // dash afterimages: world x, world y, age in ticks
+    private final java.util.List<int[]> dashTrail = new java.util.ArrayList<>();
 
     private int shotCooldownCounter = 0;
 
@@ -146,6 +186,15 @@ public class Player extends Entity {
         shotCooldownCounter = 0;
         hurtInvincibleCounter = 0;
         hurtKnockbackCounter = 0;
+        pendingMode = null;
+        rollTicks = 0;
+        dashTicks = 0;
+        shield = MAX_SHIELD;
+        ticksSinceHit = 0;
+        shieldRegenTicks = 0;
+        rollCooldown = 0;
+        dashCooldown = 0;
+        dashTrail.clear();
         meleeAttacking = false;
         meleeFrame = 0;
         meleeAttackBuffered = false;
@@ -284,17 +333,16 @@ public class Player extends Entity {
         }
         boolean movingInput = vectorLength(moveInput[0], moveInput[1]) > 0;
 
-        if (keyH.qPressed) {
-            if (gp.prologueTutorialManager.canSwitchCombatMode()) {
-                combatState = combatState.next();
-                keyH.qPressed = false;
-                meleeAttackInputHeldLastFrame = false;
-                meleeAttackBuffered = false;
-                meleeInputBufferCounter = 0;
-            } else {
-                keyH.qPressed = false;
-            }
+        updateManeuverInput(moveInput, hurtKnockbackActive);
+        if (rollTicks > 0 || dashTicks > 0) {
+            updateManeuver();
+            updateFacingFromVelocity();
+            resolveInteractionsAfterMovement();
+            updateAnimation();
+            return;
         }
+
+        updateModeKeys();
         updateWeaponSwitchInput();
         updateAimInput();
 
@@ -319,9 +367,257 @@ public class Player extends Entity {
         updateAnimation();
     }
 
+    // Q toggles the mode, or (option "Q melee, E range") Q picks melee and E picks ranged.
+    private void updateModeKeys() {
+        boolean q = keyH.qPressed;
+        boolean e = keyH.ePressed;
+        keyH.qPressed = false;
+        keyH.ePressed = false;
+        if ((q || e) && gp.prologueTutorialManager.canSwitchCombatMode()) {
+            CombatState base = pendingMode != null ? pendingMode : combatState;
+            if (gp.controls.separateModeKeys()) {
+                pendingMode = q ? CombatState.MELEE : CombatState.RANGE;
+            } else if (q) {
+                pendingMode = base.next();
+            }
+        }
+        // a switch pressed during a sword swing waits until the swing is over
+        if (pendingMode == null || meleeAttacking) {
+            return;
+        }
+        CombatState target = pendingMode;
+        pendingMode = null;
+        if (target == combatState) {
+            return;
+        }
+        combatState = target;
+        swapBonusTicks = SWAP_BONUS_TICKS;
+        gp.effects.ring(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 30, 10,
+                combatState == CombatState.MELEE ? new Color(0xF2C46A) : new Color(0x9AD8F0), false);
+        meleeAttackInputHeldLastFrame = false;
+        meleeAttackBuffered = false;
+        meleeInputBufferCounter = 0;
+    }
+
+    private void updateManeuverInput(double[] moveInput, boolean hurtKnockbackActive) {
+        boolean spaceJustPressed = keyH.spacePressed && !spaceHeldLastFrame;
+        spaceHeldLastFrame = keyH.spacePressed;
+        if (!spaceJustPressed || rollTicks > 0 || dashTicks > 0 || hurtKnockbackActive || meleeAttacking
+                || !gp.prologueTutorialManager.canMove()) {
+            return;
+        }
+
+        double dirX = moveInput[0];
+        double dirY = moveInput[1];
+        if (dirX == 0 && dirY == 0) {
+            dirX = facing.unitX;
+            dirY = facing.unitY;
+        }
+        if (combatState == CombatState.MELEE && rollCooldown == 0) {
+            startManeuver(dirX, dirY);
+            rollHitEnemies.clear();
+            rollTicks = ROLL_TICKS;
+            rollCooldown = ROLL_COOLDOWN_TICKS;
+            squash = 0.6;
+            spawnFootDust(-dirX, -dirY, 5);
+        } else if (combatState == CombatState.RANGE && dashCooldown == 0) {
+            startManeuver(dirX, dirY);
+            dashTicks = DASH_TICKS;
+            dashCooldown = DASH_COOLDOWN_TICKS;
+            spawnFootDust(-dirX, -dirY, 7);
+        }
+    }
+
+    private void startManeuver(double dirX, double dirY) {
+        maneuverDirX = dirX;
+        maneuverDirY = dirY;
+        aim = null;
+        meleeAttackBuffered = false;
+        meleeInputBufferCounter = 0;
+        facing = Direction8.fromVector(dirX, dirY, facing, 0);
+    }
+
+    private void updateManeuver() {
+        if (dashTicks > 0 && hurtKnockbackCounter > 0) {
+            // a hit during a dash ends it; the knockback takes over
+            dashTicks = 0;
+            return;
+        }
+        if (rollTicks > 0) {
+            double t = 1.0 - rollTicks / (double) ROLL_TICKS;
+            double speed = ROLL_START_SPEED + (ROLL_END_SPEED - ROLL_START_SPEED) * t;
+            velX = maneuverDirX * speed;
+            velY = maneuverDirY * speed;
+            if (rollIntoEnemies()) {
+                return;
+            }
+            rollTicks--;
+            if (rollTicks == 0) {
+                squash = 0.5;
+                spawnFootDust(0, 0, 3);
+            }
+        } else {
+            double speed = dashTicks > 2 ? DASH_SPEED : DASH_END_SPEED;
+            velX = maneuverDirX * speed;
+            velY = maneuverDirY * speed;
+            dashTrail.add(new int[]{worldX, worldY, 0});
+            dashTicks--;
+        }
+    }
+
+    // Returns true when a boss bounced the player and the roll ended.
+    private boolean rollIntoEnemies() {
+        Rectangle ahead = getWorldSolidArea();
+        ahead.translate((int) Math.round(velX * 1.5), (int) Math.round(velY * 1.5));
+        ahead.grow(2, 2);
+        double playerCenterX = ahead.getCenterX();
+        double playerCenterY = ahead.getCenterY();
+
+        for (Enemy enemy : gp.entities.enemies()) {
+            if (!enemy.alive || rollHitEnemies.contains(enemy)) {
+                continue;
+            }
+            Rectangle body = enemy.getWorldSolidArea();
+            if (!ahead.intersects(body)) {
+                continue;
+            }
+            if (enemy == gp.levelManager.getActiveBoss()) {
+                bounceOffBoss(body);
+                return true;
+            }
+
+            rollHitEnemies.add(enemy);
+            Hit hit = new Hit(ROLL_DAMAGE, HitType.MELEE, this, (int) playerCenterX, (int) playerCenterY, 0, null);
+            if (enemy.receiveHit(hit) == HitResult.IGNORED || !enemy.alive) {
+                continue;
+            }
+            // throw the enemy out of the roll's path: sideways, a little forward
+            double toX = body.getCenterX() - playerCenterX;
+            double toY = body.getCenterY() - playerCenterY;
+            double side = Math.signum(maneuverDirX * toY - maneuverDirY * toX);
+            if (side == 0) {
+                side = 1;
+            }
+            double pushX = -maneuverDirY * side + maneuverDirX * 0.35;
+            double pushY = maneuverDirX * side + maneuverDirY * 0.35;
+            double length = vectorLength(pushX, pushY);
+            pushX /= length;
+            pushY /= length;
+            enemy.applyKnockbackFrom(
+                    (int) Math.round(enemy.worldX + gp.tileSize / 2.0 - pushX * 20),
+                    (int) Math.round(enemy.worldY + gp.tileSize / 2.0 - pushY * 20),
+                    ROLL_KNOCKBACK
+            );
+            gp.startHitStop(2);
+        }
+        return false;
+    }
+
+    private void bounceOffBoss(Rectangle bossBody) {
+        rollTicks = 0;
+        applyKnockbackFrom((int) bossBody.getCenterX(), (int) bossBody.getCenterY(), ENTITY_HURT_KNOCKBACK_FORCE);
+        hurtInvincibleCounter = Math.max(hurtInvincibleCounter, ROLL_BOUNCE_INVINCIBLE_TICKS);
+        squash = 0.8;
+        spawnFootDust(-maneuverDirX, -maneuverDirY, 6);
+    }
+
+    public int shield() {
+        return shield;
+    }
+
+    public int maxShield() {
+        return MAX_SHIELD;
+    }
+
+    // 0..1 progress of the next shield point (0 while still waiting after a hit)
+    public double shieldRegenProgress() {
+        if (shield >= MAX_SHIELD || ticksSinceHit <= SHIELD_REGEN_DELAY) {
+            return 0;
+        }
+        return shieldRegenTicks / (double) SHIELD_REGEN_TICKS;
+    }
+
+    // Returns false when already at full health (the pickup then stays on the ground).
+    public boolean heal(int amount) {
+        if (!alive || health >= maxHealth) {
+            return false;
+        }
+        health = Math.min(maxHealth, health + amount);
+        return true;
+    }
+
+    // Damage multiplier for a hit the player just landed: the first one right after a mode switch is a swap strike.
+    public double consumeSwapBonus() {
+        if (swapBonusTicks <= 0) {
+            return 1.0;
+        }
+        swapBonusTicks = 0;
+        return SWAP_BONUS;
+    }
+
+    // While boss projectiles are around, a pulsing dot shows the core that they can hit. Drawn above the shots.
+    public void drawProjectileCore(Graphics2D g2) {
+        if (!alive || scriptedHidden || gp.enemyShots.count() == 0) {
+            return;
+        }
+        Rectangle core = getProjectileHitBox();
+        int s = gp.scale;
+        int cx = (int) Math.round(core.getCenterX()) - worldX + screenX;
+        int cy = (int) Math.round(core.getCenterY()) - worldY + screenY;
+        boolean pulse = (gp.enemyShots.tick() / 6) % 2 == 0;
+        g2.setColor(new Color(0x120C09));
+        g2.fillRect(cx - 2 * s, cy - 2 * s, 4 * s, 4 * s);
+        g2.setColor(isHurtInvincible() ? new Color(0x9AD8F0) : pulse ? new Color(0xFFF6D0) : new Color(0xE05A48));
+        g2.fillRect(cx - s, cy - s, 2 * s, 2 * s);
+    }
+
+    // Enemy projectiles only hit this small core, so dense patterns can be threaded (bullet-hell style).
+    public Rectangle getProjectileHitBox() {
+        return new Rectangle(worldX + 16, worldY + 14, 16, 20);
+    }
+
+    public boolean isRolling() {
+        return rollTicks > 0;
+    }
+
+    public boolean isDashing() {
+        return dashTicks > 0;
+    }
+
+    // 0 = just used, 1 = ready
+    public double rollReadiness() {
+        return 1.0 - rollCooldown / (double) ROLL_COOLDOWN_TICKS;
+    }
+
+    public double dashReadiness() {
+        return 1.0 - dashCooldown / (double) DASH_COOLDOWN_TICKS;
+    }
+
     private void tickTimers() {
         if (shotCooldownCounter > 0) {
             shotCooldownCounter--;
+        }
+        if (rollCooldown > 0) {
+            rollCooldown--;
+        }
+        if (swapBonusTicks > 0) {
+            swapBonusTicks--;
+        }
+        ticksSinceHit++;
+        if (shield < MAX_SHIELD && ticksSinceHit > SHIELD_REGEN_DELAY && ++shieldRegenTicks >= SHIELD_REGEN_TICKS) {
+            shield++;
+            shieldRegenTicks = 0;
+            double cx = worldX + gp.tileSize / 2.0, cy = worldY + gp.tileSize / 2.0;
+            gp.effects.ring(cx, cy, 40, 14, new Color(0x9AD8F0), false);
+            gp.effects.text(cx, worldY - 10, "SHIELD", new Color(0x9AD8F0), 1);
+        }
+        if (dashCooldown > 0) {
+            dashCooldown--;
+        }
+        for (int i = dashTrail.size() - 1; i >= 0; i--) {
+            if (++dashTrail.get(i)[2] > DASH_TRAIL_TICKS) {
+                dashTrail.remove(i);
+            }
         }
         if (hurtInvincibleCounter > 0) {
             hurtInvincibleCounter--;
@@ -641,7 +937,18 @@ public class Player extends Entity {
     private void updateAnimation() {
         animator.hurt(!scriptedHold && (hurtFlashTicks > 0 || hurtKnockbackCounter > 0));
         animator.locomote(moving, keyH.shiftPressed, vectorLength(velX, velY) / gp.scale, facing);
-        if (aim == null) {
+        Direction8 maneuverDirection = Direction8.fromVector(maneuverDirX, maneuverDirY, facing, 0);
+        if (rollTicks > 0) {
+            SpriteSheet sheet = PlayerAnimator.rollSheet();
+            int elapsed = ROLL_TICKS - rollTicks;
+            int last = sheet == null ? 0 : sheet.frameCount - 1;
+            int poseFrame = elapsed < 4 ? 0 : rollTicks <= 4 ? last : 1 + ((elapsed - 4) / 4) % Math.max(1, last - 1);
+            animator.holdPose(PlayerAnimator.State.ROLL, sheet, poseFrame, maneuverDirection);
+        } else if (dashTicks > 0) {
+            SpriteSheet sheet = PlayerAnimator.dashSheet();
+            int poseFrame = sheet == null ? 0 : ((DASH_TICKS - dashTicks) / 3) % sheet.frameCount;
+            animator.holdPose(PlayerAnimator.State.DASH, sheet, poseFrame, maneuverDirection);
+        } else if (aim == null) {
             animator.clearPose();
         } else if (combatState == CombatState.RANGE) {
             SpriteSheet sheet = rangedWeapon.animations().shoot();
@@ -769,6 +1076,16 @@ public class Player extends Entity {
         int footX = screenX + gp.tileSize / 2 + scriptedDrawOffsetX;
         int footY = screenY + gp.tileSize + scriptedDrawOffsetY;
 
+        if (alive && !dashTrail.isEmpty()) {
+            Composite before = g2.getComposite();
+            for (int[] ghost : dashTrail) {
+                float ghostAlpha = 0.4f * (1f - ghost[2] / (float) (DASH_TRAIL_TICKS + 1));
+                g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, ghostAlpha));
+                frame.draw(g2, footX + ghost[0] - worldX, footY + ghost[1] - worldY, gp.scale, 0, 0);
+            }
+            g2.setComposite(before);
+        }
+
         int extraWidth = (int) Math.round(squash * SQUASH_ART_PIXELS);
         int extraHeight = -extraWidth;
         float alpha = 1f;
@@ -779,7 +1096,7 @@ public class Player extends Entity {
                 extraHeight -= (int) Math.round(10 * fallen);
             }
             alpha = Math.min(1f, deathTicks / (float) DEATH_FADE_TICKS);
-        } else if (hurtFlashTicks == 0 && isHurtInvincible() && (hurtInvincibleCounter / 5) % 2 == 0) {
+        } else if (hurtFlashTicks == 0 && hurtInvincibleCounter > 0 && (hurtInvincibleCounter / 5) % 2 == 0) {
             alpha = 0.6f;
         }
 
@@ -805,6 +1122,9 @@ public class Player extends Entity {
         g2.setComposite(oldComposite);
 
         if (gp.debugSettings.isOverlayEnabled()) {
+            g2.setColor(Color.MAGENTA);
+            Rectangle core = getProjectileHitBox();
+            g2.drawRect(core.x - worldX + screenX, core.y - worldY + screenY, core.width, core.height);
             g2.setColor(Color.GREEN);
             g2.drawRect(screenX + solidArea.x, screenY + solidArea.y, solidArea.width, solidArea.height);
 
@@ -890,7 +1210,7 @@ public class Player extends Entity {
         }
         WeaponRenderer.SwingPose pose = WeaponRenderer.swingPose(meleeWeapon, meleeFrame, aim);
         double bladeLength = meleeWeapon.sprite().length();
-        WeaponRenderer.drawSmear(g2, pose, bladeLength * 0.6, bladeLength + 1, handX, handY, scale);
+        WeaponRenderer.drawSmear(g2, pose, bladeLength * 0.6, bladeLength + 1 + SMEAR_REACH_ART_PIXELS, handX, handY, scale);
         WeaponRenderer.drawHeld(g2, meleeWeapon.sprite(), pose.bladeAngle, handX, handY, scale, 0);
     }
 
@@ -927,6 +1247,11 @@ public class Player extends Entity {
     }
 
     private void updateMeleeAttack() {
+        if (aim == null || combatState != CombatState.MELEE) {
+            // nothing left to swing at (should not happen; kept so a stray state can never crash the game)
+            stopMeleeAttack();
+            return;
+        }
         meleeFrame++;
 
         int total = meleeWeapon.totalFrames();
@@ -970,6 +1295,15 @@ public class Player extends Entity {
                     hitSomething = true;
                 }
             }
+        }
+
+        // Melee cuts enemy projectiles, so attacks that cannot be dodged can still be answered.
+        int cut = gp.bulletManager.cutEnemyBullets(attackArea) + gp.enemyShots.cut(attackArea);
+        for (Enemy enemy : gp.entities.enemies()) {
+            cut += enemy.cutProjectiles(attackArea);
+        }
+        if (cut > 0) {
+            hitSomething = true;
         }
 
         if (hitSomething) {
@@ -1131,6 +1465,26 @@ public class Player extends Entity {
             return;
         }
 
+        // the shield takes the hit before the hearts do
+        ticksSinceHit = 0;
+        shieldRegenTicks = 0;
+        int absorbed = Math.min(shield, damage);
+        if (absorbed > 0) {
+            shield -= absorbed;
+            damage -= absorbed;
+            double cx = worldX + gp.tileSize / 2.0, cy = worldY + gp.tileSize / 2.0;
+            gp.effects.burst(cx, cy, 12, 3.0, SHIELD_SHARDS);
+            gp.effects.ring(cx, cy, 44, 12, new Color(0x9AD8F0), false);
+            gp.effects.text(cx, worldY - 10, shield == 0 ? "SHIELD BROKEN" : "BLOCKED", new Color(0x9AD8F0), 1);
+            if (damage == 0) {
+                hurtInvincibleCounter = HURT_INVINCIBLE_FRAMES;
+                gp.playSoundEffect(Sound.UNLOCK);
+                squash = 0.6;
+                gp.effects.shake(6, 4);
+                return;
+            }
+        }
+
         super.takeDamage(damage);
 
         if (!alive) {
@@ -1159,7 +1513,15 @@ public class Player extends Entity {
     }
 
     public boolean isHurtInvincible() {
-        return hurtInvincibleCounter > 0;
+        return gp.debugSettings.isGodMode() || hurtInvincibleCounter > 0 || rollTicks > 0;
+    }
+
+    public void debugRestoreVitals() {
+        if (!alive) setDefaultValues();
+        health = maxHealth;
+        shield = MAX_SHIELD;
+        ticksSinceHit = 0;
+        shieldRegenTicks = 0;
     }
 
     public int getHurtInvincibleFrames() {

@@ -36,6 +36,14 @@ public class UI {
 
     private int blinkClose, blinkHold, blinkOpen;
     private int blinkTick = -1;
+    private DialogueLine lastVisualNovelLine;
+    // boss bar animation state
+    private Enemy barBoss;
+    private double ghostFraction = 1;
+    private double lastBarFraction = 1;
+    private int ghostDelay;
+    private int barFlash;
+    private int uiTick;
 
     public UI(GamePanel gp) {
         this.gp = gp;
@@ -58,6 +66,7 @@ public class UI {
 
         if (gp.gameState == GameState.CUTSCENE) {
             drawVisualNovelScene();
+            drawBlink();
             return;
         }
 
@@ -76,6 +85,7 @@ public class UI {
             g2.drawString("Tile position = col: " + playerTileCol + " row: " + playerTileRow, 400, 30);
         }
 
+        uiTick++;
         drawBossHealthBar();
 
         if (messageOn) {
@@ -93,7 +103,6 @@ public class UI {
             drawDeathScreen();
         }
 
-        drawBlink();
         drawDialogueOverlay();
         if (gp.gameState == GameState.MOD_MENU) {
             gp.modMenu.draw(this.g2);
@@ -101,6 +110,21 @@ public class UI {
         if (gp.gameState == GameState.PAUSED) {
             gp.pauseMenu.draw(this.g2);
         }
+        if (gp.gameState != GameState.MOD_MENU) drawBlink();
+    }
+
+    public void update() {
+        if (blinkTick >= 0 && ++blinkTick >= blinkClose + blinkHold + blinkOpen) {
+            blinkTick = -1;
+        }
+    }
+
+    public void clearBlink() {
+        blinkTick = -1;
+    }
+
+    public void resetVisualNovelScene() {
+        lastVisualNovelLine = null;
     }
 
     public void blink(int closeFrames, int holdFrames, int openFrames) {
@@ -126,7 +150,6 @@ public class UI {
             blinkTick = -1;
             return;
         }
-        blinkTick++;
 
         // Ease so the lids snap shut and open slowly, like waking up.
         shut = shut * shut * (3 - 2 * shut);
@@ -148,25 +171,113 @@ public class UI {
             return;
         }
 
-        int barWidth = 258;
-        int barHeight = 21;
+        int barWidth = 396;
+        int barHeight = 24;
         int x = gp.screenWidth / 2 - barWidth / 2;
-        int y = 42;
+        int y = gp.screenHeight - 50;
         int inner = barWidth - 12;
-        int filledWidth = Math.max(0, inner * boss.health / boss.maxHealth);
+        double fraction = Math.max(0, boss.health / (double) boss.maxHealth);
+        int filledWidth = (int) Math.round(inner * fraction);
+
+        // the "ghost" chunk lags behind recent damage, then drains
+        if (boss != barBoss) {
+            barBoss = boss;
+            ghostFraction = fraction;
+        }
+        if (fraction < ghostFraction - 1e-6) {
+            if (fraction < lastBarFraction - 1e-6) {
+                ghostDelay = 30;
+                barFlash = 6;
+            }
+            if (ghostDelay > 0) {
+                ghostDelay--;
+            } else {
+                ghostFraction = Math.max(fraction, ghostFraction - 0.004);
+            }
+        } else {
+            ghostFraction = fraction;
+        }
+        lastBarFraction = fraction;
+        int ghostWidth = (int) Math.round(inner * ghostFraction);
 
         Color oldColor = g2.getColor();
 
         UiSkin.inset(g2, x, y, barWidth, barHeight);
         g2.setColor(new Color(0x3A1418));
         g2.fillRect(x + 6, y + 6, inner, barHeight - 12);
-        g2.setColor(new Color(0xA8302A));
+        g2.setColor(new Color(0xF2E6C4));
+        g2.fillRect(x + 6, y + 6, ghostWidth, barHeight - 12);
+        g2.setColor(barFlash > 0 ? new Color(0xF2E6C4) : new Color(0xA8302A));
         g2.fillRect(x + 6, y + 6, filledWidth, barHeight - 12);
         g2.setColor(new Color(0xD8584A));
         g2.fillRect(x + 6, y + 6, filledWidth, UiSkin.P);
+        if (barFlash > 0) {
+            barFlash--;
+        }
+        for (double notch : boss.phaseThresholds()) {
+            int nx = x + 6 + (int) Math.round(inner * notch);
+            g2.setColor(new Color(0x120C09));
+            g2.fillRect(nx - UiSkin.P / 2, y + 3, UiSkin.P, barHeight - 6);
+            g2.setColor(new Color(0xF2C46A));
+            g2.fillRect(nx - UiSkin.P / 2, y, UiSkin.P, UiSkin.P);
+        }
         UiSkin.header(g2, gp.screenWidth / 2, y - 30, boss.name);
 
+        drawWantedMode(boss, x - 44, y - 5);
+        if (boss.adapts()) {
+            drawAdaptation(boss, x, y + barHeight + 4, barWidth);
+        }
+
         g2.setColor(oldColor);
+    }
+
+    // The attack mode the boss is weak to right now, pulsing next to the bar.
+    private void drawWantedMode(Enemy boss, int x, int y) {
+        entity.CombatState wanted = boss.wantedMode();
+        if (wanted == null) {
+            return;
+        }
+        int size = 34;
+        UiSkin.inset(g2, x, y, size, size);
+        boolean pulse = (uiTick / 10) % 2 == 0;
+        g2.setColor(wanted == entity.CombatState.MELEE ? new Color(0x8E2422) : new Color(0x1E4A5E));
+        g2.fillRect(x + 4, y + 4, size - 8, size - 8);
+        UiSkin.icon(g2, wanted == entity.CombatState.MELEE ? UiSkin.Icon.SWORD : UiSkin.Icon.PISTOL,
+                x + size / 2, y + size / 2, 2, true);
+        if (pulse) {
+            g2.setColor(new Color(255, 246, 208, 70));
+            g2.fillRect(x + 4, y + 4, size - 8, size - 8);
+        }
+    }
+
+    // Two meters (melee and ranged): they fill while the player keeps using one mode, then turn red: ADAPTING.
+    private void drawAdaptation(Enemy boss, int x, int y, int barWidth) {
+        int half = barWidth / 2 - 4;
+        drawAdaptMeter(boss, entity.combat.HitType.MELEE, UiSkin.Icon.SWORD, x, y, half);
+        drawAdaptMeter(boss, entity.combat.HitType.RANGED, UiSkin.Icon.PISTOL, x + barWidth - half, y, half);
+    }
+
+    private void drawAdaptMeter(Enemy boss, entity.combat.HitType type, UiSkin.Icon icon, int x, int y, int width) {
+        double progress = boss.adaptationProgress(type);
+        double level = boss.adaptationLevel(type);
+        int s = UiSkin.P;
+        int meterX = x + 22;
+        int meterW = width - 22;
+        UiSkin.icon(g2, icon, x + 8, y + 6, 1, progress > 0);
+        g2.setColor(new Color(0x120C09));
+        g2.fillRect(meterX, y, meterW, 4 * s);
+        g2.setColor(new Color(0x2F2427));
+        g2.fillRect(meterX + s, y + s, meterW - 2 * s, 2 * s);
+        boolean warn = level > 0;
+        boolean blink = warn && (uiTick / 6) % 2 == 0;
+        g2.setColor(warn ? (blink ? new Color(0xFFD9A0) : new Color(0xD04A36)) : new Color(0xC8B48C));
+        g2.fillRect(meterX + s, y + s, (int) Math.round((meterW - 2 * s) * progress), 2 * s);
+        if (warn) {
+            String text = "ADAPTING";
+            int tw = UiSkin.PixelFont.width(text, 1);
+            UiSkin.PixelFont.draw(g2, text, meterX + meterW / 2 - tw / 2, y + 5 * s, 1,
+                    blink ? new Color(0xFFD9A0) : new Color(0xD04A36));
+        }
     }
 
     public void drawDeathScreen() {
@@ -185,6 +296,24 @@ public class UI {
         int scale = 4;
         UiSkin.PixelFont.draw(g2, text, gp.screenWidth / 2 - UiSkin.PixelFont.width(text, scale) / 2, y + 30, scale, UiSkin.TEXT_RED);
         UiSkin.divider(g2, x + 30, y + 72, width - 60);
+
+        if (gp.canRetryBoss()) {
+            // boss fight: fight again or go back to the village
+            int optionW = 156;
+            int optionY = y + 88;
+            String[] options = {"FIGHT AGAIN", "VILLAGE"};
+            for (int i = 0; i < 2; i++) {
+                int ox = gp.screenWidth / 2 - optionW - 6 + i * (optionW + 12);
+                boolean selected = gp.deathChoice() == i;
+                UiSkin.plaque(g2, ox, optionY, optionW, 30, options[i], selected ? UiSkin.GLOW : UiSkin.DIM);
+                if (selected && (uiTick / 15) % 2 == 0) {
+                    UiSkin.PixelFont.draw(g2, ">", ox - 14, optionY + 8, 2, UiSkin.TEXT_RED);
+                }
+            }
+            String hint = "A/D choose, ENTER confirm";
+            UiSkin.PixelFont.draw(g2, hint, gp.screenWidth / 2 - UiSkin.PixelFont.width(hint, 1) / 2, y + height + 10, 1, UiSkin.TEXT);
+            return;
+        }
 
         g2.setFont(consolas_18);
         g2.setColor(UiSkin.TEXT);
@@ -220,6 +349,11 @@ public class UI {
 
     private void drawVisualNovelScene() {
         DialogueLine line = gp.dialogueManager.currentLine();
+        if (line != null && line.presentation() == DialogueLine.Presentation.VISUAL_NOVEL) {
+            lastVisualNovelLine = line;
+        } else {
+            line = lastVisualNovelLine;
+        }
 
         drawVisualNovelBackground(line);
         if (line == null) {

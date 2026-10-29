@@ -42,25 +42,23 @@ public class Enemy_BYT extends Enemy {
     private static final double SHOT_KNOCKBACK = 7.0;
     private static final int PLAYER_HITBOX_INSET = 6;
 
-    private static final String SPRITE_PATH = "splash/BYT_shadow.png";
+    private static final String SPRITE_PATH = "enemy/byt_fog.png";
+    private static final int FRAME_WIDTH = 48;
+    private static final int FRAME_HEIGHT = 72;
+    private static final int FRAME_COUNT = 4;
     private static final int SPRITE_WIDTH = 96;
     private static final int SPRITE_HEIGHT = 144;
 
-    private static final Color VOID = new Color(14, 10, 24);
-    private static final Color DEEP = new Color(52, 30, 86);
-    private static final Color VIOLET = new Color(120, 78, 190);
-    private static final Color LAVENDER = new Color(190, 170, 235);
-    private static final Color PALE = new Color(242, 236, 255);
+    private static final Color VOID = new Color(16, 13, 29);
+    private static final Color DEEP = new Color(41, 32, 60);
+    private static final Color VIOLET = new Color(94, 54, 132);
+    private static final Color LAVENDER = new Color(155, 118, 181);
+    private static final Color PALE = new Color(221, 203, 232);
 
-    private static final int EXECUTION_FADE_OUT_START = 50;
-    private static final int EXECUTION_TELEPORT = 80;
-    private static final int EXECUTION_GROW_END = 120;
-    private static final int EXECUTION_TENDRILS_END = 190;
-    private static final int EXECUTION_LIFT_END = 240;
-    private static final int EXECUTION_CRUSH = 262;
-    private static final int EXECUTION_BLACKOUT_START = 290;
-    private static final int EXECUTION_BLACKOUT_END = 340;
-    private static final int EXECUTION_END = 360;
+    private static final int EXECUTION_SNAP = 30;
+    private static final int EXECUTION_BLACKOUT_START = 66;
+    private static final int EXECUTION_BLACKOUT_END = 90;
+    private static final int EXECUTION_END = 100;
 
     private static final String[] TIER_TAUNTS = {
             "You scratched me. The sea feels pebbles the same way.",
@@ -81,8 +79,8 @@ public class Enemy_BYT extends Enemy {
     private final DialogueSpeaker speaker = new DialogueSpeaker("BYT", null, new Color(190, 80, 230));
     private final Random random = new Random();
 
-    private BufferedImage sprite;
-    private BufferedImage flashSprite;
+    private final BufferedImage[][] sprites = new BufferedImage[2][FRAME_COUNT];
+    private final BufferedImage[][] flashSprites = new BufferedImage[2][FRAME_COUNT];
 
     private final List<Orb> orbs = new ArrayList<>();
     private final List<Lance> lances = new ArrayList<>();
@@ -103,6 +101,12 @@ public class Enemy_BYT extends Enemy {
     private double drawScale = 1.0;
     private int hitFlashFrames = 0;
     private int shakeAmount = 0;
+    private int hurtMotionFrames = 0;
+    private double hurtDirectionX;
+    private double hurtDirectionY;
+    private double castPulse = 0;
+    private double castDirection;
+    private final List<FogMatter> fogMatter = new ArrayList<>();
 
     private boolean introTauntDone = false;
     private int hurtTauntCooldown = 0;
@@ -111,6 +115,7 @@ public class Enemy_BYT extends Enemy {
     private boolean executionPending = false;
     private boolean executing = false;
     private boolean executionFinished = false;
+    private boolean snapStarted = false;
     private int executionFrame = 0;
     private float executionFlash = 0f;
 
@@ -138,13 +143,17 @@ public class Enemy_BYT extends Enemy {
                 return;
             }
             BufferedImage source = ImageIO.read(stream);
-            sprite = new BufferedImage(SPRITE_WIDTH, SPRITE_HEIGHT, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g = sprite.createGraphics();
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            g.drawImage(source, 0, 0, SPRITE_WIDTH, SPRITE_HEIGHT, null);
-            g.dispose();
-            flashSprite = createFlashSprite(sprite);
+            if (source == null || source.getWidth() != FRAME_WIDTH * FRAME_COUNT
+                    || source.getHeight() != FRAME_HEIGHT * 2) {
+                throw new IOException("Invalid fog atlas dimensions");
+            }
+            for (int row = 0; row < sprites.length; row++) {
+                for (int frame = 0; frame < FRAME_COUNT; frame++) {
+                    sprites[row][frame] = source.getSubimage(frame * FRAME_WIDTH,
+                            row * FRAME_HEIGHT, FRAME_WIDTH, FRAME_HEIGHT);
+                    flashSprites[row][frame] = createFlashSprite(sprites[row][frame]);
+                }
+            }
         } catch (IOException e) {
             System.err.println("Could not load BYT sprite: " + e.getMessage());
         }
@@ -165,6 +174,7 @@ public class Enemy_BYT extends Enemy {
     @Override
     public void update() {
         frameCounter++;
+        updateExpression();
         if (hitFlashFrames > 0) {
             hitFlashFrames--;
         }
@@ -209,15 +219,22 @@ public class Enemy_BYT extends Enemy {
         }
 
         // BYT never dies here: damage stops at the execution threshold.
-        int damage = Math.min(hit.damage(), health - executionHealth());
+        int incoming = hit.source() == gp.player ? gp.debugSettings.scalePlayerDamage(hit.damage()) : hit.damage();
+        int floor = gp.debugSettings.isBytExecutionEnabled() ? executionHealth() : 1;
+        int damage = Math.max(0, Math.min(incoming, health - floor));
         if (damage > 0) {
             takeDamage(damage);
+            hurtMotionFrames = 26;
+            double angle = Math.atan2(centerY() - hit.sourceWorldY(), centerX() - hit.sourceWorldX());
+            hurtDirectionX = Math.cos(angle);
+            hurtDirectionY = Math.sin(angle);
+            emitMatter(angle, 1.8, 12, 3.8);
         }
         hitFlashFrames = 6;
         spawnHitSparks(hit);
 
         // Hits can arrive while bullets are being iterated, so the execution starts on the next update.
-        if (health <= executionHealth()) {
+        if (health <= executionHealth() && gp.debugSettings.isBytExecutionEnabled()) {
             executionPending = true;
         }
         return HitResult.APPLIED;
@@ -225,6 +242,29 @@ public class Enemy_BYT extends Enemy {
 
     private int executionHealth() {
         return maxHealth / 2;
+    }
+
+    public void debugClearAttacks() {
+        orbs.clear();
+        lances.clear();
+        grasps.clear();
+        if (!executing) finishAttack();
+    }
+
+    public void debugCancelExecution() {
+        if (!executing && !executionPending) return;
+        gp.storySequenceManager.cancel();
+        gp.dialogueManager.clear();
+        executing = false;
+        executionPending = false;
+        executionFinished = false;
+        snapStarted = false;
+        executionFrame = 0;
+        executionFlash = 0;
+        drawScale = 1;
+        bodyAlpha = 1;
+        gp.player.endScriptedHold();
+        gp.player.health = gp.player.maxHealth;
     }
 
     private int tier() {
@@ -365,6 +405,7 @@ public class Enemy_BYT extends Enemy {
         int duration = scaledInt(140, 200);
 
         if (attackFrame % interval == 0) {
+            expelMatter(spiralAngle, Math.PI * 2, 3, 0.35);
             for (int arm = 0; arm < arms; arm++) {
                 double angle = spiralAngle + arm * Math.PI * 2 / arms;
                 Orb orb = spawnOrb(centerX(), centerY(), angle, scaled(2.2, 2.7), 7);
@@ -467,6 +508,7 @@ public class Enemy_BYT extends Enemy {
     }
 
     private void fireWall(int side) {
+        expelMatter(side * Math.PI / 2, Math.PI * 2, 18, 1.0);
         int tile = gp.tileSize;
         double minX = tile;
         double maxX = worldWidth() - tile;
@@ -507,6 +549,7 @@ public class Enemy_BYT extends Enemy {
     }
 
     private void fireRing(int count, double speed, double offset, double radius) {
+        expelMatter(offset, Math.PI * 2, 16, 1.0);
         for (int i = 0; i < count; i++) {
             double angle = offset + i * Math.PI * 2 / count;
             spawnOrb(centerX(), centerY(), angle, speed, radius);
@@ -515,6 +558,7 @@ public class Enemy_BYT extends Enemy {
 
     private void fireAimedShards(int count, double spread, double speed) {
         double aim = angleToPlayer(centerX(), centerY());
+        expelMatter(aim, 0.7, 7, 0.65);
         for (int i = 0; i < count; i++) {
             double angle = aim + (i - (count - 1) / 2.0) * spread;
             Orb shard = spawnOrb(centerX(), centerY(), angle, speed, 6);
@@ -569,6 +613,23 @@ public class Enemy_BYT extends Enemy {
         }
     }
 
+    // Orbs and shards can be cut by melee; lances and grasps are area attacks and cannot.
+    @Override
+    public int cutProjectiles(Shape area) {
+        int cut = 0;
+        Iterator<Orb> iterator = orbs.iterator();
+        while (iterator.hasNext()) {
+            Orb orb = iterator.next();
+            double r = orb.radius * 0.8;
+            if (area.intersects(orb.x - r, orb.y - r, r * 2, r * 2)) {
+                spawnBurstParticles(orb.x, orb.y, 8, 1.8);
+                iterator.remove();
+                cut++;
+            }
+        }
+        return cut;
+    }
+
     private void updateLances() {
         double px = playerCenterX();
         double py = playerCenterY();
@@ -579,6 +640,7 @@ public class Enemy_BYT extends Enemy {
 
             if (lance.age == lance.telegraphFrames) {
                 shakeAmount = Math.max(shakeAmount, 2);
+                expelMatter(lance.angle, 0.45, 4, 0.8);
             }
             if (lance.isActive() && lance.distanceTo(px, py) < lance.width / 2 + 10) {
                 hitPlayer(px, py);
@@ -599,6 +661,7 @@ public class Enemy_BYT extends Enemy {
 
             if (grasp.age == grasp.telegraphFrames) {
                 spawnBurstParticles(grasp.x, grasp.y, 14, 2.2);
+                expelMatter(angleToPlayer(centerX(), centerY()), 0.8, 7, 0.8);
             }
             if (grasp.isActive() && Math.hypot(px - grasp.x, py - grasp.y) < grasp.radius * 0.85) {
                 hitPlayer(grasp.x, grasp.y);
@@ -644,86 +707,64 @@ public class Enemy_BYT extends Enemy {
         grasps.clear();
         stopMoving();
         gp.bulletManager.clearBullets();
+        gp.enemyShots.clear();
+        fogMatter.clear();
+        castPulse = 0;
+        hurtMotionFrames = 0;
+        shakeAmount = 0;
         gp.keyH.clearGameplayInput();
         gp.player.beginScriptedHold();
-        spawnBurstParticles(centerX(), centerY(), 40, 4.0);
-        executionFlash = 0.8f;
-        say("...No.", DialogueLine.Priority.HIGH);
+        gp.storySequenceManager.start(StorySequences.prologueBytScriptedDefeat(gp, () -> {
+            snapStarted = true;
+            executionFrame = 0;
+            gp.dialogueManager.clear();
+        }));
     }
 
     private void updateExecution() {
+        if (!snapStarted) return;
         executionFrame++;
         int t = executionFrame;
-        executionFlash = Math.max(0f, executionFlash - 0.03f);
+        executionFlash = Math.max(0f, executionFlash - 0.2f);
 
-        if (t < EXECUTION_FADE_OUT_START) {
-            shakeAmount = 3;
-            if (t % 2 == 0) {
+        if (t < EXECUTION_SNAP) {
+            // A brief, quiet contraction makes the instantaneous release read clearly.
+            double charge = t / (double) EXECUTION_SNAP;
+            drawScale = 1.0 - 0.18 * charge;
+            if (t % 3 == 0) {
                 double angle = random.nextDouble() * Math.PI * 2;
-                double distance = 160 + random.nextDouble() * 120;
-                double x = centerX() + Math.cos(angle) * distance;
-                double y = centerY() + Math.sin(angle) * distance;
-                particles.add(new Particle(x, y, -Math.cos(angle) * 4, -Math.sin(angle) * 4, 40, 3, LAVENDER));
+                particles.add(new Particle(centerX() + Math.cos(angle) * 65,
+                        centerY() + Math.sin(angle) * 65,
+                        -Math.cos(angle) * 5, -Math.sin(angle) * 5, 14, 3, VIOLET));
             }
-        }
-        else if (t < EXECUTION_TELEPORT) {
-            bodyAlpha = 1f - (t - EXECUTION_FADE_OUT_START) / (float) (EXECUTION_TELEPORT - EXECUTION_FADE_OUT_START);
-        }
-        else if (t == EXECUTION_TELEPORT) {
-            bodyAlpha = 0f;
-            setPosition(gp.player.worldX, gp.player.worldY - 34);
-            say("You were never meant to see this part.", DialogueLine.Priority.HIGH);
-        }
-        else if (t <= EXECUTION_GROW_END) {
-            float progress = (t - EXECUTION_TELEPORT) / (float) (EXECUTION_GROW_END - EXECUTION_TELEPORT);
-            bodyAlpha = progress;
-            drawScale = 1.0 + 0.6 * easeOut(progress);
-        }
-        else if (t <= EXECUTION_TENDRILS_END) {
-            bodyAlpha = 1f;
-        }
-        else if (t <= EXECUTION_LIFT_END) {
-            float progress = (t - EXECUTION_TENDRILS_END) / (float) (EXECUTION_LIFT_END - EXECUTION_TENDRILS_END);
-            gp.player.setScriptedDrawOffset(random.nextInt(3) - 1, (int) (-26 * easeOut(progress)));
-        }
-        else if (t < EXECUTION_CRUSH) {
-            gp.player.setScriptedDrawOffset(random.nextInt(5) - 2, -26 + random.nextInt(3) - 1);
-            shakeAmount = 2;
-        }
-        else if (t == EXECUTION_CRUSH) {
+        } else if (t == EXECUTION_SNAP) {
+            gp.playSoundEffect(Sound.BYT_SNAP);
             gp.player.setScriptedHidden(true);
             gp.player.health = 0;
-            gp.playSoundEffect(Sound.PLAYER_DEATH);
-            executionFlash = 1f;
-            shakeAmount = 8;
-            double px = playerCenterX();
-            double py = playerCenterY() - 26;
-            spawnBurstParticles(px, py, 70, 5.5);
-            for (int i = 0; i < 24; i++) {
+            gp.startHitStop(3);
+            gp.effects.shake(14, 10);
+            drawScale = 1.18;
+            executionFlash = 0.9f;
+            expelMatter(angleToPlayer(centerX(), centerY()), 0.5, 20, 1.0);
+            double px = playerCenterX(), py = playerCenterY() - 12;
+            Color[] fragments = {VOID, DEEP, VIOLET, new Color(119, 78, 48), new Color(183, 139, 85)};
+            for (int i = 0; i < 64; i++) {
                 double angle = random.nextDouble() * Math.PI * 2;
-                double speed = 1 + random.nextDouble() * 3;
-                particles.add(new Particle(px, py, Math.cos(angle) * speed, Math.sin(angle) * speed, 70, 5, PALE));
+                double speed = 2 + random.nextDouble() * 6;
+                particles.add(new Particle(px + random.nextInt(15) - 7,
+                        py + random.nextInt(27) - 13, Math.cos(angle) * speed,
+                        Math.sin(angle) * speed - 1, 22 + random.nextInt(20),
+                        2 + random.nextInt(4), fragments[i % fragments.length]));
             }
+        } else {
+            drawScale += (1.0 - drawScale) * 0.18;
         }
-        else if (t >= EXECUTION_END && !executionFinished) {
+
+        if (t >= EXECUTION_END && !executionFinished) {
             executionFinished = true;
-            gp.storySequenceManager.start(StorySequences.prologueBytScriptedDefeat(gp));
+            // Map replacement waits until the next story update, outside the enemy loop.
+            gp.storySequenceManager.start(StorySequences.prologueBytAfterSnap(gp));
         }
-
-        if (shakeAmount > 0 && t % 3 == 0) {
-            shakeAmount--;
-        }
-    }
-
-    private float tendrilProgress() {
-        if (executionFrame <= EXECUTION_GROW_END) {
-            return 0f;
-        }
-        return Math.min(1f, (executionFrame - EXECUTION_GROW_END) / (float) (EXECUTION_TENDRILS_END - EXECUTION_GROW_END));
-    }
-
-    private static float easeOut(float t) {
-        return 1f - (1f - t) * (1f - t);
     }
 
     private void spawnBurstParticles(double x, double y, int count, double maxSpeed) {
@@ -751,6 +792,79 @@ public class Enemy_BYT extends Enemy {
         }
     }
 
+    // Expression only: fog motion never changes the boss position or attack timing.
+    private void updateExpression() {
+        if (hurtMotionFrames > 0) hurtMotionFrames--;
+        if (!executing && shakeAmount > 0 && frameCounter % 3 == 0) shakeAmount--;
+        castPulse *= 0.84;
+        if (castPulse < 0.01) castPulse = 0;
+        Iterator<FogMatter> iterator = fogMatter.iterator();
+        while (iterator.hasNext()) {
+            FogMatter matter = iterator.next();
+            matter.x += matter.vx;
+            matter.y += matter.vy;
+            matter.vx *= 0.94;
+            matter.vy = matter.vy * 0.94 - 0.025;
+            if (--matter.life <= 0) iterator.remove();
+        }
+    }
+
+    private void expelMatter(double angle, double spread, int count, double strength) {
+        castPulse = Math.max(castPulse, strength);
+        castDirection = angle;
+        emitMatter(angle, spread, count, 2.0 + strength * 3.0);
+    }
+
+    private void emitMatter(double angle, double spread, int count, double speed) {
+        for (int i = 0; i < count && fogMatter.size() < 96; i++) {
+            double direction = angle + (random.nextDouble() - 0.5) * spread;
+            double velocity = speed * (0.6 + random.nextDouble() * 0.6);
+            fogMatter.add(new FogMatter(centerX() + Math.cos(direction) * 16,
+                    centerY() + Math.sin(direction) * 22,
+                    Math.cos(direction) * velocity, Math.sin(direction) * velocity,
+                    22 + random.nextInt(15), random.nextInt(FRAME_COUNT),
+                    14 + random.nextInt(13), 16 + random.nextInt(30)));
+        }
+    }
+
+    private double chargeCompression() {
+        double charge = 0;
+        for (Lance lance : lances) {
+            if (lance.age < lance.telegraphFrames)
+                charge = Math.max(charge, lance.age / (double) lance.telegraphFrames);
+        }
+        for (Grasp grasp : grasps) {
+            if (grasp.age < grasp.telegraphFrames)
+                charge = Math.max(charge, grasp.age / (double) grasp.telegraphFrames);
+        }
+        return charge;
+    }
+
+    private void drawMatter(Graphics2D original) {
+        Graphics2D g = (Graphics2D) original.create();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        for (FogMatter matter : fogMatter) {
+            BufferedImage texture = sprites[1][matter.frame];
+            if (texture == null) continue;
+            float remaining = matter.life / (float) matter.maxLife;
+            g.setComposite(AlphaComposite.SrcOver.derive(remaining * 0.8f));
+            int size = (int) (matter.size * (1.7 - remaining * 0.7));
+            int x = screenX(matter.x) - size / 2, y = screenY(matter.y) - size / 2;
+            Shape oldClip = g.getClip();
+            int step = Math.max(2, size / 4);
+            g.clip(new Polygon(new int[]{x + step, x + size - step, x + size - step,
+                    x + size, x + size, x + size - step, x + size - step,
+                    x + step, x + step, x, x, x + step},
+                    new int[]{y, y, y + step, y + step, y + size - step,
+                            y + size - step, y + size, y + size, y + size - step,
+                            y + size - step, y + step, y + step}, 12));
+            g.drawImage(texture, x, y, x + size, y + size,
+                    17, matter.sourceY, 31, matter.sourceY + 14, null);
+            g.setClip(oldClip);
+        }
+        g.dispose();
+    }
+
     @Override
     public void draw(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
@@ -764,6 +878,7 @@ public class Enemy_BYT extends Enemy {
                 drawLanceTelegraph(g2, lance);
             }
         }
+        drawMatter(g2);
         drawBody(g2);
 
         g2.dispose();
@@ -797,47 +912,61 @@ public class Enemy_BYT extends Enemy {
     }
 
     private void drawBody(Graphics2D g2) {
+        int row = currentAttack != null || executing ? 1 : 0;
+        int frame = Math.floorMod(frameCounter / (row == 0 ? 10 : 7), FRAME_COUNT);
+        BufferedImage sprite = sprites[row][frame];
+        BufferedImage flashSprite = flashSprites[row][frame];
         if (sprite == null || bodyAlpha <= 0f) {
             return;
         }
 
-        int width = (int) (SPRITE_WIDTH * drawScale);
-        int height = (int) (SPRITE_HEIGHT * drawScale);
+        double hurt = hurtMotionFrames / 26.0;
+        double recoil = Math.cos((26 - hurtMotionFrames) * 0.55) * hurt * hurt;
+        double charge = chargeCompression();
+        int width = (int) (SPRITE_WIDTH * drawScale * (1 + castPulse * 0.3 - charge * 0.15 + recoil * 0.14));
+        int height = (int) (SPRITE_HEIGHT * drawScale * (1 - castPulse * 0.13 + charge * 0.08 - recoil * 0.08));
         int bob = (int) Math.round(Math.sin(frameCounter * 0.05) * 4);
         int shakeX = shakeAmount > 0 ? random.nextInt(shakeAmount * 2 + 1) - shakeAmount : 0;
         int shakeY = shakeAmount > 0 ? random.nextInt(shakeAmount * 2 + 1) - shakeAmount : 0;
 
-        int centerScreenX = screenX(worldX + gp.tileSize / 2.0) + shakeX;
-        int bottomScreenY = screenY(worldY + gp.tileSize) + shakeY;
+        int centerScreenX = screenX(worldX + gp.tileSize / 2.0) + shakeX
+                + (int) (hurtDirectionX * recoil * 22 - Math.cos(castDirection) * castPulse * 7);
+        int bottomScreenY = screenY(worldY + gp.tileSize) + shakeY
+                + (int) (hurtDirectionY * recoil * 12);
         int x = centerScreenX - width / 2;
         int y = bottomScreenY - height + bob;
 
         Composite oldComposite = g2.getComposite();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
         g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.45f * bodyAlpha));
         g2.setColor(VOID);
-        g2.fillOval(centerScreenX - width / 3, bottomScreenY - 10, width * 2 / 3, 18);
-
-        float pulse = 0.35f + 0.15f * (float) Math.sin(frameCounter * 0.08);
-        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.min(1f, pulse * bodyAlpha)));
-        float auraRadius = width * 0.85f;
-        g2.setPaint(new RadialGradientPaint(
-                new Point(centerScreenX, y + height / 2),
-                auraRadius,
-                new float[]{0f, 1f},
-                new Color[]{withAlpha(VIOLET, 150), withAlpha(VIOLET, 0)}
-        ));
-        g2.fillOval((int) (centerScreenX - auraRadius), (int) (y + height / 2 - auraRadius), (int) (auraRadius * 2), (int) (auraRadius * 2));
+        g2.fillRect(centerScreenX - width / 4, bottomScreenY - 6, width / 2, 8);
+        g2.fillRect(centerScreenX - width / 3, bottomScreenY - 4, width * 2 / 3, 4);
 
         g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, bodyAlpha));
-        g2.drawImage(sprite, x, y, width, height, null);
+        drawExpressiveFog(g2, sprite, x, y, width, height, hurt);
 
         if (hitFlashFrames > 0 && flashSprite != null) {
-            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, bodyAlpha * hitFlashFrames / 6f));
-            g2.drawImage(flashSprite, x, y, width, height, null);
+            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, bodyAlpha * hitFlashFrames / 18f));
+            drawExpressiveFog(g2, flashSprite, x, y, width, height, hurt);
         }
 
         g2.setComposite(oldComposite);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+    }
+
+    private void drawExpressiveFog(Graphics2D g, BufferedImage texture, int x, int y,
+                                   int width, int height, double hurt) {
+        // Horizontal bands lag behind the impact, then settle as one mass again.
+        for (int band = 0; band < 12; band++) {
+            int top = band * height / 12, bottom = (band + 1) * height / 12;
+            int sway = (int) Math.round(Math.sin(band * 0.8 - (26 - hurtMotionFrames) * 0.65)
+                    * hurt * 14 / 2) * 2;
+            g.drawImage(texture, x + sway, y + top, x + width + sway, y + bottom,
+                    0, band * 6, FRAME_WIDTH, (band + 1) * 6, null);
+        }
     }
 
     private void drawOrb(Graphics2D g2, Orb orb) {
@@ -1011,51 +1140,39 @@ public class Enemy_BYT extends Enemy {
     }
 
     private void drawExecutionOverlay(Graphics2D g2) {
+        if (!snapStarted) return;
         int t = executionFrame;
-        int playerX = gp.player.screenX + gp.tileSize / 2;
-        int playerY = gp.player.screenY + gp.tileSize / 2;
-
-        float close = Math.min(1f, t / (float) EXECUTION_TENDRILS_END);
-        float outer = Math.max(gp.screenWidth, gp.screenHeight);
-        float radius = outer * (1.1f - 0.75f * close);
-        g2.setPaint(new RadialGradientPaint(
-                new Point(playerX, playerY),
-                radius,
-                new float[]{0f, 0.45f, 1f},
-                new Color[]{withAlpha(VOID, 0), withAlpha(DEEP, (int) (90 * close)), withAlpha(VOID, (int) (235 * close))}
-        ));
+        int px = screenX(playerCenterX()), py = screenY(playerCenterY() - 12);
+        float charge = Math.min(1f, t / (float) EXECUTION_SNAP);
+        g2.setColor(withAlpha(VOID, (int) (80 * charge)));
         g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
-        float reach = tendrilProgress();
-        if (reach > 0f && t < EXECUTION_CRUSH + 6) {
-            double bytX = screenX(worldX + gp.tileSize / 2.0);
-            double bytY = screenY(worldY + gp.tileSize - SPRITE_HEIGHT * drawScale * 0.45);
-            int liftOffset = t > EXECUTION_TENDRILS_END ? -26 : 0;
-            float squeeze = t > EXECUTION_LIFT_END
-                    ? Math.min(1f, (t - EXECUTION_LIFT_END) / (float) (EXECUTION_CRUSH - EXECUTION_LIFT_END))
-                    : 0f;
-            int tendrils = 8;
-            for (int i = 0; i < tendrils; i++) {
-                double side = (i % 2 == 0) ? -1 : 1;
-                double startX = bytX + side * (20 + i * 4);
-                double startY = bytY + (i * 7) - 20;
-                double wrapAngle = i * Math.PI * 2 / tendrils + t * 0.05;
-                double wrapRadius = 30 * (1f - squeeze * 0.8f);
-                double targetX = playerX + Math.cos(wrapAngle) * wrapRadius;
-                double targetY = playerY + liftOffset + Math.sin(wrapAngle) * wrapRadius * 0.8;
-                double tipX = startX + (targetX - startX) * reach;
-                double tipY = startY + (targetY - startY) * reach;
-                drawTendril(g2, startX, startY, tipX, tipY, 14 * (1f - squeeze), t * 0.18 + i, 8f);
+        if (t < EXECUTION_SNAP) {
+            int radius = (int) (70 - 55 * charge);
+            g2.setColor(withAlpha(VIOLET, (int) (150 * charge)));
+            g2.setStroke(new BasicStroke(2));
+            g2.drawOval(px - radius, py - radius / 2, radius * 2, radius);
+        } else if (t < EXECUTION_SNAP + 18) {
+            int age = t - EXECUTION_SNAP;
+            int radius = 8 + age * 13;
+            g2.setColor(withAlpha(LAVENDER, (int) (220 * (1 - age / 18f))));
+            g2.setStroke(new BasicStroke(Math.max(2, 8 - age / 3)));
+            g2.drawOval(px - radius, py - radius / 2, radius * 2, radius);
+            if (age < 5) {
+                g2.setColor(PALE);
+                int reach = 70 + age * 24;
+                g2.fillRect(px - reach, py - 2, reach * 2, 4);
+                g2.fillRect(px - 2, py - 26, 4, 52);
             }
         }
-
         if (executionFlash > 0f) {
-            g2.setColor(withAlpha(PALE, (int) (255 * Math.min(1f, executionFlash))));
+            g2.setColor(withAlpha(PALE, (int) (255 * executionFlash)));
             g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
         }
-
         if (t >= EXECUTION_BLACKOUT_START) {
-            float black = Math.min(1f, (t - EXECUTION_BLACKOUT_START) / (float) (EXECUTION_BLACKOUT_END - EXECUTION_BLACKOUT_START));
+            float black = Math.min(1f, (t - EXECUTION_BLACKOUT_START)
+                    / (float) (EXECUTION_BLACKOUT_END - EXECUTION_BLACKOUT_START));
             g2.setColor(withAlpha(Color.BLACK, (int) (255 * black)));
             g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
         }
@@ -1217,6 +1334,18 @@ public class Enemy_BYT extends Enemy {
 
         boolean isActive() {
             return age >= telegraphFrames && age < telegraphFrames + activeFrames;
+        }
+    }
+
+    private static final class FogMatter {
+        double x, y, vx, vy;
+        int life;
+        final int maxLife, frame, size, sourceY;
+
+        FogMatter(double x, double y, double vx, double vy, int life, int frame, int size, int sourceY) {
+            this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+            this.life = life; this.maxLife = life; this.frame = frame;
+            this.size = size; this.sourceY = sourceY;
         }
     }
 

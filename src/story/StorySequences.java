@@ -2,6 +2,7 @@ package story;
 
 import entity.npc.NPC;
 import main.GamePanel;
+import main.GameState;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,14 +19,36 @@ public final class StorySequences {
 
     public static StorySequence prologueBytEncounterIntro(GamePanel gp) {
         Map<String, Runnable> actions = new HashMap<>();
-        actions.put("enter_prologue_byt_arena", gp.levelManager::enterPrologueBytArena);
+        actions.put("prepare_training_exit", () -> {
+            gp.dialogueManager.clear();
+            gp.keyH.clearGameplayInput();
+            gp.bulletManager.clearBullets();
+            gp.enemyShots.clear();
+            gp.player.beginScriptedHold();
+        });
+        actions.put("blink_to_cutscene", () -> gp.ui.blink(18, 14, 28));
+        actions.put("blink_to_arena", () -> gp.ui.blink(18, 22, 32));
+        actions.put("enter_prologue_byt_arena", () -> {
+            gp.levelManager.enterPrologueBytArena();
+            gp.exitCutsceneMode(GameState.PLAYING);
+        });
+        actions.put("release_arena_control", () -> {
+            gp.ui.clearBlink();
+            gp.player.endScriptedHold();
+            gp.keyH.clearGameplayInput();
+        });
         return StoryScriptLoader.load("prologue_byt_encounter_intro", actions);
     }
 
-    public static StorySequence prologueBytScriptedDefeat(GamePanel gp) {
+    public static StorySequence prologueBytScriptedDefeat(GamePanel gp, Runnable snap) {
         Map<String, Runnable> actions = new HashMap<>();
-        actions.put("finish_prologue_byt_encounter", gp.levelManager::finishPrologueBytEncounter);
+        actions.put("snap_execution", snap);
         return StoryScriptLoader.load("prologue_byt_scripted_defeat", actions);
+    }
+
+    public static StorySequence prologueBytAfterSnap(GamePanel gp) {
+        return StorySequence.of("prologue_byt_after_snap",
+                StorySequenceStep.action(gp.levelManager::finishPrologueBytEncounter));
     }
 
     public static StorySequence villageAwakening(GamePanel gp) {

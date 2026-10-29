@@ -7,7 +7,6 @@ import entity.enemy.Enemy;
 import entity.enemy.Enemy_Slime;
 import main.GamePanel;
 import main.GameState;
-import main.Sound;
 import object.TutorialSword;
 
 import java.awt.*;
@@ -24,6 +23,7 @@ public class PrologueTutorialManager {
         WAIT_FOR_SWITCH,
         WAIT_FOR_MELEE,
         PRACTICE,
+        PRACTICE_CLEARED,
         COMPLETE
     }
 
@@ -82,7 +82,9 @@ public class PrologueTutorialManager {
                 break;
             case WAIT_FOR_SWORD_PICKUP:
                 if (isInstructionComplete(false)) {
-                    say("There. A sharper lie. [Q] changes the shape: blade, gun, blade again.");
+                    say(gp.controls.separateModeKeys()
+                            ? "There. A sharper lie. [Q] is the blade, [E] is the gun."
+                            : "There. A sharper lie. [Q] changes the shape: blade, gun, blade again.");
                     step = Step.WAIT_FOR_SWITCH;
                     resetInstructionProgress();
                 }
@@ -114,8 +116,19 @@ public class PrologueTutorialManager {
                     break;
                 }
                 practiceSlimes.clear();
+                gp.ui.messageOn = false;
+                gp.dialogueManager.clear();
+                gp.keyH.clearGameplayInput();
+                gp.bulletManager.clearBullets();
+                gp.enemyShots.clear();
+                gp.player.beginScriptedHold();
+                nextLineDelayLeft = 75;
+                step = Step.PRACTICE_CLEARED;
+                break;
+            case PRACTICE_CLEARED:
+                // Let the last slime finish dissolving before BYT interrupts the silence.
+                if (--nextLineDelayLeft > 0) break;
                 gp.player.health = gp.player.maxHealth;
-                gp.playSoundEffect(Sound.POWERUP);
                 gp.storyFlags.completePrologueTutorial();
                 gp.storyFlags.startPrologueBytEncounter();
                 gp.storySequenceManager.start(StorySequences.prologueBytEncounterIntro(gp));

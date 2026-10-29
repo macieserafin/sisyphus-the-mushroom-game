@@ -25,6 +25,7 @@ public class Sound {
     public static final int PLAYER_DEATH = 12;
     public static final int CUTSCENE_MUSIC = 13;
     public static final int BOSS_MUSIC = 14;
+    public static final int BYT_SNAP = 15;
 
     private static final int EFFECT_VOICES = 12;
 
@@ -51,6 +52,7 @@ public class Sound {
         soundURL[PLAYER_DEATH] = getClass().getResource("/sounds/playerdeath.wav");
         soundURL[CUTSCENE_MUSIC] = getClass().getResource("/sounds/cutscene.wav");
         soundURL[BOSS_MUSIC] = getClass().getResource("/sounds/babycore.wav");
+        soundURL[BYT_SNAP] = getClass().getResource("/sounds/byt_snap.wav");
 
     }
 

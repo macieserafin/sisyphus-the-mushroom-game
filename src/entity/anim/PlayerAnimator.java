@@ -5,8 +5,10 @@ import entity.weapon.MeleeWeapon;
 
 public final class PlayerAnimator {
 
-    public enum State { IDLE, WALK, SPRINT, SHOOT, ATTACK, HURT, DEATH }
+    public enum State { IDLE, WALK, SPRINT, SHOOT, ATTACK, HURT, DEATH, ROLL, DASH }
 
+    private static final String ROLL = "player/anim/player_roll";
+    private static final String DASH = "player/anim/player_dash";
     private static final String IDLE = "player/anim/player_idle";
     private static final String WALK = "player/anim/player_walk";
     private static final String SPRINT = "player/anim/player_sprint";
@@ -178,6 +180,14 @@ public final class PlayerAnimator {
         int strikeFrames = sheetFrames - 2;
         int index = (weaponFrame - strikeStart) * strikeFrames / (strikeEnd - strikeStart);
         return 1 + Math.min(strikeFrames - 1, index);
+    }
+
+    public static SpriteSheet rollSheet() {
+        return SpriteSheet.loadOptional(ROLL);
+    }
+
+    public static SpriteSheet dashSheet() {
+        return SpriteSheet.loadOptional(DASH);
     }
 
     public static int shootFrame(SpriteSheet sheet, boolean recoil) {

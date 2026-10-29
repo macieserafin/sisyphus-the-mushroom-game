@@ -1,12 +1,14 @@
 package world;
 
 import entity.Bullet;
+import entity.combat.Faction;
 import entity.combat.HitResult;
 import entity.enemy.Enemy;
 import main.GamePanel;
 
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.Shape;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -26,6 +28,23 @@ public class BulletManager {
 
     public void clearBullets() {
         bullets.clear();
+    }
+
+    public int cutEnemyBullets(Shape area) {
+        int cut = 0;
+        Iterator<Bullet> iterator = bullets.iterator();
+
+        while (iterator.hasNext()) {
+            Bullet bullet = iterator.next();
+            if (bullet.alive && bullet.getFaction() == Faction.ENEMY && area.intersects(bullet.getWorldSolidArea())) {
+                Rectangle box = bullet.getWorldSolidArea();
+                gp.effects.sparks(box.getCenterX(), box.getCenterY(), -bullet.velX, -bullet.velY, 5, EffectsManager.SPARK);
+                bullet.alive = false;
+                iterator.remove();
+                cut++;
+            }
+        }
+        return cut;
     }
 
     public void update() {

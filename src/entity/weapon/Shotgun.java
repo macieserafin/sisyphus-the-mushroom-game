@@ -15,7 +15,7 @@ public class Shotgun implements RangedWeapon {
     private static final int BULLET_RANGE_TILES = 3;
     private static final int BULLET_DAMAGE = 2;
     private static final double BULLET_SPAWN_OFFSET = 25.0;
-    private static final double SPREAD_RADIANS = Math.toRadians(10);
+    private static final double SPREAD_RADIANS = Math.toRadians(12);
     private int shotCooldownFrames = 28;
     private double bulletSpeed = 9.0;
     private final PlayerCombatAnimations animations = PlayerCombatAnimations.loadDefaultRanged();

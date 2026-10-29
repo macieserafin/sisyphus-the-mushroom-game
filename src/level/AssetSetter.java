@@ -3,6 +3,7 @@ package level;
 import entity.enemy.Enemy;
 import entity.enemy.Enemy_BYT;
 import entity.enemy.Enemy_Slime;
+import entity.enemy.Enemy_Skeleton;
 import entity.enemy.Enemy_SlimeKing;
 import entity.npc.NPC;
 import entity.npc.NPC_Villager;
@@ -202,8 +203,10 @@ public class AssetSetter {
         };
 
         for (int i = 0; i < slimeSpawns.length; i++) {
-            spawnEnemy(new Enemy_Slime(gp), slimeSpawns[i][0], slimeSpawns[i][1]);
+            spawnEnemy(i % 6 == 5 ? new Enemy_Skeleton(gp) : new Enemy_Slime(gp),
+                    slimeSpawns[i][0], slimeSpawns[i][1]);
         }
+        spawnEnemy(new Enemy_Skeleton(gp), 104, 176);
     }
 
     private SuperObject spawnObject(SuperObject object, int col, int row) {

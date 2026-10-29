@@ -87,6 +87,50 @@ public final class UiSkin {
     public static final int HEART_W = 11 * P;
     public static final int HEART_H = 10 * P;
 
+    private static final String[] SHIELD = {
+            ".ooooooooo.",
+            "ohhhhhrrrdo",
+            "ohhhhrrrrdo",
+            "ohhrrrrrrdo",
+            "ohrrrrrrrdo",
+            ".orrrrrrdo.",
+            ".orrrrrrdo.",
+            "..orrrrdo..",
+            "...orrdo...",
+            "....odo....",
+            ".....o.....",
+    };
+
+    public static final int SHIELD_W = 11 * P;
+    public static final int SHIELD_H = 11 * P;
+
+    // Shield point in the HUD: full (blue), empty, or the empty one partly refilled from the bottom while regenerating.
+    public static void shield(Graphics2D g2, int x, int y, double fill) {
+        BufferedImage full = cached("shield", 1, 0, RED, () -> sprite(SHIELD, Map.of(
+                'o', OUTLINE, 'h', 0xCFF4FF, 'r', 0x5AB4E0, 'd', 0x2A6A9A)));
+        BufferedImage empty = cached("shield", 0, 0, RED, () -> sprite(SHIELD, Map.of(
+                'o', OUTLINE, 'h', 0x3A4652, 'r', 0x2A333E, 'd', 0x1E252E)));
+        Composite old = g2.getComposite();
+        g2.setComposite(AlphaComposite.SrcOver.derive(0.45f));
+        g2.drawImage(cached("shield", 2, 0, RED, () -> sprite(SHIELD, Map.of(
+                'o', 0, 'h', 0, 'r', 0, 'd', 0))), x + P, y + P, SHIELD_W, SHIELD_H, null);
+        g2.setComposite(old);
+        if (fill >= 1) {
+            blit(g2, full, x, y);
+            return;
+        }
+        blit(g2, empty, x, y);
+        if (fill > 0) {
+            int visible = (int) Math.round(SHIELD_H * fill / P) * P;
+            Shape clip = g2.getClip();
+            g2.clipRect(x, y + SHIELD_H - visible, SHIELD_W, visible);
+            g2.setComposite(AlphaComposite.SrcOver.derive(0.7f));
+            blit(g2, full, x, y);
+            g2.setComposite(old);
+            g2.setClip(clip);
+        }
+    }
+
     public static void heart(Graphics2D g2, int x, int y, boolean full) {
         BufferedImage img = full
                 ? cached("heart", 1, 0, RED, () -> sprite(HEART, Map.of(
@@ -101,9 +145,36 @@ public final class UiSkin {
         blit(g2, img, x, y);
     }
 
-    public enum Icon { SWORD, HEAVY_SWORD, PISTOL, SHOTGUN, LOCK, PLAY, OPTIONS, CLOSE, MUSHROOM }
+    public enum Icon { SWORD, HEAVY_SWORD, PISTOL, SHOTGUN, LOCK, PLAY, OPTIONS, CLOSE, MUSHROOM, DASH, ROLL }
 
     private static final Map<Icon, String[]> ICONS = Map.ofEntries(
+            Map.entry(Icon.DASH, new String[]{
+                    "....o....",
+                    "...owo...",
+                    "..owwwo..",
+                    ".owwowwo.",
+                    "owwo.owwo",
+                    "ooo.o.ooo",
+                    "...owo...",
+                    "..owwwo..",
+                    ".owwowwo.",
+                    "owwo.owwo",
+                    "ooo...ooo",
+            }),
+            Map.entry(Icon.ROLL, new String[]{
+                    "...ooooo...",
+                    "..owwwwwo..",
+                    ".owwoooowo.",
+                    "owwowwwoowo",
+                    "owowooowowo",
+                    "owowowowowo",
+                    "owowowwowwo",
+                    "owowoooowo.",
+                    ".owowwwwo..",
+                    "..owoooo...",
+                    "...owwwwo..",
+                    "....oooo...",
+            }),
             Map.entry(Icon.PLAY, new String[]{
                     "oo.......",
                     "owoo.....",

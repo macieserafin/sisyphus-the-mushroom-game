@@ -10,11 +10,11 @@ public class Sword implements MeleeWeapon {
     private static final int WINDUP_FRAMES = 3;
     private static final int STRIKE_FRAMES = 7;
     private static final int RECOVER_FRAMES = 6;
-    private static final int DAMAGE = 5;
+    private static final int DAMAGE = 8;
     private static final int INPUT_BUFFER_FRAMES = 7;
     private static final int COOLDOWN_FRAMES = 4;
-    private static final int REACH = 52;
-    private static final int SWING_WIDTH = 56;
+    private static final int REACH = 61;
+    private static final int SWING_WIDTH = 72;
     private static final int OVERLAP = 14;
     private static final double IMPULSE = 4.65;
     private static final double IMPULSE_MAX_SPEED = 7.15;

@@ -4,7 +4,7 @@ import java.awt.*;
 import java.awt.event.KeyEvent;
 
 public class OptionsMenu {
-    private static final int DISPLAY = 0, MUSIC = 1, EFFECTS = 2, MUTE = 3, BACK = 4, ITEM_COUNT = 5;
+    private static final int DISPLAY = 0, MUSIC = 1, EFFECTS = 2, MUTE = 3, CONTROLS = 4, BACK = 5, ITEM_COUNT = 6;
     private static final int BAR_SEGMENTS = 10;
 
     private final GamePanel gp;
@@ -66,6 +66,10 @@ public class OptionsMenu {
             case MUTE:
                 gp.audio.toggleMute();
                 break;
+            case CONTROLS:
+                gp.controls.toggleModeKeys();
+                gp.playSoundEffect(Sound.COIN);
+                break;
             default:
                 break;
         }
@@ -105,6 +109,10 @@ public class OptionsMenu {
                 case MUTE:
                     g2.drawString("Mute", x + 33, textY);
                     drawValue(g2, "< " + (gp.audio.isMuted() ? "On" : "Off") + " >", right, textY, active);
+                    break;
+                case CONTROLS:
+                    g2.drawString("Weapon modes", x + 33, textY);
+                    drawValue(g2, "< " + gp.controls.modeKeys().label + " >", right, textY, active);
                     break;
                 default:
                     g2.drawString("Back", x + 33, textY);

@@ -7,7 +7,7 @@ public class KeyHandler implements KeyListener {
     public boolean upPressed, downPressed, leftPressed, rightPressed;
     public boolean upShootPressed, downShootPressed, leftShootPressed, rightShootPressed;
     public boolean shiftPressed, spacePressed, enterPressed;
-    public boolean qPressed, onePressed, twoPressed;
+    public boolean qPressed, ePressed, onePressed, twoPressed;
 
     GamePanel gp;
 
@@ -32,12 +32,12 @@ public class KeyHandler implements KeyListener {
             return;
         }
 
-        if (code == KeyEvent.VK_TAB) {
+        if (code == KeyEvent.VK_TAB && gp.gameState != GameState.MOD_MENU) {
             gp.requestPrologueSkip();
             return;
         }
 
-        if (code == KeyEvent.VK_F1 && gp.gameState == GameState.PLAYING) {
+        if (code == KeyEvent.VK_F1 && gp.gameState != GameState.MOD_MENU) {
             gp.modMenu.open();
             return;
         }
@@ -81,6 +81,9 @@ public class KeyHandler implements KeyListener {
             }
             if (code == KeyEvent.VK_Q) {
                 qPressed = true;
+            }
+            if (code == KeyEvent.VK_E) {
+                ePressed = true;
             }
             if (code == KeyEvent.VK_1) {
                 onePressed = true;
@@ -128,8 +131,14 @@ public class KeyHandler implements KeyListener {
             }
         }
         else if(gp.gameState == GameState.DEAD) {
-            if (code == KeyEvent.VK_ENTER) {
+            if (code == KeyEvent.VK_ENTER || code == KeyEvent.VK_SPACE) {
                 gp.restartAfterDeath();
+            }
+            else if (code == KeyEvent.VK_W || code == KeyEvent.VK_UP || code == KeyEvent.VK_A || code == KeyEvent.VK_LEFT) {
+                gp.moveDeathChoice(-1);
+            }
+            else if (code == KeyEvent.VK_S || code == KeyEvent.VK_DOWN || code == KeyEvent.VK_D || code == KeyEvent.VK_RIGHT) {
+                gp.moveDeathChoice(1);
             }
         }
     }
@@ -174,6 +183,9 @@ public class KeyHandler implements KeyListener {
         if (code == KeyEvent.VK_Q) {
             qPressed = false;
         }
+        if (code == KeyEvent.VK_E) {
+            ePressed = false;
+        }
 
         if (code == KeyEvent.VK_1) {
             onePressed = false;
@@ -199,6 +211,7 @@ public class KeyHandler implements KeyListener {
         spacePressed = false;
         enterPressed = false;
         qPressed = false;
+        ePressed = false;
         onePressed = false;
         twoPressed = false;
     }

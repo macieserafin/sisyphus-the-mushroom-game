@@ -17,6 +17,7 @@ public class StorySequenceManager {
     private int waitFramesLeft = 0;
     private boolean stepStarted = false;
     private boolean visualNovelSequence = false;
+    private boolean cutsceneModeEntered = false;
     private GameState returnState = GameState.PLAYING;
     private List<DialogueSpeaker> visualNovelSceneSpeakers = new ArrayList<>();
     private String visualNovelBackgroundPath = null;
@@ -40,9 +41,9 @@ public class StorySequenceManager {
         visualNovelBackgroundPath = null;
 
         visualNovelSequence = sequence.usesVisualNovelPresentation();
+        cutsceneModeEntered = false;
         if (visualNovelSequence) {
             returnState = gp.gameState == GameState.CUTSCENE ? GameState.PLAYING : gp.gameState;
-            gp.enterCutsceneMode();
         }
     }
 
@@ -84,7 +85,7 @@ public class StorySequenceManager {
     }
 
     public boolean isVisualNovelSequenceActive() {
-        return activeSequence != null && visualNovelSequence;
+        return activeSequence != null && cutsceneModeEntered && gp.gameState == GameState.CUTSCENE;
     }
 
     public boolean canSkipActiveSequence() {
@@ -132,6 +133,10 @@ public class StorySequenceManager {
         switch (currentStep.type()) {
             case DIALOGUE:
                 if (currentStep.presentation() == DialogueLine.Presentation.VISUAL_NOVEL) {
+                    if (!cutsceneModeEntered) {
+                        gp.enterCutsceneMode();
+                        cutsceneModeEntered = true;
+                    }
                     List<DialogueSpeaker> sceneSpeakers = sceneSpeakersForCurrentVisualNovelStep();
                     gp.dialogueManager.startVisualNovel(
                             currentStep.speaker(),
@@ -242,10 +247,11 @@ public class StorySequenceManager {
         currentStepIndex = 0;
         waitFramesLeft = 0;
         stepStarted = false;
-        if (visualNovelSequence) {
+        if (cutsceneModeEntered && gp.gameState == GameState.CUTSCENE) {
             gp.exitCutsceneMode(returnState);
         }
         visualNovelSequence = false;
+        cutsceneModeEntered = false;
         visualNovelSceneSpeakers.clear();
         visualNovelBackgroundPath = null;
         returnState = GameState.PLAYING;

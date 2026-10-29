@@ -22,6 +22,7 @@ import tile.TileManager;
 import world.BulletManager;
 import world.CollisionChecker;
 import world.EffectsManager;
+import world.EnemyShotManager;
 import world.WorldEntities;
 
 import javax.swing.*;
@@ -64,7 +65,14 @@ public class GamePanel extends JPanel implements Runnable {
             "The village loves a regular.",
             "I counted. That was not your best death.",
     };
+    private static final String[] BOSS_RETRY_TAUNTS = {
+            "Again? The King remembers your face.",
+            "Stubborn. I like stubborn.",
+            "Go on. Feed him another one.",
+    };
     private final Random random = new Random();
+    private boolean bossRetryAvailable = false;
+    private int deathChoice = 0;
     Sound se = new Sound();
 
     public CollisionChecker cChecker = new CollisionChecker(this);
@@ -77,6 +85,7 @@ public class GamePanel extends JPanel implements Runnable {
     public ModMenu modMenu = new ModMenu(this);
     public DisplayManager display = new DisplayManager(this);
     public AudioSettings audio = new AudioSettings(this);
+    public ControlSettings controls = new ControlSettings();
     public OptionsMenu optionsMenu = new OptionsMenu(this);
     public PauseMenu pauseMenu = new PauseMenu(this);
     public StorySequenceManager storySequenceManager = new StorySequenceManager(this);
@@ -86,6 +95,7 @@ public class GamePanel extends JPanel implements Runnable {
     public WorldEntities entities = new WorldEntities(this);
     public BulletManager bulletManager = new BulletManager(this);
     public EffectsManager effects = new EffectsManager(this);
+    public EnemyShotManager enemyShots = new EnemyShotManager(this);
     public LevelManager levelManager = new LevelManager(this);
     public DebugSettings debugSettings = new DebugSettings();
     private int hitStopFrames = 0;
@@ -163,7 +173,7 @@ public class GamePanel extends JPanel implements Runnable {
             long now = System.nanoTime();
             if (now - statsStart >= 1_000_000_000L) {
                 if (debugSettings.isOverlayEnabled()) {
-                    System.out.println("UPS: " + ticks + "  FPS: " + frames);
+//                    System.out.println("UPS: " + ticks + "  FPS: " + frames);
                 }
                 ticks = 0;
                 frames = 0;
@@ -185,6 +195,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        if (gameState == GameState.MOD_MENU) return;
         if (gameState == GameState.MENU) {
             titleMenu.update();
             return;
@@ -213,6 +224,7 @@ public class GamePanel extends JPanel implements Runnable {
             prologueTutorialManager.respawnPlayerForPractice();
         }
 
+        ui.update();
         dialogueManager.update();
         storySequenceManager.update();
 
@@ -235,6 +247,7 @@ public class GamePanel extends JPanel implements Runnable {
                 return;
             }
             bulletManager.update();
+            enemyShots.update();
             effects.update();
             if (storySequenceManager.isActive()) {
                 return;
@@ -255,11 +268,11 @@ public class GamePanel extends JPanel implements Runnable {
             int enemyCount = enemies.size();
             for(int i = 0; i < enemyCount; i++) {
                 Enemy enemy = enemies.get(i);
-                if(enemy.alive) {
+                if (enemy.alive && !debugSettings.areEnemiesFrozen()) {
                     enemy.update();
-                }
-                else {
+                } else if (!enemy.alive) {
                     enemy.handleDeathOnce();
+                    enemy.updateDeathAnimation();
                     entities.markDeadEnemyCleanupNeeded();
                 }
             }
@@ -322,12 +335,15 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         player.draw(g2);
+        enemyShots.draw(g2);
+        player.drawProjectileCore(g2);
 
         for(Enemy enemy : entities.enemies()) {
             enemy.drawOverlay(g2);
         }
         effects.drawOver(g2);
         g2.translate(-shakeX, -shakeY);
+        effects.drawScreen(g2);
 
         ui.draw(g2);
 
@@ -402,6 +418,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void enterCutsceneMode() {
+        ui.resetVisualNovelScene();
         keyH.clearGameplayInput();
         music.stop();
         currentMusic = -1;
@@ -452,6 +469,7 @@ public class GamePanel extends JPanel implements Runnable {
         tutorialRespawnPending = false;
         hitStopFrames = 0;
         keyH.clearGameplayInput();
+        ui.clearBlink();
         player.setDefaultValues();
         player.resetLoadout();
         gameState = GameState.PLAYING;
@@ -470,7 +488,26 @@ public class GamePanel extends JPanel implements Runnable {
             tutorialRespawnPending = true;
             return;
         }
+        bossRetryAvailable = levelManager.getActiveBoss() != null && levelManager.getActiveBoss().alive;
+        deathChoice = 0;
         gameState = GameState.DEAD;
+    }
+
+    // Death screen choice in a boss fight: 0 = fight again, 1 = back to the village.
+    public boolean canRetryBoss() {
+        return bossRetryAvailable;
+    }
+
+    public int deathChoice() {
+        return deathChoice;
+    }
+
+    public void moveDeathChoice(int delta) {
+        if (!bossRetryAvailable) {
+            return;
+        }
+        deathChoice = Math.floorMod(deathChoice + delta, 2);
+        playSoundEffect(Sound.COIN);
     }
 
     private boolean isPrologueBytEncounterActive() {
@@ -488,6 +525,15 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
+        if (bossRetryAvailable && deathChoice == 0) {
+            bossRetryAvailable = false;
+            levelManager.retryBossArena();
+            gameState = GameState.PLAYING;
+            dialogueManager.showAmbient(BYT_VOICE, BOSS_RETRY_TAUNTS[random.nextInt(BOSS_RETRY_TAUNTS.length)], DialogueLine.Priority.HIGH, 60 * 3);
+            return;
+        }
+        bossRetryAvailable = false;
+
         levelManager.loadHub();
         gameState = GameState.PLAYING;
         playAreaMusic();
@@ -499,7 +545,57 @@ public class GamePanel extends JPanel implements Runnable {
         if (boss == null) {
             return;
         }
-        boss.receiveHit(new Hit(damage, HitType.MELEE, player, player.worldX, player.worldY, 0, null));
+        boss.receiveHit(new Hit(damage, HitType.MELEE, null, player.worldX, player.worldY, 0, null));
+    }
+
+    public enum DebugDestination { BYT, TUTORIAL, LOBBY, SLIME_KING }
+
+    public void debugTeleport(DebugDestination destination) {
+        storySequenceManager.cancel();
+        dialogueManager.clear();
+        cutsceneMusic.stop();
+        villageAwakeningPending = false;
+        restartAfterDeathPending = false;
+        tutorialRespawnPending = false;
+        prologueSkipRequested = false;
+        bossRetryAvailable = false;
+        hitStopFrames = 0;
+        keyH.clearGameplayInput();
+        ui.clearBlink();
+        ui.messageOn = false;
+        player.setDefaultValues();
+        storyFlags = new StoryFlags();
+        storyFlags.completeIntroCutscene();
+        prologueTutorialManager = new PrologueTutorialManager(this);
+        gameState = GameState.PLAYING;
+        if (destination != DebugDestination.TUTORIAL) {
+            storyFlags.completePrologueTutorial();
+            storyFlags.startPrologueBytEncounter();
+            if (destination != DebugDestination.BYT) storyFlags.completePrologueBytEncounter();
+        }
+        switch (destination) {
+            case BYT -> levelManager.enterPrologueBytArena();
+            case TUTORIAL -> { levelManager.loadPrologue(); playAreaMusic(); }
+            case LOBBY -> levelManager.loadHub();
+            case SLIME_KING -> levelManager.debugEnterSlimeKingArena();
+        }
+        player.updateCamera();
+    }
+
+    public void debugClearProjectiles() {
+        bulletManager.clearBullets();
+        enemyShots.clear();
+        for (Enemy enemy : entities.enemies()) {
+            if (enemy instanceof entity.enemy.Enemy_BYT byt) byt.debugClearAttacks();
+        }
+    }
+
+    public void debugToggleGodMode() {
+        debugSettings.toggleGodMode();
+        if (debugSettings.isGodMode()) {
+            player.health = player.maxHealth;
+            if (levelManager.getActiveBoss() instanceof entity.enemy.Enemy_BYT byt) byt.debugCancelExecution();
+        }
     }
 
     public void debugReloadArt() {

@@ -10,13 +10,22 @@ import java.util.Random;
 
 public class EffectsManager {
 
-    public static final Color[] DUST = {new Color(0xC9B79A), new Color(0xA8977E), new Color(0x7E715F)};
-    public static final Color[] SPARK = {new Color(0xFFF6D0), new Color(0xF2C46A), new Color(0xC8642E)};
-    public static final Color[] SPORES = {new Color(0xF2E6C4), new Color(0xD9473A), new Color(0x8E2422)};
-    public static final Color[] HURT = {new Color(0xFFFFFF), new Color(0xE05A48), new Color(0x8E2422)};
+    public static final Color[] DUST = {new Color(0xC1AF91), new Color(0xA08F76), new Color(0x776A58)};
+    public static final Color[] SPARK = {new Color(0xF7EEC7), new Color(0xEBBC5F), new Color(0xC25D27)};
+    public static final Color[] SPORES = {new Color(0xEADEBB), new Color(0xD34134), new Color(0x89201E)};
+    public static final Color[] HURT = {new Color(0xF7F7F7), new Color(0xDA5341), new Color(0x89201E)};
+
+    public static final Color[] GOO = {new Color(0xCDEFB9), new Color(0x50C73B), new Color(0x17931A)};
+    public static final Color[] GOLD = {new Color(0xF7EEC7), new Color(0xEBBC5F), new Color(0xC17E25)};
 
     private final GamePanel gp;
     private final List<Particle> particles = new ArrayList<>();
+    private final List<FloatText> texts = new ArrayList<>();
+    private final List<Ring> rings = new ArrayList<>();
+    private int flashTicks;
+    private int flashTotalTicks;
+    private Color flashColor = Color.WHITE;
+    private float flashAlpha;
     private final Random random = new Random();
     private int shakeTicks;
     private int shakeTotalTicks;
@@ -30,6 +39,9 @@ public class EffectsManager {
 
     public void clear() {
         particles.clear();
+        texts.clear();
+        rings.clear();
+        flashTicks = 0;
         shakeTicks = 0;
         shakeX = 0;
         shakeY = 0;
@@ -47,6 +59,16 @@ public class EffectsManager {
             if (p.life <= 0) {
                 iterator.remove();
             }
+        }
+
+        texts.removeIf(t -> --t.life <= 0);
+        for (FloatText t : texts) {
+            t.y += t.vy;
+            t.vy *= 0.9;
+        }
+        rings.removeIf(r -> --r.life <= 0);
+        if (flashTicks > 0) {
+            flashTicks--;
         }
 
         if (shakeTicks > 0) {
@@ -118,12 +140,97 @@ public class EffectsManager {
         }
     }
 
+    // A word or number that pops up, rises and fades (damage numbers, DETONATE, SWAP!).
+    public void text(double worldX, double worldY, String text, Color color, int scale) {
+        FloatText t = new FloatText();
+        t.x = worldX + (random.nextDouble() - 0.5) * 10;
+        t.y = worldY;
+        t.vy = -2.2;
+        t.text = text;
+        t.color = color;
+        t.scale = scale;
+        t.life = t.maxLife = 46;
+        texts.add(t);
+    }
+
+    // An expanding ring on the ground or in the air (shockwaves, detonations, cut projectiles).
+    public void ring(double worldX, double worldY, double maxRadius, int ticks, Color color, boolean ground) {
+        Ring r = new Ring();
+        r.x = worldX;
+        r.y = worldY;
+        r.maxRadius = maxRadius;
+        r.life = r.maxLife = ticks;
+        r.color = color;
+        r.ground = ground;
+        rings.add(r);
+    }
+
+    // A full-screen flash, drawn over the world (phase changes, detonations).
+    public void flash(int ticks, Color color, float alpha) {
+        flashTicks = flashTotalTicks = ticks;
+        flashColor = color;
+        flashAlpha = alpha;
+    }
+
     public void drawGround(Graphics2D g2) {
+        drawRings(g2, true);
         draw(g2, false);
     }
 
     public void drawOver(Graphics2D g2) {
         draw(g2, true);
+        drawRings(g2, false);
+        drawTexts(g2);
+    }
+
+    public void drawScreen(Graphics2D g2) {
+        if (flashTicks <= 0) {
+            return;
+        }
+        Composite old = g2.getComposite();
+        g2.setComposite(AlphaComposite.SrcOver.derive(flashAlpha * flashTicks / (float) flashTotalTicks));
+        g2.setColor(flashColor);
+        g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
+        g2.setComposite(old);
+    }
+
+    private void drawRings(Graphics2D g2, boolean ground) {
+        Stroke oldStroke = g2.getStroke();
+        Composite oldComposite = g2.getComposite();
+        for (Ring r : rings) {
+            if (r.ground != ground) {
+                continue;
+            }
+            double t = 1 - r.life / (double) r.maxLife;
+            double ease = 1 - (1 - t) * (1 - t);
+            int radius = (int) Math.round(r.maxRadius * ease);
+            int sx = (int) Math.round(r.x - gp.player.worldX + gp.player.screenX);
+            int sy = (int) Math.round(r.y - gp.player.worldY + gp.player.screenY);
+            float width = (float) Math.max(gp.scale, (1 - t) * gp.scale * 3);
+            g2.setComposite(AlphaComposite.SrcOver.derive((float) Math.max(0, 1 - t) * 0.9f));
+            g2.setStroke(new BasicStroke(width));
+            g2.setColor(r.color);
+            int ry = r.ground ? (int) (radius * 0.6) : radius;
+            g2.drawOval(sx - radius, sy - ry, radius * 2, ry * 2);
+        }
+        g2.setStroke(oldStroke);
+        g2.setComposite(oldComposite);
+    }
+
+    private void drawTexts(Graphics2D g2) {
+        Composite oldComposite = g2.getComposite();
+        for (FloatText t : texts) {
+            int age = t.maxLife - t.life;
+            // pop in big, settle, fade at the end
+            int scale = age < 4 ? t.scale + 1 : t.scale;
+            float alpha = t.life < 12 ? t.life / 12f : 1f;
+            int width = main.UiSkin.PixelFont.width(t.text, scale);
+            int sx = (int) Math.round(t.x - gp.player.worldX + gp.player.screenX) - width / 2;
+            int sy = (int) Math.round(t.y - gp.player.worldY + gp.player.screenY);
+            g2.setComposite(AlphaComposite.SrcOver.derive(alpha));
+            main.UiSkin.PixelFont.drawOutlined(g2, t.text, sx, sy, scale, t.color, new Color(0, 0, 0, 120));
+        }
+        g2.setComposite(oldComposite);
     }
 
     private void draw(Graphics2D g2, boolean over) {
@@ -142,6 +249,27 @@ public class EffectsManager {
             g2.fillRect(sx, sy, size, size);
         }
         g2.setColor(old);
+    }
+
+    private static final class FloatText {
+        double x;
+        double y;
+        double vy;
+        String text;
+        Color color;
+        int scale;
+        int life;
+        int maxLife;
+    }
+
+    private static final class Ring {
+        double x;
+        double y;
+        double maxRadius;
+        int life;
+        int maxLife;
+        Color color;
+        boolean ground;
     }
 
     private static final class Particle {

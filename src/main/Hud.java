@@ -14,6 +14,7 @@ import java.util.List;
 public class Hud {
     private static final int MARGIN = 12;
     private static final int BADGE_SIZE = 60;
+    private static final int ABILITY_SIZE = 34;
     private static final int MINIMAP_SIZE = 120;
     private static final int RIGHT_PANEL_WIDTH = 156;
 
@@ -67,10 +68,19 @@ public class Hud {
         for (int i = 0; i < max; i++) {
             UiSkin.heart(g2, heartsX + i * (UiSkin.HEART_W + 3), y + 2, i < hp);
         }
+        int shieldX = heartsX + max * (UiSkin.HEART_W + 3) + 6;
+        int shield = gp.player.shield();
+        for (int i = 0; i < gp.player.maxShield(); i++) {
+            double fill = i < shield ? 1 : i == shield ? gp.player.shieldRegenProgress() : 0;
+            UiSkin.shield(g2, shieldX + i * (UiSkin.SHIELD_W + 3), y + 1, fill);
+        }
 
         int tabY = y + 36;
         UiSkin.plaque(g2, heartsX, tabY, 84, 27, "MELEE", melee ? UiSkin.GLOW : UiSkin.DIM);
         UiSkin.plaque(g2, heartsX + 87, tabY, 84, 27, "RANGE", melee ? UiSkin.DIM : UiSkin.GLOW);
+        int slotY = tabY + 33;
+        drawAbility(g2, heartsX, slotY, UiSkin.Icon.ROLL, gp.player.rollReadiness(), melee);
+        drawAbility(g2, heartsX + ABILITY_SIZE + 6, slotY, UiSkin.Icon.DASH, gp.player.dashReadiness(), !melee);
 
         if (gp.player.hasKey > 0) {
             int keyX = heartsX + 177;
@@ -79,6 +89,19 @@ public class Hud {
             g2.setColor(UiSkin.GOLD);
             g2.drawString("" + gp.player.hasKey, keyX + 20, tabY + 19);
         }
+    }
+
+    // Ability square (roll for melee, dash for ranged): it fills from the bottom while recharging and the icon lights up
+    // once it is full and usable in the current mode.
+    private void drawAbility(Graphics2D g2, int x, int y, UiSkin.Icon icon, double readiness, boolean active) {
+        double fill = Math.max(0, Math.min(1, readiness));
+        boolean ready = fill >= 1;
+        UiSkin.inset(g2, x, y, ABILITY_SIZE, ABILITY_SIZE);
+        int inner = ABILITY_SIZE - 8;
+        int filled = (int) Math.round(inner * fill);
+        g2.setColor(!ready ? new Color(0x6A5C52) : active ? new Color(0x8E2422) : new Color(0x47373A));
+        g2.fillRect(x + 4, y + 4 + inner - filled, inner, filled);
+        UiSkin.icon(g2, icon, x + ABILITY_SIZE / 2, y + ABILITY_SIZE / 2, 2, ready && active);
     }
 
     private int meleeSlot() {

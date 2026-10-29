@@ -131,11 +131,11 @@ public class TitleMenu {
         drawTitleLine(g2, "THE", 3, 188, UiSkin.TEXT_DIM);
         drawTitleLine(g2, "MUSHROOM", 6, 214, new Color(0xC8382E));
 
-        String subtitle = "you will wake up again";
+//        String subtitle = "you will wake up again";
         g2.setFont(subtitleFont);
         float pulse = 0.55f + 0.3f * (float) Math.sin(tick * 0.05);
         g2.setColor(new Color(232, 216, 176, (int) (255 * pulse)));
-        g2.drawString(subtitle, centered(g2, subtitle), 286);
+//        g2.drawString(subtitle, centered(g2, subtitle), 286);
     }
 
     private void drawTitleLine(Graphics2D g2, String text, int scale, int y, Color color) {

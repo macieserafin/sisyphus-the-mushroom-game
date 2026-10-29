@@ -10,11 +10,11 @@ public class HeavySword implements MeleeWeapon {
     private static final int WINDUP_FRAMES = 6;
     private static final int STRIKE_FRAMES = 10;
     private static final int RECOVER_FRAMES = 12;
-    private static final int DAMAGE = 9;
+    private static final int DAMAGE = 18;
     private static final int INPUT_BUFFER_FRAMES = 7;
     private static final int COOLDOWN_FRAMES = 16;
-    private static final int REACH = 58;
-    private static final int SWING_WIDTH = 62;
+    private static final int REACH = 67;
+    private static final int SWING_WIDTH = 94;
     private static final int OVERLAP = 14;
     private static final double IMPULSE = 3.4;
     private static final double IMPULSE_MAX_SPEED = 5.8;
@@ -25,7 +25,7 @@ public class HeavySword implements MeleeWeapon {
     private static final double RECOVERY_DAMPING = 0.70;
     private static final double ENEMY_KNOCKBACK = 11.0;
     private static final int HIT_STOP_FRAMES = 3;
-    private static final double SWING_ARC_RADIANS = Math.toRadians(170);
+    private static final double SWING_ARC_RADIANS = Math.toRadians(120);
     private final PlayerCombatAnimations animations = PlayerCombatAnimations.loadDefaultMelee();
 
     @Override
