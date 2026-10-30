@@ -137,6 +137,10 @@ public class GamePanel extends JPanel implements Runnable {
 
     public Player player = new Player(this, keyH);
 
+    public final level.Campaign campaign = new level.Campaign(this);
+    public final Relics relics = new Relics(this);
+    public final ChoiceMenu choiceMenu = new ChoiceMenu(this);
+
     public GameState gameState;
 
     public GamePanel() {
@@ -154,7 +158,7 @@ public class GamePanel extends JPanel implements Runnable {
         gameState = GameState.MENU;
         applyAudioSettings();
         titleMenu.refresh();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> saves.saveNow(), "save-on-exit"));
+
     }
 
     // Starts playing a save slot: an empty slot is a new game, a filled one resumes in the village
@@ -179,7 +183,7 @@ public class GamePanel extends JPanel implements Runnable {
         player.resetLoadout();
         if (resume && storyFlags.isPrologueBytEncounterCompleted()) {
             gameState = GameState.PLAYING;
-            levelManager.loadHub();
+            saves.resumeWorld();
             playAreaMusic();
             ui.showMessage("Welcome back");
         } else {
@@ -262,8 +266,36 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
+    private Runnable blinkTravel;
+    private int blinkTravelTick;
+
+    public boolean isBlinkTransition() { return blinkTravel != null; }
+
+    public void blinkTransition(Runnable destination) {
+        if (blinkTravel != null) return;
+        blinkTravel = destination;
+        blinkTravelTick = 0;
+        keyH.clearGameplayInput();
+        player.beginScriptedHold();
+        ui.blink(12, 12, 24);
+    }
+
     public void update() {
         saves.tick();
+        if (blinkTravel != null) {
+            ui.update(); effects.update();
+            if (++blinkTravelTick == 14) {
+                blinkTravel.run();
+                player.beginScriptedHold();
+            }
+            if (blinkTravelTick >= 48) {
+                blinkTravel = null;
+                player.endScriptedHold();
+                keyH.clearGameplayInput();
+            }
+            return;
+        }
+        if (gameState == GameState.CHOICE) { choiceMenu.update(); return; }
         if (gameState == GameState.MOD_MENU) return;
         if (gameState == GameState.MENU) {
             titleMenu.update();
@@ -324,6 +356,10 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
+        if (campaign.rebirthing()) {
+            effects.update(); campaign.tick(); return;
+        }
+
         if (gameState == GameState.PLAYING) {
             if (hitStopFrames > 0) {
                 hitStopFrames--;
@@ -372,6 +408,7 @@ public class GamePanel extends JPanel implements Runnable {
                 }
             }
             entities.cleanupDeadEnemies();
+            campaign.tick();
         }
     }
 
@@ -706,12 +743,12 @@ public class GamePanel extends JPanel implements Runnable {
             tutorialRespawnPending = true;
             return;
         }
-        bossRetryAvailable = levelManager.getActiveBoss() != null && levelManager.getActiveBoss().alive;
+        bossRetryAvailable = true;
         deathChoice = 0;
         gameState = GameState.DEAD;
     }
 
-    // Death screen choice in a boss fight: 0 = fight again, 1 = back to the village.
+    // Every campaign defeat offers rebirth or exit, with no separate boss retry.
     public boolean canRetryBoss() {
         return bossRetryAvailable;
     }
@@ -721,9 +758,6 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void moveDeathChoice(int delta) {
-        if (!bossRetryAvailable) {
-            return;
-        }
         deathChoice = Math.floorMod(deathChoice + delta, 2);
         playSoundEffect(Sound.UI_MOVE);
     }
@@ -735,32 +769,23 @@ public class GamePanel extends JPanel implements Runnable {
     public void restartAfterDeath() {
         keyH.clearGameplayInput();
         hitStopFrames = 0;
-        player.setDefaultValues();
 
         if (isPrologueBytEncounterActive()) {
+            player.setDefaultValues();
             gameState = GameState.PLAYING;
             storySequenceManager.start(StorySequences.prologueBytPlayerFell(this));
             return;
         }
 
-        if (bossRetryAvailable && deathChoice == 0) {
-            bossRetryAvailable = false;
-            levelManager.retryBossArena();
-            gameState = GameState.PLAYING;
-            dialogueManager.showAmbient(BYT_VOICE, BOSS_RETRY_TAUNTS[random.nextInt(BOSS_RETRY_TAUNTS.length)], DialogueLine.Priority.HIGH, 60 * 3);
+        if (deathChoice == 1) {
+            returnToTitle();
+            java.awt.Window window = SwingUtilities.getWindowAncestor(this);
+            if (window != null) window.dispatchEvent(new java.awt.event.WindowEvent(window, java.awt.event.WindowEvent.WINDOW_CLOSING));
             return;
         }
+        storySequenceManager.cancel(); dialogueManager.clear(); ui.clearBlink();
         bossRetryAvailable = false;
-
-        boolean diedInRun = levelManager.isRunActive();
-        int kept = diedInRun ? wallet.loseRun() : 0;
-        levelManager.loadHub();
-        gameState = GameState.PLAYING;
-        if (diedInRun) {
-            ui.showMessage("Kept " + kept + " mushrooms");
-        }
-        playAreaMusic();
-        dialogueManager.showAmbient(BYT_VOICE, WAKE_UP_TAUNTS[random.nextInt(WAKE_UP_TAUNTS.length)], DialogueLine.Priority.HIGH, 60 * 4);
+        if (saves.respawn()) { gameState = GameState.PLAYING; playAreaMusic(); }
     }
 
     public void debugDamageActiveBoss(int damage) {

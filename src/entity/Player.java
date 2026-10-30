@@ -53,6 +53,7 @@ public class Player extends Entity {
     private static final double FACING_HYSTERESIS_RADIANS = Math.toRadians(10);
     // The slash trail reaches past the blade tip, matching the melee hitbox reach.
     private static final int SMEAR_REACH_ART_PIXELS = 3;
+    private static final double AIM_EASE = 0.45;
     private static final int ROLL_TICKS = 28;
     private static final double ROLL_START_SPEED = 6.4;
     private static final double ROLL_END_SPEED = 2.6;
@@ -60,8 +61,8 @@ public class Player extends Entity {
     private static final int ROLL_DAMAGE = 4;
     private static final double ROLL_KNOCKBACK = 10.0;
     private static final int ROLL_BOUNCE_INVINCIBLE_TICKS = 24;
-    private static final int BASE_MAX_SHIELD = 2;
-    private static final int BASE_MAX_HEALTH = 3;
+    private static final int BASE_MAX_SHIELD = 1;
+    private static final int BASE_MAX_HEALTH = 2;
     private static final int SHIELD_REGEN_DELAY = 240;
     private static final int SHIELD_REGEN_TICKS = 180;
     private static final Color[] SHIELD_SHARDS = {new Color(0xE8FAFF), new Color(0x9AD8F0), new Color(0x2A6A9A)};
@@ -88,7 +89,7 @@ public class Player extends Entity {
     private double velX = 0.0;
     private double velY = 0.0;
     private double maxSpeed = BASE_MAX_SPEED;
-    // Power-ups picked up during a run; setDefaultValues() clears them when the run ends.
+    // Floor-only bonus. Travel preserves it; a new floor resets it and rebirth restores it from the checkpoint.
     private double runDamageMultiplier = 1.0;
 
     private double worldXf;
@@ -105,6 +106,7 @@ public class Player extends Entity {
     private int aimHeldTicks;
     private int muzzleFlashTicks;
     private int recoilKickTicks;
+    private double weaponAngle = Double.NaN;
     private int hurtFlashTicks;
     private int deathTicks;
     private double squash;
@@ -218,6 +220,43 @@ public class Player extends Entity {
         deathTicks = 0;
         animator.reset();
         endScriptedHold();
+    }
+
+
+    public void saveCheckpoint(java.util.Properties p) {
+        p.setProperty("player.x", "" + worldX); p.setProperty("player.y", "" + worldY);
+        p.setProperty("player.health", "" + health); p.setProperty("player.maxHealth", "" + maxHealth);
+        p.setProperty("player.shield", "" + shield); p.setProperty("player.maxShield", "" + maxShield);
+        p.setProperty("player.speed", "" + maxSpeed); p.setProperty("player.damage", "" + runDamageMultiplier);
+        p.setProperty("player.keys", "" + hasKey); p.setProperty("player.mode", combatState.name());
+        p.setProperty("player.melee", "" + currentMeleeSlot()); p.setProperty("player.ranged", "" + currentRangedSlot());
+        p.setProperty("player.startMelee", "" + startingMeleeSlot); p.setProperty("player.startRanged", "" + startingRangedSlot);
+        p.setProperty("player.heavy", "" + ownsMeleeSlot(1)); p.setProperty("player.shotgun", "" + ownsRangedSlot(1));
+    }
+
+    public void restoreVitals(int hp, int sp) {
+        health = Math.max(1, Math.min(maxHealth, hp)); shield = Math.max(0, Math.min(maxShield, sp));
+    }
+
+    public void loadCheckpoint(java.util.Properties p) {
+        int spawnX = worldX, spawnY = worldY;
+        setDefaultValues(); resetLoadout(); gp.progression.applyWeapons(this);
+        setWorldPosition(spawnX,spawnY);
+        if (!p.containsKey("player.x")) return;
+        maxHealth = Math.max(1, Math.min(99, save.Values.integer(p,"player.maxHealth",maxHealth)));
+        maxShield = Math.max(0, Math.min(99, save.Values.integer(p,"player.maxShield",maxShield)));
+        restoreVitals(save.Values.integer(p,"player.health",maxHealth),save.Values.integer(p,"player.shield",maxShield));
+        maxSpeed = Math.max(1, Math.min(20, save.Values.decimal(p,"player.speed",maxSpeed))); speed=(int)Math.round(maxSpeed);
+        runDamageMultiplier=Math.max(1,Math.min(20,save.Values.decimal(p,"player.damage",1)));
+        hasKey=Math.max(0,save.Values.integer(p,"player.keys",0));
+        setMeleeSlotOwned(1,save.Values.bool(p,"player.heavy")); setRangedSlotOwned(1,save.Values.bool(p,"player.shotgun"));
+        startingMeleeSlot=save.Values.integer(p,"player.startMelee",0)==1 && ownsMeleeSlot(1) ? 1 : 0;
+        startingRangedSlot=save.Values.integer(p,"player.startRanged",0)==1 && ownsRangedSlot(1) ? 1 : 0;
+        int m=save.Values.integer(p,"player.melee",0)==1 && ownsMeleeSlot(1) ? 1 : 0;
+        int r=save.Values.integer(p,"player.ranged",0)==1 && ownsRangedSlot(1) ? 1 : 0;
+        setMeleeWeapon(combatLoadout.selectMeleeSlot(m)); setRangedWeapon(combatLoadout.selectRangedSlot(r));
+        combatState="MELEE".equals(p.getProperty("player.mode")) ? CombatState.MELEE : CombatState.RANGE;
+        setWorldPosition(save.Values.integer(p,"player.x",worldX),save.Values.integer(p,"player.y",worldY));
     }
 
     public void updateCamera() {
@@ -1022,6 +1061,25 @@ public class Player extends Entity {
         } else {
             animator.clearPose();
         }
+        updateWeaponAngle();
+    }
+
+    private void updateWeaponAngle() {
+        if (aim == null || combatState != CombatState.RANGE) {
+            weaponAngle = Double.NaN;
+            return;
+        }
+        double target = aim.angle();
+        if (Double.isNaN(weaponAngle) || !gp.debugSettings.isAimSmoothing()) {
+            weaponAngle = target;
+            return;
+        }
+        double diff = Math.atan2(Math.sin(target - weaponAngle), Math.cos(target - weaponAngle));
+        weaponAngle = Math.abs(diff) < 0.02 ? target : weaponAngle + diff * AIM_EASE;
+    }
+
+    private double rangedAngle() {
+        return Double.isNaN(weaponAngle) ? aim.angle() : weaponAngle;
     }
 
     private double vectorLength(double x, double y) {
@@ -1108,6 +1166,7 @@ public class Player extends Entity {
         SuperObject closestObject = null;
         double closestObjectDistance = INTERACT_RANGE_TILES * gp.tileSize;
         for (SuperObject object : gp.entities.objects()) {
+            if (!object.isInteractable()) continue;
             double distance = Math.hypot(object.worldX + gp.tileSize / 2.0 - playerCenterX, object.worldY + gp.tileSize / 2.0 - playerCenterY);
             if (distance <= closestObjectDistance) {
                 closestObject = object;
@@ -1214,13 +1273,18 @@ public class Player extends Entity {
             g2.setColor(Color.MAGENTA);
             g2.drawRect(handX, handY, scale - 1, scale - 1);
             if (alive && isWeaponDrawn(frame)) {
-                double angle = combatState == CombatState.RANGE ? aim.angle() : WeaponRenderer.swingPose(meleeWeapon, meleeFrame, aim).bladeAngle;
+                double angle = combatState == CombatState.RANGE ? rangedAngle() : WeaponRenderer.swingPose(meleeWeapon, meleeFrame, aim).bladeAngle;
                 int push = combatState == CombatState.RANGE && recoilKickTicks > 0 ? -1 : 0;
                 int gripX = handX + (int) Math.round(Math.cos(angle) * push) * scale;
                 int gripY = handY + (int) Math.round(Math.sin(angle) * push) * scale;
                 g2.setColor(Color.YELLOW);
                 g2.drawRect(gripX - 1, gripY - 1, scale + 1, scale + 1);
             }
+        }
+
+        if (frame.hasShoulder()) {
+            g2.setColor(Color.ORANGE);
+            g2.drawRect(frame.shoulderScreenX(footX, scale, extraWidth), frame.shoulderScreenY(footY, scale, extraHeight), scale - 1, scale - 1);
         }
 
         String sheetName = frame.sheet.name.substring(frame.sheet.name.lastIndexOf('/') + 1);
@@ -1260,10 +1324,14 @@ public class Player extends Entity {
 
     private void drawWeapon(Graphics2D g2, SpriteSheet.Frame frame, int footX, int footY, int extraWidth, int extraHeight) {
         int scale = gp.scale;
+        if (frame.hasShoulder()) {
+            drawWeaponWithArm(g2, frame, footX, footY, extraWidth, extraHeight);
+            return;
+        }
         int handX = frame.handScreenX(footX, scale, extraWidth);
         int handY = frame.handScreenY(footY, scale, extraHeight);
         if (combatState == CombatState.RANGE) {
-            double angle = aim.angle();
+            double angle = rangedAngle();
             int kick = recoilKickTicks > 0 ? -1 : 0;
             WeaponRenderer.drawHeld(g2, rangedWeapon.sprite(), angle, handX, handY, scale, kick);
             if (muzzleFlashTicks > 0) {
@@ -1275,6 +1343,35 @@ public class Player extends Entity {
         double bladeLength = meleeWeapon.sprite().length();
         WeaponRenderer.drawSmear(g2, pose, bladeLength * 0.6, bladeLength + 1 + SMEAR_REACH_ART_PIXELS, handX, handY, scale);
         WeaponRenderer.drawHeld(g2, meleeWeapon.sprite(), pose.bladeAngle, handX, handY, scale, 0);
+    }
+
+    private void drawWeaponWithArm(Graphics2D g2, SpriteSheet.Frame frame, int footX, int footY, int extraWidth, int extraHeight) {
+        int scale = gp.scale;
+        int shoulderX = frame.shoulderScreenX(footX, scale, extraWidth);
+        int shoulderY = frame.shoulderScreenY(footY, scale, extraHeight);
+        double reach = frame.sheet.armReach;
+        if (combatState == CombatState.RANGE) {
+            double angle = rangedAngle();
+            int[] hand = WeaponRenderer.armHand(angle, reach, recoilKickTicks > 0 ? 1 : 0);
+            int handX = shoulderX + hand[0] * scale;
+            int handY = shoulderY + hand[1] * scale;
+            WeaponRenderer.drawArm(g2, frame.sheet, shoulderX, shoulderY, hand, scale);
+            WeaponRenderer.drawHeld(g2, rangedWeapon.sprite(), angle, handX, handY, scale, 0);
+            if (muzzleFlashTicks > 0) {
+                WeaponRenderer.drawMuzzleFlash(g2, rangedWeapon.sprite(), angle, handX, handY, scale, 0, muzzleFlashTicks);
+            }
+            WeaponRenderer.drawFist(g2, frame.sheet, shoulderX, shoulderY, hand, scale);
+            return;
+        }
+        WeaponRenderer.SwingPose pose = WeaponRenderer.swingPose(meleeWeapon, meleeFrame, aim);
+        double bladeLength = meleeWeapon.sprite().length();
+        int[] hand = WeaponRenderer.armHand(pose.bladeAngle, reach, 0);
+        int handX = shoulderX + hand[0] * scale;
+        int handY = shoulderY + hand[1] * scale;
+        WeaponRenderer.drawSmear(g2, pose, reach + bladeLength * 0.6, reach + bladeLength + SMEAR_REACH_ART_PIXELS, shoulderX, shoulderY, scale);
+        WeaponRenderer.drawArm(g2, frame.sheet, shoulderX, shoulderY, hand, scale);
+        WeaponRenderer.drawHeld(g2, meleeWeapon.sprite(), pose.bladeAngle, handX, handY, scale, 0);
+        WeaponRenderer.drawFist(g2, frame.sheet, shoulderX, shoulderY, hand, scale);
     }
 
     private void drawMeleeHitBox(Graphics2D g2) {

@@ -53,6 +53,18 @@ public class PowerUp extends SuperObject {
         return kind;
     }
 
+    @Override public java.util.Properties snapshot() {
+        var p = new java.util.Properties();
+        p.setProperty("x", "" + x);
+        p.setProperty("y", "" + y);
+        p.setProperty("age", "" + age);
+        p.setProperty("kind", kind.name());
+        return p;
+    }
+    @Override public void restoreSnapshot(java.util.Properties p) {
+        age = Math.max(0, save.Values.integer(p,"age",0));
+    }
+
     @Override
     public void update(GamePanel gp) {
         age++;

@@ -69,7 +69,7 @@ public class HouseDoor extends SuperObject {
         }
         openTicks++;
         if (openTicks == OPEN_FRAMES) {
-            gp.levelManager.transitionTo(target);
+            gp.blinkTransition(() -> gp.levelManager.transitionTo(target));
         }
     }
 

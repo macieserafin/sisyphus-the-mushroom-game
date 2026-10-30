@@ -10,5 +10,6 @@ public enum GameState {
     MOD_MENU,
     SHOP,
     QUESTS,
+    CHOICE,
     SKILLS
 }

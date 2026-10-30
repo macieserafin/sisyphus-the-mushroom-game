@@ -9,9 +9,7 @@ public class PauseMenu {
     private enum Item {
         RESUME("Resume"),
         OPTIONS("Options"),
-        SAVE("Save game"),
-        SAVE_QUIT("Save and quit to title"),
-        QUIT("Quit without saving"),
+        QUIT("Quit to title"),
         TITLE("Back to title");
 
         final String label;
@@ -41,7 +39,7 @@ public class PauseMenu {
     public void open() {
         pressedKeys.clear();
         items = gp.saves.isActive()
-                ? List.of(Item.RESUME, Item.OPTIONS, Item.SAVE, Item.SAVE_QUIT, Item.QUIT)
+                ? List.of(Item.RESUME, Item.OPTIONS, Item.QUIT)
                 : List.of(Item.RESUME, Item.OPTIONS, Item.TITLE);
         selected = 0;
         inOptions = false;
@@ -109,13 +107,7 @@ public class PauseMenu {
                 inOptions = true;
                 gp.optionsMenu.open();
             }
-            case SAVE -> {
-                boolean saved = gp.saves.saveManually();
-                gp.playSoundEffect(saved ? Sound.UI_CONFIRM : Sound.UI_ERROR);
-                feedback = saved ? "Game saved" : "Could not save, see the console";
-                feedbackTicks = FEEDBACK_TICKS;
-            }
-            case SAVE_QUIT, TITLE -> {
+            case TITLE -> {
                 gp.playSoundEffect(Sound.UI_CONFIRM);
                 gp.returnToTitle();
             }

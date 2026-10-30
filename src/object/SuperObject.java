@@ -7,6 +7,10 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 
 public class SuperObject {
+    public String persistenceId = "";
+    public java.util.Properties snapshot() { return null; }
+    public void restoreSnapshot(java.util.Properties state) {}
+    public boolean isInteractable() { return false; }
     public BufferedImage image;
     public String name;
     public boolean collision = false;

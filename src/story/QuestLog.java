@@ -85,21 +85,21 @@ public class QuestLog {
         main(BYT, "The Voice",
                 "BYT has watched long enough. Now it wants a closer look.",
                 "Face BYT.", 1, VILLAGE);
-        main(VILLAGE, "A Place to Wake Up",
-                "The village takes in whoever the forest spits out. Its people know more than they say.",
-                "Visit the five houses of the village.", HOUSES, FOREST);
+        main(VILLAGE, ChapterText.get("quest.village.title"), ChapterText.get("quest.village.description"),
+                ChapterText.get("quest.village.objective"), 1, FOREST);
         main(FOREST, "Through the Gate",
                 "Past the village gate the forest goes on for days: ravines, a maze of trees, a river.",
                 "Cross the forest and find the cave at its far end.", 1, KING);
         main(KING, "The Slime King",
                 "Something wears a crown in that cave, sitting on everyone else's gold.",
                 "Defeat the Slime King.", 1, HOME);
-        main(HOME, "Back Alive",
-                "Mushrooms are only yours once you carry them home.",
-                "Leave the cave through the portal and bank what you found.", 1, null);
+        main(HOME, ChapterText.get("quest.sign.title"), ChapterText.get("quest.sign.description"),
+                ChapterText.get("quest.sign.objective"), 1, null);
+        side("wanderer", ChapterText.get("quest.wanderer.title"), ChapterText.get("quest.wanderer.description"),
+                ChapterText.get("quest.wanderer.objective"), 1);
         side(HOARD, "Mushroom Hoard",
                 "The shops take mushrooms and nothing else.",
-                "Have 100 mushrooms in the bank.", 100);
+                "Carry 100 mushrooms.", 100);
         side(SHOPPING, "Something for the Road",
                 "The merchant, the witch, the smith and the old sage all sell something.",
                 "Buy an upgrade or a weapon in the village.", 1);
@@ -201,7 +201,7 @@ public class QuestLog {
         if (quest.id.equals(BYT)) {
             notices.add("New side quests in the journal [J]");
             for (Quest side : quests.values()) {
-                if (!side.main) {
+                if (!side.main && !side.id.equals("wanderer")) {
                     side.state = State.ACTIVE;
                     if (side.progress >= side.target) {
                         finish(side);
@@ -213,7 +213,7 @@ public class QuestLog {
 
     public void visitHouse(String house) {
         visitedHouses.add(house);
-        setProgress(VILLAGE, visitedHouses.size());
+
     }
 
 

@@ -8,10 +8,7 @@ import story.StoryFlags;
 import java.util.Properties;
 import java.util.prefs.Preferences;
 
-// The three save slots. A slot holds the story flags, the quest log, the mushroom bank and everything bought in the
-// village. The game always resumes in the village: a run through the forest is never saved half way.
-// While a slot is active the game writes it by itself: right after the bank, purchases or skills change, and
-// every few seconds when the story or quests moved. Without an active slot (title screen, demo, tests) it saves nothing.
+// Slot storage. Campaign progress is committed only at explicit checkpoint boundaries.
 public class GameSaves {
     public record Summary(boolean exists, long playSeconds, long savedAt, int banked, String stage, int upgrades,
                           int skills) {
@@ -20,9 +17,8 @@ public class GameSaves {
 
     public static final int SLOTS = SaveStore.SLOTS;
 
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
     private static final int TICKS_PER_SECOND = 60;
-    private static final int CHECK_TICKS = 300;
     private static final String LAST_SLOT_KEY = "lastSlot";
     private static final String LEGACY_PROFILE_KEY = "legacyProfileImported";
     private static final String STAGE_KEY = "meta.stage";
@@ -35,19 +31,12 @@ public class GameSaves {
     private final Settings settings;
     private int active;
     private long playTicks;
-    private volatile boolean dirty;
-    private int sinceCheck;
-    private Properties lastWritten = new Properties();
     private Properties lastFull = new Properties();
-    // What "Quit without saving" goes back to: the slot as it was loaded or last saved by hand (null = a brand new slot).
-    private Properties restorePoint;
 
     public GameSaves(GamePanel gp) {
         this.gp = gp;
         this.store = gp.store;
         this.settings = gp.settings;
-        gp.wallet.setOnChange(this::markDirty);
-        gp.progression.setOnChange(this::markDirty);
         if (store.isPersistent() && !settings.getBoolean(LEGACY_PROFILE_KEY, false)) {
             importLegacyProfile(Preferences.userRoot().node("main"));
             settings.putBoolean(LEGACY_PROFILE_KEY, true);
@@ -72,7 +61,7 @@ public class GameSaves {
                 + (Boolean.parseBoolean(data.getProperty("prog.heavySword", "false")) ? 1 : 0);
         String skills = data.getProperty("prog.skills", "");
         return new Summary(true, number(data, PLAY_SECONDS_KEY), longNumber(data, SAVED_AT_KEY),
-                number(data, "wallet.banked"), data.getProperty(STAGE_KEY, ""), upgrades,
+                data.containsKey("wallet.amount") ? number(data, "wallet.amount") : number(data, "wallet.banked"), data.getProperty(STAGE_KEY, ""), upgrades,
                 skills.isBlank() ? 0 : skills.split(",").length);
     }
 
@@ -103,8 +92,7 @@ public class GameSaves {
         apply(new Properties());
         playTicks = 0;
         activate(slot);
-        restorePoint = null;
-        saveNow();
+        checkpoint();
     }
 
     public boolean load(int slot) {
@@ -115,7 +103,7 @@ public class GameSaves {
         apply(data);
         playTicks = (long) number(data, PLAY_SECONDS_KEY) * TICKS_PER_SECOND;
         activate(slot);
-        restorePoint = data;
+        lastFull = data;
         return true;
     }
 
@@ -141,15 +129,12 @@ public class GameSaves {
         if (active == 0) {
             return;
         }
-        saveNow();
         active = 0;
         apply(new Properties());
     }
 
     private void activate(int slot) {
         active = slot;
-        dirty = false;
-        sinceCheck = 0;
         settings.putInt(LAST_SLOT_KEY, slot);
     }
 
@@ -159,65 +144,67 @@ public class GameSaves {
         gp.wallet.load(data);
         gp.progression.load(data);
         gp.questLog.load(data);
-        lastWritten = content(data);
+        gp.relics.load(data);
+        gp.campaign.load(data);
     }
 
-
-    private void markDirty() {
-        if (active > 0) {
-            dirty = true;
-        }
-    }
 
     public void tick() {
-        if (active == 0) {
-            return;
+        if (active > 0 && gp.gameState == GameState.PLAYING) playTicks++;
+    }
+
+    public Properties snapshot() { return compose(); }
+
+    public synchronized boolean checkpoint() {
+        if (gp.campaign.inCombat() || !gp.player.alive) return false;
+        Properties data = compose();
+        return writeCheckpoint(data);
+    }
+
+    public synchronized boolean checkpointAt(String map, int col, int row) {
+        if (gp.campaign.inCombat() || !gp.player.alive) return false;
+        Properties data = compose();
+        data.setProperty("campaign.map", map);
+        data.setProperty("player.x", Integer.toString(col * gp.tileSize));
+        data.setProperty("player.y", Integer.toString(row * gp.tileSize));
+        return writeCheckpoint(data);
+    }
+
+    private boolean writeCheckpoint(Properties data) {
+        if (active > 0 && !store.write(file(active), data)) {
+            gp.ui.showMessage("Pattern could not be saved. Stay here and try again");
+            return false;
         }
-        if (gp.gameState != GameState.MENU && gp.gameState != GameState.PAUSED) {
-            playTicks++;
-        }
-        if (dirty || ++sinceCheck >= CHECK_TICKS) {
-            sinceCheck = 0;
-            if (dirty || !content(compose()).equals(lastWritten)) {
-                saveNow();
-            }
-        }
+        lastFull = data;
+        return true;
     }
 
     public synchronized boolean saveNow() {
-        if (active == 0) {
+        return !gp.campaign.started() && checkpoint();
+    }
+
+    public boolean saveManually() { return saveNow(); }
+
+    public void resumeWorld() { gp.campaign.restoreLocation(lastFull, false); }
+
+    public void restoreSnapshot(Properties data) {
+        apply(data);
+        gp.campaign.restoreLocation(data, false);
+    }
+
+    public synchronized boolean respawn() {
+        Properties data = active > 0 ? store.read(file(active)) : lastFull;
+        if (data == null || !data.containsKey("campaign.version")) {
+            gp.ui.showMessage("No bound pattern found. Continue from the title screen");
             return false;
         }
-        Properties data = compose();
-        boolean written = store.write(file(active), data);
-        if (written) {
-            lastWritten = content(data);
-            lastFull = data;
-            dirty = false;
-        }
-        return written;
+        apply(data);
+        lastFull = data;
+        gp.campaign.restoreLocation(data, true);
+        return true;
     }
 
-    // The player's own "Save": writes the slot and makes this the point "Quit without saving" returns to.
-    public synchronized boolean saveManually() {
-        boolean written = saveNow();
-        if (written) {
-            restorePoint = lastFull;
-        }
-        return written;
-    }
-
-    // "Quit without saving": the slot goes back to how it was when it was loaded or last saved by hand (the automatic
-    // saves in between are undone; a slot that was new this session becomes empty again), then the slot is let go of.
     public synchronized void abandon() {
-        if (active == 0) {
-            return;
-        }
-        if (restorePoint == null) {
-            store.delete(file(active));
-        } else {
-            store.write(file(active), restorePoint);
-        }
         active = 0;
         apply(new Properties());
     }
@@ -228,6 +215,9 @@ public class GameSaves {
         gp.wallet.save(data);
         gp.progression.save(data);
         gp.questLog.save(data);
+        gp.relics.save(data);
+        gp.campaign.save(data);
+        gp.player.saveCheckpoint(data);
         data.setProperty(VERSION_KEY, Integer.toString(VERSION));
         data.setProperty(STAGE_KEY, stage());
         data.setProperty(PLAY_SECONDS_KEY, Long.toString(playTicks / TICKS_PER_SECOND));
@@ -236,6 +226,7 @@ public class GameSaves {
     }
 
     private String stage() {
+        if (gp.campaign.started()) return "Floor " + gp.campaign.floor() + (gp.campaign.bossCleared() ? " - boss cleared" : " - exploring");
         if (!gp.storyFlags.isPrologueBytEncounterCompleted()) {
             return "Prologue";
         }
@@ -246,16 +237,6 @@ public class GameSaves {
         }
         return "The way home";
     }
-
-    // The saved values without the ones that change every time (used to see whether anything moved).
-    private static Properties content(Properties data) {
-        Properties copy = new Properties();
-        copy.putAll(data);
-        copy.remove(SAVED_AT_KEY);
-        copy.remove(PLAY_SECONDS_KEY);
-        return copy;
-    }
-
 
     // Earlier versions kept one global bank, upgrades and skills in the system preferences. They become slot 1, with
     // the prologue marked as done (these players had already bought things in the village).

@@ -4,11 +4,16 @@ import entity.Direction8;
 import entity.weapon.MeleeWeapon;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public final class WeaponRenderer {
 
     private static final double WINDUP_PULL_RADIANS = Math.toRadians(22);
     private static final double SETTLE_RADIANS = Math.toRadians(12);
+    private static final double ARM_DEPTH = 0.8;
     private static final int SMEAR_FADE_FRAMES = 3;
     private static final double SMEAR_TRAIL_RADIANS = Math.toRadians(75);
     private static final Color[] SMEAR_COLORS = {
@@ -69,6 +74,84 @@ public final class WeaponRenderer {
         double t = (frame - strikeEnd + 1) / (double) recoverFrames;
         double fade = Math.max(0, 1 - (frame - strikeEnd + 1) / (double) SMEAR_FADE_FRAMES);
         return new SwingPose(to - sign * SETTLE_RADIANS * easeOut(t), from, to, fade);
+    }
+
+    public static int[] armHand(double angle, double reach, int kickArtPixels) {
+        double r = Math.max(1, reach - kickArtPixels);
+        return new int[]{(int) Math.round(Math.cos(angle) * r), (int) Math.round(Math.sin(angle) * r * ARM_DEPTH)};
+    }
+
+    public static void drawArm(Graphics2D g2, SpriteSheet sheet, int shoulderX, int shoulderY, int[] hand, int scale) {
+        List<int[]> line = cellLine(hand[0], hand[1]);
+        int[] perp = Math.abs(hand[0]) >= Math.abs(hand[1]) ? new int[]{0, 1} : new int[]{1, 0};
+        Map<Long, Color> cells = new LinkedHashMap<>();
+        Color sleeve = sheet.armColor("sleeve");
+        Color sleeveShade = colorOr(sheet.armColor("sleeveShade"), sleeve);
+        Color cuff = colorOr(sheet.armColor("cuff"), sleeveShade);
+        Color skin = sheet.armColor("skin");
+        Color skinShade = colorOr(sheet.armColor("skinShade"), skin);
+        for (int i = 0; i < line.size() - 1; i++) {
+            int[] c = line.get(i);
+            boolean isCuff = i == line.size() - 2 && line.size() > 2;
+            cells.put(key(c[0] + perp[0], c[1] + perp[1]), isCuff ? cuff : sleeveShade);
+            cells.put(key(c[0], c[1]), isCuff ? cuff : sleeve);
+        }
+        cells.put(key(hand[0] + perp[0], hand[1] + perp[1]), skinShade);
+        cells.put(key(hand[0], hand[1]), skin);
+
+        Color old = g2.getColor();
+        g2.setColor(colorOr(sheet.armColor("outline"), Color.BLACK));
+        for (long k : cells.keySet()) {
+            int x = (int) (k >> 32), y = (int) k;
+            for (int[] d : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                if (!cells.containsKey(key(x + d[0], y + d[1]))) {
+                    fillCell(g2, shoulderX + (x + d[0]) * scale, shoulderY + (y + d[1]) * scale, scale);
+                }
+            }
+        }
+        for (Map.Entry<Long, Color> e : cells.entrySet()) {
+            long k = e.getKey();
+            g2.setColor(e.getValue());
+            fillCell(g2, shoulderX + (int) (k >> 32) * scale, shoulderY + (int) k * scale, scale);
+        }
+        g2.setColor(old);
+    }
+
+    public static void drawFist(Graphics2D g2, SpriteSheet sheet, int shoulderX, int shoulderY, int[] hand, int scale) {
+        Color old = g2.getColor();
+        g2.setColor(sheet.armColor("skin"));
+        fillCell(g2, shoulderX + hand[0] * scale, shoulderY + hand[1] * scale, scale);
+        g2.setColor(old);
+    }
+
+    private static List<int[]> cellLine(int x1, int y1) {
+        List<int[]> pts = new ArrayList<>();
+        int x0 = 0, y0 = 0;
+        int dx = Math.abs(x1), dy = -Math.abs(y1);
+        int sx = x1 > 0 ? 1 : -1, sy = y1 > 0 ? 1 : -1, err = dx + dy;
+        while (true) {
+            pts.add(new int[]{x0, y0});
+            if (x0 == x1 && y0 == y1) {
+                return pts;
+            }
+            int e2 = 2 * err;
+            if (e2 >= dy) {
+                err += dy;
+                x0 += sx;
+            }
+            if (e2 <= dx) {
+                err += dx;
+                y0 += sy;
+            }
+        }
+    }
+
+    private static long key(int x, int y) {
+        return ((long) x << 32) | (y & 0xFFFFFFFFL);
+    }
+
+    private static Color colorOr(Color color, Color fallback) {
+        return color != null ? color : fallback;
     }
 
     public static void drawHeld(Graphics2D g2, WeaponSprite sprite, double angle, int handX, int handY, int scale, int pushArtPixels) {

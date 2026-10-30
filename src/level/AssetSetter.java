@@ -50,6 +50,12 @@ public class AssetSetter {
             spawnObject(new HouseDoor("wood", LOCKED_HOME_MESSAGES[i % LOCKED_HOME_MESSAGES.length]), home.doorCol(), home.doorRow());
         }
 
+        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.REST), 31, 21);
+        if (gp.campaign.anchorOpen()) spawnObject(new Portal(TransitionTarget.runFloor()), 31, 25);
+        if (gp.campaign.recruited() && gp.campaign.anchorOpen()) {
+            spawnNPC(new entity.npc.NPC_Wanderer(gp), 12, 14);
+            if (gp.campaign.built()) spawnObject(new object.ChapterObject(object.ChapterObject.Kind.WORKSHOP), Campaign.WORKSHOP_COL, Campaign.WORKSHOP_ROW);
+        }
         for (VillageLayout.Readable readable : VillageLayout.READABLES) {
             spawnObject(new Inspectable(readable.tile, readable.lines), readable.col, readable.row);
         }
@@ -150,7 +156,9 @@ public class AssetSetter {
                 spawnNPC(mycologist, 5, 5);
                 break;
             case SAGE:
-                NPC sage = new NPC_Villager(gp, "Old Aldous", "sage", new Color(200, 205, 220), true)
+                NPC sage = new NPC_Villager(gp, "Old Aldous", "sage", new Color(200, 205, 220), true) {
+                    @Override public void talk() { gp.campaign.talkSage(); }
+                }
                         .sells(Shop.sage(gp))
                         .conversation("Hm? Another one. Come in, mind the hole in the roof. The rain only falls on the books.",
                                 "I was here before the village. Before the gate. Before the lead came.")
@@ -176,6 +184,10 @@ public class AssetSetter {
     }
 
     public void setRunFloorObject() {
+        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.ANCHOR), Campaign.ANCHOR_COL, Campaign.ANCHOR_ROW);
+        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.NOTE), 23, 106);
+        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.SIGN), 143, 7);
+        if (!gp.campaign.recruited()) spawnNPC(new entity.npc.NPC_Wanderer(gp), 107, 30);
         spawnObject(new Boots(), 96, 77);
         spawnObject(new Key(), 104, 46);
         spawnObject(new Door(), 90, 28);

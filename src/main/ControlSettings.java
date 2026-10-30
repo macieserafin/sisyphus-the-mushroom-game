@@ -83,7 +83,7 @@ public class ControlSettings {
 
     public static boolean isReserved(int code) {
         return code == KeyEvent.VK_ESCAPE || code == KeyEvent.VK_ENTER || code == KeyEvent.VK_TAB
-                || code == KeyEvent.VK_M || code == KeyEvent.VK_1 || code == KeyEvent.VK_2
+                || code == KeyEvent.VK_M || code == KeyEvent.VK_I || code == KeyEvent.VK_1 || code == KeyEvent.VK_2
                 || (code >= KeyEvent.VK_F1 && code <= KeyEvent.VK_F12) || code == KeyEvent.VK_UNDEFINED;
     }
 

@@ -61,7 +61,6 @@ public class LevelManager {
     public void loadHubAt(int col, int row) {
         gp.player.setWeaponsLockedByArea(true);
         runActive = false;
-        floorNumber = 0;
         clearLevel();
         activeBoss = null;
         gp.keyH.clearGameplayInput();
@@ -70,6 +69,7 @@ public class LevelManager {
         gp.progression.applyWeapons(gp.player);
         gp.aSetter.setVillageObjects();
         gp.aSetter.setVillageNPCs();
+        gp.campaign.clearCombat();
         gp.playAreaMusic();
     }
 
@@ -116,13 +116,16 @@ public class LevelManager {
     }
 
     public void startRun() {
-        if (runActive) {
+        if (gp.campaign.inCombat()) { gp.ui.showMessage("In combat: portals locked"); return; }
+        if (gp.campaign.started()) {
+            if (!gp.campaign.anchorOpen()) { gp.ui.showMessage("No village connection on this floor"); return; }
+            runActive = true;
+            loadManualRunFloor(false);
+            gp.player.setWorldPosition(146 * gp.tileSize, 8 * gp.tileSize);
             return;
         }
-
-        runActive = true;
-        floorNumber = 1;
-        gp.wallet.startRun();
+        if (!gp.campaign.beginFloor()) return;
+        runActive = true; floorNumber = 1;
         loadManualRunFloor();
     }
 
@@ -145,12 +148,20 @@ public class LevelManager {
         );
         gp.aSetter.setRunFloorObject();
         gp.aSetter.setRunFloorEnemy();
+        gp.campaign.restoreMap();
+        gp.campaign.ensureReturnPortal();
         if (showMessage) {
-            gp.ui.showMessage("Forest run started. Floor " + floorNumber);
+            gp.ui.showMessage("Floor 1 - The Forest. Reach the anchor before the King");
         }
     }
 
     public void enterBossArena() {
+        if (gp.campaign.started() && (!gp.campaign.anchorOpen() || gp.campaign.inCombat())) {
+            gp.ui.showMessage("Bind at the anchor outside combat before entering"); return;
+        }
+        if (gp.campaign.started() && gp.campaign.bossCleared()) {
+            gp.campaign.requestDescent(); return;
+        }
         gp.player.setWeaponsLockedByArea(false);
         bossReturnWorldX = gp.player.worldX;
         bossReturnWorldY = gp.player.worldY + gp.tileSize;
@@ -183,6 +194,7 @@ public class LevelManager {
                 BOSS_ARENA_PLAYER_SPAWN_ROW * gp.tileSize
         );
         activeBoss = gp.aSetter.setBossArenaEnemy();
+        gp.campaign.clearCombat();
         gp.ui.showMessage("Boss arena");
         gp.playAreaMusic();
     }
@@ -224,8 +236,11 @@ public class LevelManager {
         if (runActive) {
             gp.questLog.complete(QuestLog.KING);
         }
-        gp.aSetter.setBossArenaRewardObject();
-        gp.ui.showMessage("Boss defeated");
+        gp.campaign.bossDefeated();
+        if (!gp.campaign.started()) {
+            gp.aSetter.setBossArenaRewardObject();
+            gp.ui.showMessage("Boss defeated");
+        }
         gp.playAreaMusic();
     }
 
@@ -240,33 +255,33 @@ public class LevelManager {
     }
 
     public void finishRun() {
-        int banked = gp.wallet.bankRun();
-        if (banked > 0) {
-            gp.playSoundEffect(main.Sound.BANK);
-        }
-        gp.questLog.complete(QuestLog.HOME);
-        runActive = false;
-        floorNumber = 0;
-        bossReturnPositionSaved = false;
-        bossDefeated = false;
-        activeBoss = null;
-
-        gp.keyH.clearGameplayInput();
-        gp.player.setDefaultValues();
+        if (gp.campaign.bossCleared() && !gp.campaign.rewardClaimed()) { gp.campaign.openReward(); return; }
+        if (!gp.campaign.anchorOpen()) return;
         loadHub();
-        gp.gameState = GameState.PLAYING;
-        gp.ui.showMessage("Run finished: +" + banked + " mushrooms banked");
     }
 
-    public void goToNextFloor() {
-        runActive = true;
-        floorNumber++;
-        bossReturnPositionSaved = false;
-        bossDefeated = false;
-        activeBoss = null;
+    public void goToNextFloor() { gp.campaign.requestDescent(); }
 
-        gp.keyH.clearGameplayInput();
-        loadManualRunFloor();
+    public void loadSecondFloor() {
+        clearLevel(); activeBoss = null; runActive = true; floorNumber = 2;
+        gp.tileM.loadMap(Campaign.SECOND);
+        gp.player.setWeaponsLockedByArea(false);
+        gp.player.setWorldPosition(12 * gp.tileSize, 13 * gp.tileSize);
+        gp.entities.addObject(new object.ChapterObject(object.ChapterObject.Kind.NOTE), 12, 10);
+        gp.campaign.restoreMap();
+    }
+
+    public void restoreCampaignMap(String map) {
+        switch (map) {
+            case Campaign.FOREST -> { runActive = true; loadManualRunFloor(false); }
+            case Campaign.ARENA -> { runActive = true; loadBossArena(); }
+            case Campaign.SECOND -> loadSecondFloor();
+            default -> {
+                level.Interior found = null;
+                for (level.Interior interior : level.Interior.values()) if (interior.mapPath.equals(map)) found = interior;
+                if (found != null) enterInterior(found); else loadHub();
+            }
+        }
     }
 
     public void transitionTo(TransitionTarget target) {
@@ -276,6 +291,7 @@ public class LevelManager {
 
         switch (target.type()) {
             case HUB:
+                if (gp.campaign.inCombat() || !gp.campaign.anchorOpen()) { gp.ui.showMessage("Village connection unavailable"); return; }
                 loadHub();
                 break;
             case HUB_AT:
@@ -313,6 +329,7 @@ public class LevelManager {
     }
 
     public void clearLevel() {
+        gp.campaign.captureCurrent();
         clearObjects();
         clearNPCs();
         clearEnemies();

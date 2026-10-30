@@ -40,6 +40,26 @@ public class HeartPickup extends SuperObject {
         worldY = (int) Math.round(y) - 40;
     }
 
+    @Override public java.util.Properties snapshot() {
+        var p = new java.util.Properties();
+        p.setProperty("x", "" + x);
+        p.setProperty("y", "" + y);
+        p.setProperty("vx", "" + vx);
+        p.setProperty("height", "" + height);
+        p.setProperty("vHeight", "" + vHeight);
+        p.setProperty("age", "" + age);
+        return p;
+    }
+    @Override public void restoreSnapshot(java.util.Properties p) {
+        x = save.Values.decimal(p,"x",x);
+        y = save.Values.decimal(p,"y",y);
+        vx = save.Values.decimal(p,"vx",vx);
+        height = save.Values.decimal(p,"height",height);
+        vHeight = save.Values.decimal(p,"vHeight",vHeight);
+        age = Math.max(0, save.Values.integer(p,"age",0));
+        syncPosition();
+    }
+
     @Override
     public void update(GamePanel gp) {
         age++;

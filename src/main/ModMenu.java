@@ -1,5 +1,6 @@
 package main;
 
+import entity.anim.PlayerAnimationGallery;
 import entity.Player;
 import entity.enemy.Enemy;
 import entity.enemy.Enemy_BYT;
@@ -18,7 +19,7 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 public class ModMenu {
-    private enum Page { MAIN, TELEPORT, COMBAT, EQUIPMENT, PROGRESS, QUESTS, TOOLS }
+    private enum Page { MAIN, TELEPORT, COMBAT, EQUIPMENT, PROGRESS, QUESTS, CHAPTER, RELICS, TOOLS }
     private record Item(Supplier<String> label, Runnable action, IntConsumer adjust) {
         Item(Supplier<String> label, Runnable action) { this(label, action, null); }
     }
@@ -41,6 +42,8 @@ public class ModMenu {
                 item("Ekwipunek  >", () -> enter(Page.EQUIPMENT)),
                 item("Grzyby i umiejętności  >", () -> enter(Page.PROGRESS)),
                 item("Questy  >", () -> enter(Page.QUESTS)),
+                item("Pierwszy rozdział i checkpointy  >", () -> enter(Page.CHAPTER)),
+                item("Relikty  >", () -> enter(Page.RELICS)),
                 item("Narzędzia  >", () -> enter(Page.TOOLS)),
                 item("Zamknij", this::close)));
         pages.put(Page.TELEPORT, List.of(
@@ -85,13 +88,10 @@ public class ModMenu {
                 }),
                 item("Wstecz", this::back)));
         List<Item> progress = new ArrayList<>(List.of(
-                new Item(() -> "Grzyby w banku: " + gp.wallet.banked() + "  (A/D ±50)",
+                new Item(() -> "Grzyby: " + gp.wallet.banked() + "  (A/D ±50)",
                         () -> adjustBanked(100), d -> adjustBanked(d * 50)),
-                new Item(() -> "Grzyby w biegu: " + gp.wallet.run() + "  (A/D ±10)",
-                        () -> adjustRun(50), d -> adjustRun(d * 10)),
-                item("Wyzeruj grzyby (bank i bieg)", () -> {
+                item("Wyzeruj grzyby", () -> {
                     gp.wallet.debugAdjustBanked(-gp.wallet.banked());
-                    gp.wallet.debugAdjustRun(-gp.wallet.run());
                     feedback = "Grzyby wyzerowane";
                 })));
         for (Skill skill : Skill.values()) {
@@ -130,8 +130,49 @@ public class ModMenu {
                 }),
                 new Item(() -> "Nakładka debugowania: " + on(gp.debugSettings.isOverlayEnabled()),
                         () -> gp.debugSettings.toggleOverlay()),
+                new Item(() -> "Galeria animacji gracza: " + galleryLabel(), this::toggleGallery, this::cycleGallery),
+                new Item(() -> "Tempo galerii: " + (gp.debugSettings.isGallerySlow() ? "x0.25" : "x1"),
+                        () -> gp.debugSettings.toggleGallerySlow()),
+                new Item(() -> "Wygładzanie obrotu broni dystansowej: " + on(gp.debugSettings.isAimSmoothing()),
+                        () -> gp.debugSettings.toggleAimSmoothing()),
+                item("Test czcionki: ĄĆĘŁŃÓŚŹŻ ąćęłńóśźż", () -> feedback = "Zażółć gęślą jaźń"),
                 item("Przeładuj grafikę (F5)", () -> {gp.debugReloadArt(); feedback = "Wywołano przeładowanie grafiki";}),
                 item("Wstecz", this::back)));
+        pages.put(Page.CHAPTER, List.of(
+                item("Przygotuj kotwicę, Marę i walkę z bossem", () -> chapterScenario(false)),
+                item("Przygotuj stan po bossie i zejście niżej", () -> chapterScenario(true)),
+                item("Zwiąż kotwicę (normalne warunki i zapis)", () -> playAction(() -> gp.campaign.bindAnchor())),
+                item("Zapisz checkpoint tutaj", () -> {
+                    feedback = gp.saves.checkpoint() ? "Checkpoint zapisany" : "Zapis nie powiódł się";
+                }),
+                item("Odtwórz checkpoint z odrodzeniem", () -> playAction(() -> gp.saves.respawn())),
+                item("Rozmowa z Aldousem / rozpoznanie znaku", () -> playAction(() -> gp.campaign.talkSage())),
+                item("Rozmowa z Marą / budowa warsztatu", () -> playAction(() -> gp.campaign.talkWarrior())),
+                item("Odczytaj znak Erena", () -> playAction(() -> gp.campaign.foundSign())),
+                item("Zejście na piętro 2 (potwierdzenie)", () -> playAction(() -> gp.campaign.requestDescent())),
+                item("Wstecz", this::back)));
+        List<Item> relicRows = new ArrayList<>();
+        for (Relics.Item relic : Relics.Item.values()) {
+            relicRows.add(new Item(() -> "Dodaj: " + relic.title() + (gp.relics.owns(relic) ? " [posiadany]" : ""),
+                    () -> { gp.relics.grant(relic); feedback = "Dodano: " + relic.title(); }));
+            relicRows.add(new Item(() -> "Wyposażenie: " + relic.title() + " " + on(gp.relics.active(relic)),
+                    () -> feedback = gp.relics.toggle(relic) ? "Zmieniono wyposażenie" : "Wymaga przedmiotu i braku walki"));
+        }
+        relicRows.add(item("Otwórz ekwipunek (I)", () -> playAction(() -> gp.relics.open())));
+        relicRows.add(item("Wstecz", this::back));
+        pages.put(Page.RELICS, List.copyOf(relicRows));
+    }
+
+    private void playAction(Runnable action) {
+        close();
+        gp.gameState = GameState.PLAYING;
+        action.run();
+    }
+
+    private void chapterScenario(boolean afterBoss) {
+        teleport(GamePanel.DebugDestination.LOBBY);
+        gp.campaign.debugPrepareChapter(afterBoss);
+        feedback = "Scenariusz przygotowany; checkpoint nie został zapisany";
     }
 
     private Item item(String label, Runnable action) { return new Item(() -> label, action); }
@@ -189,6 +230,20 @@ public class ModMenu {
     private void teleport(GamePanel.DebugDestination destination) {
         gp.debugTeleport(destination);
         returnState = GameState.PLAYING;
+    }
+
+    private String galleryLabel() {
+        int state = gp.debugSettings.playerGallery();
+        return state < 0 ? "WYŁ.  (A/D: animacja)" : PlayerAnimationGallery.stateName(state) + "  (A/D: animacja)";
+    }
+
+    private void toggleGallery() {
+        gp.debugSettings.setPlayerGallery(gp.debugSettings.playerGallery() < 0 ? 0 : -1);
+    }
+
+    private void cycleGallery(int direction) {
+        int state = gp.debugSettings.playerGallery();
+        gp.debugSettings.setPlayerGallery(state < 0 ? 0 : Math.floorMod(state + direction, PlayerAnimationGallery.stateCount()));
     }
 
     private void adjustDamage(int direction) { gp.debugSettings.cycleDamageMultiplier(direction); }
@@ -249,13 +304,7 @@ public class ModMenu {
 
     private void adjustBanked(int delta) {
         gp.wallet.debugAdjustBanked(delta);
-        feedback = "Grzyby w banku: " + gp.wallet.banked();
-    }
-
-    private void adjustRun(int delta) {
-        gp.wallet.debugAdjustRun(delta);
-        feedback = gp.levelManager.isRunActive() ? "Grzyby w biegu: " + gp.wallet.run()
-                : "Poza biegiem: grzyby przepadną przy następnym starcie";
+        feedback = "Grzyby: " + gp.wallet.banked();
     }
 
     private void toggleSkill(Skill skill) {
@@ -330,15 +379,17 @@ public class ModMenu {
         int rowH = 30, width = 570, height = 126 + entries.size()*rowH;
         int x = (gp.screenWidth-width)/2, y = (gp.screenHeight-height)/2+6;
         UiSkin.frame(g,x,y,width,height);
-        UiSkin.header(g,gp.screenWidth/2,y-14,"DEVELOPER");
+        UiSkin.header(g,gp.screenWidth/2,y-14,"DEWELOPER");
         g.setFont(hintFont);g.setColor(UiSkin.TEXT_DIM);
         String title = switch(page) {
             case MAIN -> "Menu deweloperskie";
             case TELEPORT -> "Przenieś / wybór sceny";
             case COMBAT -> "Walka i obrażenia";
             case EQUIPMENT -> "Ekwipunek";
-            case PROGRESS -> "Grzyby, umiejętności i sklep (zapisywane na stałe)";
+            case PROGRESS -> "Grzyby, umiejętności i sklep (utrwala checkpoint)";
             case QUESTS -> "Questy";
+            case CHAPTER -> "Rozdział 1 — scenariusze zmieniają bieżący świat";
+            case RELICS -> "Relikty — przyznawanie i wyposażenie";
             case TOOLS -> "Narzędzia testowe";
         };
         g.drawString(title,x+27,y+25);

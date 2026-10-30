@@ -53,19 +53,22 @@ public class Shop {
 
     public Shop(String greeting, Offer... offers) {
         this.greeting = greeting;
-        this.offers = Arrays.asList(offers);
+        this.offers = new java.util.ArrayList<>(Arrays.asList(offers));
     }
 
 
     public static Shop merchant(GamePanel gp) {
         Progression p = gp.progression;
-        return new Shop("Have a look. Everything here costs mushrooms.",
+        Shop shop = new Shop("Have a look. Everything here costs mushrooms.",
                 new Offer("Heart Cap", "Max health +1. Permanent.",
                         () -> 40 * (p.healthUpgrades() + 1), p::healthUpgrades, Progression.MAX_HEALTH_UPGRADES,
                         () -> p.buyHealth(gp.player)),
                 new Offer("Spore Shell", "Max shield +1. Permanent.",
                         () -> 60 * (p.shieldUpgrades() + 1), p::shieldUpgrades, Progression.MAX_SHIELD_UPGRADES,
                         () -> p.buyShield(gp.player)));
+        if (gp.campaign.rewardClaimed()) for (Relics.Item item : java.util.List.of(Relics.Item.RESIN, Relics.Item.EMBER, Relics.Item.THREAD))
+            shop.offers.add(Offer.once(item.title(), item.description(), 90, () -> gp.relics.owns(item), () -> gp.relics.grant(item)));
+        return shop;
     }
 
     public static Shop witch(GamePanel gp) {

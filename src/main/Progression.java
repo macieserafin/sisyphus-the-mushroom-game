@@ -131,7 +131,7 @@ public class Progression {
         return level - previousLevel;
     }
 
-    // Deduct points and unlock together, so autosaves never capture half a purchase.
+    // Deduct points and unlock together; the next bound checkpoint captures the result.
     public boolean purchaseSkill(Skill skill) {
         if (!canLearn(skill) || skillPoints < skill.cost) {
             return false;

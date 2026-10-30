@@ -41,6 +41,7 @@ public class WorldEntities {
         }
         object.worldX = col * gp.tileSize;
         object.worldY = row * gp.tileSize;
+        object.persistenceId = object.getClass().getSimpleName() + ":" + col + ":" + row;
         objects.add(object);
         return object;
     }
@@ -69,6 +70,7 @@ public class WorldEntities {
         }
         enemy.worldX = col * gp.tileSize;
         enemy.worldY = row * gp.tileSize;
+        enemy.persistenceId = enemy.getClass().getSimpleName() + ":" + col + ":" + row;
         enemies.add(enemy);
         return enemy;
     }
@@ -90,6 +92,8 @@ public class WorldEntities {
     public void clearNPCs() {
         npcs.clear();
     }
+
+    public void removeEnemy(Enemy enemy) { enemies.remove(enemy); }
 
     public void clearEnemies() {
         enemies.clear();

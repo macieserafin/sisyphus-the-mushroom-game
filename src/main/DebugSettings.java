@@ -7,6 +7,9 @@ public class DebugSettings {
     private boolean enemiesFrozen = false;
     private boolean bytExecutionDisabled = false;
     private int damageIndex = 2;
+    private boolean aimSmoothing = true;
+    private int playerGallery = -1;
+    private boolean gallerySlow = false;
 
     public boolean isGodMode() { return godMode; }
     public void toggleGodMode() { godMode = !godMode; }
@@ -29,6 +32,13 @@ public class DebugSettings {
         bytExecutionDisabled = false;
         damageIndex = 2;
     }
+
+    public boolean isAimSmoothing() { return aimSmoothing; }
+    public void toggleAimSmoothing() { aimSmoothing = !aimSmoothing; }
+    public int playerGallery() { return playerGallery; }
+    public void setPlayerGallery(int state) { playerGallery = state; }
+    public boolean isGallerySlow() { return gallerySlow; }
+    public void toggleGallerySlow() { gallerySlow = !gallerySlow; }
 
     public boolean isOverlayEnabled() {
         return overlayEnabled;

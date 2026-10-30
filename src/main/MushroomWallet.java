@@ -2,16 +2,14 @@ package main;
 
 import java.util.Properties;
 
-// Mushrooms are the currency. The ones picked up during a run are only safe once the run ends:
-// finishing it banks all of them, dying keeps a quarter. The bank belongs to the save slot: GameSaves reads and
-// writes it, and the change listener tells it when the bank moved.
+// One wallet. The checkpoint owns rollback; travel and death never bank a fraction.
 public class MushroomWallet {
-    public static final double KEPT_ON_DEATH = 0.25;
+    public static final double KEPT_ON_DEATH = 0;
 
     private static final String BANK_KEY = "wallet.banked";
 
     private int banked;
-    private int run = 0;
+
     private Runnable onChange;
 
     public static MushroomWallet unsaved() {
@@ -23,12 +21,12 @@ public class MushroomWallet {
     }
 
     public void save(Properties out) {
-        out.setProperty(BANK_KEY, Integer.toString(banked));
+        out.setProperty("wallet.amount", Integer.toString(banked));
     }
 
     public void load(Properties in) {
-        banked = parse(in.getProperty(BANK_KEY));
-        run = 0;
+        banked = parse(in.getProperty("wallet.amount", in.getProperty(BANK_KEY)));
+
     }
 
     private static int parse(String value) {
@@ -44,11 +42,10 @@ public class MushroomWallet {
     }
 
     public int run() {
-        return run;
+        return banked;
     }
 
     public void startRun() {
-        run = 0;
     }
 
     public boolean spend(int amount) {
@@ -62,7 +59,8 @@ public class MushroomWallet {
 
     public void collect(int amount) {
         if (amount > 0) {
-            run += amount;
+            banked += amount;
+            changed();
         }
     }
 
@@ -72,25 +70,11 @@ public class MushroomWallet {
     }
 
     public void debugAdjustRun(int delta) {
-        run = Math.max(0, run + delta);
+        debugAdjustBanked(delta);
     }
 
-    public int bankRun() {
-        return bank(run);
-    }
-
-    public int loseRun() {
-        return bank((int) Math.floor(run * KEPT_ON_DEATH));
-    }
-
-    private int bank(int amount) {
-        run = 0;
-        if (amount > 0) {
-            banked += amount;
-            changed();
-        }
-        return amount;
-    }
+    public int bankRun() { return 0; }
+    public int loseRun() { return 0; }
 
     private void changed() {
         if (onChange != null) {

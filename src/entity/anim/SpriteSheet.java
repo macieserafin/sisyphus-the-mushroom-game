@@ -28,8 +28,12 @@ public final class SpriteSheet {
     public final boolean loop;
     public final double distancePerFrame;
 
+    public final double armReach;
+
     private final BufferedImage[][] frames;
     private final Point[][] hands;
+    private final Point[][] shoulders;
+    private final Map<String, Color> armColors = new HashMap<>();
 
     private SpriteSheet(String name, Properties props, BufferedImage image) {
         this.name = name;
@@ -51,7 +55,14 @@ public final class SpriteSheet {
                     + ", expected at least " + frameWidth * frameCount + "x" + frameHeight * directions);
         }
 
-        hands = readHands(props);
+        hands = readPoints(props, "hand");
+        shoulders = readPoints(props, "shoulder");
+        armReach = Double.parseDouble(props.getProperty("arm.reach", "0").trim());
+        for (String key : props.stringPropertyNames()) {
+            if (key.startsWith("arm.") && props.getProperty(key).trim().startsWith("#")) {
+                armColors.put(key.substring(4), Color.decode(props.getProperty(key).trim()));
+            }
+        }
 
         frames = new BufferedImage[directions][frameCount];
         GraphicsConfiguration config = graphicsConfiguration();
@@ -117,14 +128,22 @@ public final class SpriteSheet {
         int col = Math.floorMod(index, frameCount);
         switch (directions) {
             case 1:
-                return new Frame(this, frames[0][col], hands[0][col], false, col);
+                return new Frame(this, frames[0][col], hands[0][col], shoulders[0][col], false, col);
             case 5:
                 Direction8 east = dir.mirroredToEast();
                 int row = fiveRow(east);
-                return new Frame(this, frames[row][col], hands[row][col], east != dir, col);
+                return new Frame(this, frames[row][col], hands[row][col], shoulders[row][col], east != dir, col);
             default:
-                return new Frame(this, frames[dir.ordinal()][col], hands[dir.ordinal()][col], false, col);
+                return new Frame(this, frames[dir.ordinal()][col], hands[dir.ordinal()][col], shoulders[dir.ordinal()][col], false, col);
         }
+    }
+
+    public boolean hasArm() {
+        return armReach > 0 && armColors.containsKey("sleeve") && armColors.containsKey("skin");
+    }
+
+    public Color armColor(String name) {
+        return armColors.get(name);
     }
 
     private static int fiveRow(Direction8 eastOrVertical) {
@@ -144,17 +163,34 @@ public final class SpriteSheet {
         public final boolean mirrored;
         public final int index;
         private final Point hand;
+        private final Point shoulder;
 
-        Frame(SpriteSheet sheet, BufferedImage image, Point hand, boolean mirrored, int index) {
+        Frame(SpriteSheet sheet, BufferedImage image, Point hand, Point shoulder, boolean mirrored, int index) {
             this.sheet = sheet;
             this.image = image;
             this.hand = hand;
+            this.shoulder = shoulder;
             this.mirrored = mirrored;
             this.index = index;
         }
 
         public boolean hasHand() {
             return hand != null;
+        }
+
+        public boolean hasShoulder() {
+            return shoulder != null && sheet.hasArm();
+        }
+
+        public int shoulderScreenX(int footX, int scale, int extraWidth) {
+            int x = mirrored ? sheet.frameWidth - 1 - shoulder.x : shoulder.x;
+            double stretch = (sheet.frameWidth + extraWidth) / (double) sheet.frameWidth;
+            return footX + (int) Math.round((x - anchorX()) * scale * stretch);
+        }
+
+        public int shoulderScreenY(int footY, int scale, int extraHeight) {
+            double stretch = (sheet.frameHeight + extraHeight) / (double) sheet.frameHeight;
+            return footY + (int) Math.round((shoulder.y - sheet.anchorY) * scale * stretch);
         }
 
         public int handX() {
@@ -204,10 +240,10 @@ public final class SpriteSheet {
         }
     }
 
-    private Point[][] readHands(Properties props) {
+    private Point[][] readPoints(Properties props, String prefix) {
         Point[][] result = new Point[directions][frameCount];
         for (int row = 0; row < directions; row++) {
-            String rowKey = directions == 1 ? "hand" : "hand." + rowDirection(row).name();
+            String rowKey = directions == 1 ? prefix : prefix + "." + rowDirection(row).name();
             Point rowHand = parsePoint(props.getProperty(rowKey));
             for (int col = 0; col < frameCount; col++) {
                 Point frameHand = parsePoint(props.getProperty(rowKey + "." + col));

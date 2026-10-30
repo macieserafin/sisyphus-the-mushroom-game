@@ -19,6 +19,9 @@ public class Inspectable extends SuperObject {
     }
 
     @Override
+    public boolean isInteractable() { return true; }
+
+    @Override
     public boolean onPlayerInteract(GamePanel gp, Player player) {
         gp.dialogueManager.startBlocking(NARRATION, Arrays.asList(lines));
         return true;

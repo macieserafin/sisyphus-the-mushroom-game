@@ -115,6 +115,7 @@ public class ShopMenu {
             return;
         }
         offer.buy();
+        gp.questLog.complete(story.QuestLog.SHOPPING);
         say("Bought " + offer.name + ".", false);
         gp.playSoundEffect(Sound.PURCHASE);
     }
@@ -189,7 +190,7 @@ public class ShopMenu {
 
     private void drawShop(Graphics2D g2) {
         int rows = shop.offers.size() + 1;
-        int height = 128 + rows * ROW_H + 64;
+        int height = 128 + rows * ROW_H + 82;
         int x = (gp.screenWidth - WIDTH) / 2;
         int y = (gp.screenHeight - height) / 2;
         UiSkin.frame(g2, x, y, WIDTH, height);
@@ -220,12 +221,12 @@ public class ShopMenu {
             g2.drawString(feedback, x + 26, infoY + 14);
         } else if (selected < shop.offers.size()) {
             g2.setColor(UiSkin.TEXT_DIM);
-            g2.drawString(shop.offers.get(selected).description, x + 26, infoY + 14);
+            drawWrapped(g2, shop.offers.get(selected).description, x + 26, infoY + 14, WIDTH - 52, 16);
         }
         UiSkin.icon(g2, UiSkin.Icon.MUSHROOM, x + 36, infoY + 38, 2, true);
         g2.setFont(itemFont);
         g2.setColor(UiSkin.GOLD);
-        g2.drawString(gp.wallet.banked() + " banked", x + 56, infoY + 44);
+        g2.drawString(gp.wallet.banked() + " mushrooms", x + 56, infoY + 60);
     }
 
     private void drawRow(Graphics2D g2, int x, int y, int w, boolean active, String label, String price, boolean tooExpensive) {

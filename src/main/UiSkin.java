@@ -568,6 +568,20 @@ public final class UiSkin {
             def('<', "...#.", "..#..", ".#...", "#....", ".#...", "..#..", "...#.");
         }
 
+        static {
+            String bases = "ACELNOSZZ", polish = "ĄĆĘŁŃÓŚŹŻ";
+            for (int k = 0; k < polish.length(); k++) {
+                char c = polish.charAt(k);
+                String[] rows = new String[11];
+                java.util.Arrays.fill(rows, ".....");
+                System.arraycopy(GLYPHS.get(bases.charAt(k)), 0, rows, 2, 7);
+                if (c == 'Ą' || c == 'Ę') { rows[9] = "...#."; rows[10] = "...##"; }
+                else if (c == 'Ł') { rows[5] = "#.##."; rows[6] = "##..."; }
+                else if (c == 'Ż') rows[0] = "..#..";
+                else { rows[0] = "...#."; rows[1] = "..#.."; }
+                GLYPHS.put(c, rows);
+            }
+        }
         private static void def(char c, String... rows) {
             GLYPHS.put(c, rows);
         }
@@ -577,17 +591,7 @@ public final class UiSkin {
 
         private static char normalize(char c) {
             c = Character.toUpperCase(c);
-            return switch (c) {
-                case 'Ą' -> 'A';
-                case 'Ć' -> 'C';
-                case 'Ę' -> 'E';
-                case 'Ł' -> 'L';
-                case 'Ń' -> 'N';
-                case 'Ó' -> 'O';
-                case 'Ś' -> 'S';
-                case 'Ź', 'Ż' -> 'Z';
-                default -> GLYPHS.containsKey(c) ? c : '?';
-            };
+            return GLYPHS.containsKey(c) ? c : '?';
         }
 
         public static int width(String text, int scale) {
@@ -616,10 +620,10 @@ public final class UiSkin {
             g2.setColor(color);
             for (int k = 0; k < text.length(); k++) {
                 String[] rows = GLYPHS.get(normalize(text.charAt(k)));
-                for (int j = 0; j < 7; j++) {
+                for (int j = 0; j < rows.length; j++) {
                     for (int i = 0; i < 5; i++) {
                         if (rows[j].charAt(i) == '#') {
-                            g2.fillRect(x + (k * 6 + i) * scale, y + j * scale, scale, scale);
+                            g2.fillRect(x + (k * 6 + i) * scale, y + (j - (rows.length == 11 ? 2 : 0)) * scale, scale, scale);
                         }
                     }
                 }

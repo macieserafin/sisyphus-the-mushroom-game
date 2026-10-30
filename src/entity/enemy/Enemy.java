@@ -18,6 +18,13 @@ import java.awt.image.BufferedImage;
 import java.util.Random;
 
 public class Enemy extends Entity {
+    public String persistenceId = "";
+    public boolean isEngaged() { return alive && gp.levelManager.getActiveBoss() == this; }
+    public void restoreSnapshot(int hp, int x, int y) {
+        health = Math.max(1, Math.min(maxHealth, hp)); alive = true;
+        worldX = x; worldY = y; worldXf = x; worldYf = y;
+        floatingPositionInitialized = true;
+    }
     private static final int DAMAGE_FLASH_FRAMES = 7;
 
     public String name;
@@ -216,6 +223,7 @@ public class Enemy extends Entity {
     @Override
     public void takeDamage(int damage) {
         super.takeDamage(damage);
+        if (damage > 0 && gp.campaign != null) gp.campaign.engage();
         damageFlashFramesLeft = DAMAGE_FLASH_FRAMES;
         if (damage > 0) {
             gp.playSoundEffectOf(Sound.HIT_1, Sound.HIT_2, Sound.HIT_3);
@@ -301,6 +309,7 @@ public class Enemy extends Entity {
         multiplier *= resist;
         multiplier *= adaptationMultiplier(hit.type());
         multiplier *= gp.player.runDamageMultiplier();
+        multiplier *= gp.relics.damage(hit.type());
         multiplier *= gp.debugSettings.playerDamageMultiplier();
         registerAdaptation(hit.type());
         int damage = (int) Math.round(hit.damage() * multiplier);
@@ -309,16 +318,16 @@ public class Enemy extends Entity {
         }
 
         int detonation = 0;
-        if (usesMarks) {
+        if (usesMarks || gp.relics.active(main.Relics.Item.CROWN)) {
             if (hit.type() == HitType.RANGED) {
-                if (markCooldown == 0 && marks < MAX_MARKS) {
+                if (markCooldown == 0 && marks < gp.relics.markLimit()) {
                     marks++;
                     markCooldown = 4;
                     gp.effects.ring(box.getCenterX(), box.getCenterY(), 22 + marks * 4, 10, new Color(0xF2C46A), false);
                 }
                 markTimer = MARK_DECAY_TICKS;
             } else if (hit.type() == HitType.MELEE && marks > 0) {
-                detonation = gp.debugSettings.scalePlayerDamage(marks * DETONATION_PER_MARK);
+                detonation = gp.debugSettings.scalePlayerDamage(marks * gp.relics.detonationPerMark());
                 detonate(box, marks, detonation);
                 marks = 0;
             }
@@ -431,7 +440,7 @@ public class Enemy extends Entity {
         }
         deathHandled = true;
         Rectangle box = getWorldHitBox();
-        if (experienceValue > 0 && gp.progression.level() < Progression.MAX_LEVEL) {
+        if (experienceValue > 0 && gp.levelManager.isRunActive() && gp.progression.level() < Progression.MAX_LEVEL) {
             int levels = gp.progression.gainExperience(experienceValue);
             gp.effects.text(box.getCenterX(), box.y - 24, "+" + experienceValue + " XP", new Color(0x8FD0C8), 1);
             if (levels > 0) {
@@ -561,7 +570,7 @@ public class Enemy extends Entity {
     }
 
     protected void drawMarks(Graphics2D g2) {
-        if (!usesMarks || marks == 0 || !alive) {
+        if ((!usesMarks && !gp.relics.active(main.Relics.Item.CROWN)) || marks == 0 || !alive) {
             return;
         }
         if (markExpiring() && (markTimer / 6) % 2 == 0) {
@@ -570,11 +579,12 @@ public class Enemy extends Entity {
         int s = gp.scale;
         int pip = 3 * s;
         int gap = s;
-        int width = MAX_MARKS * pip + (MAX_MARKS - 1) * gap;
+        int limit = gp.relics.markLimit();
+        int width = limit * pip + (limit - 1) * gap;
         Rectangle box = getWorldHitBox();
         int x = (int) Math.round(box.getCenterX()) - gp.player.worldX + gp.player.screenX - width / 2;
         int y = box.y - gp.player.worldY + gp.player.screenY - 8 * s;
-        for (int i = 0; i < MAX_MARKS; i++) {
+        for (int i = 0; i < limit; i++) {
             int px = x + i * (pip + gap);
             g2.setColor(new Color(0x120C09));
             g2.fillRect(px - s, y - s, pip + 2 * s, pip + 2 * s);

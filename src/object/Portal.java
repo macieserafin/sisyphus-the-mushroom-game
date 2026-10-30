@@ -34,7 +34,8 @@ public class Portal extends SuperObject {
 
     @Override
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
+        if (gp.campaign.inCombat()) { gp.ui.showMessage("In combat: portal locked"); return; }
         gp.playSoundEffect(main.Sound.PORTAL);
-        gp.levelManager.transitionTo(target);
+        gp.blinkTransition(() -> gp.levelManager.transitionTo(target));
     }
 }

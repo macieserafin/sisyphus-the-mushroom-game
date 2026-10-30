@@ -27,11 +27,13 @@ public class KeyHandler implements KeyListener {
     }
 
     private void handleKeyPressed(int code) {
+        if (gp.isBlinkTransition() || gp.campaign.victoryInProgress() && gp.gameState == GameState.PLAYING) return;
         if (gp.gameState == GameState.MENU) {
             gp.titleMenu.keyPressed(code);
             return;
         }
 
+        if (gp.gameState == GameState.CHOICE) { gp.choiceMenu.handle(code); return; }
         if (code == KeyEvent.VK_TAB && gp.gameState != GameState.MOD_MENU) {
             gp.requestPrologueSkip();
             return;
@@ -111,6 +113,7 @@ public class KeyHandler implements KeyListener {
                 gp.debugReloadArt();
             }
 
+            if (code == KeyEvent.VK_I) { gp.relics.open(); return; }
             if (code == KeyEvent.VK_ESCAPE) {
                 gp.pauseGame();
                 return;

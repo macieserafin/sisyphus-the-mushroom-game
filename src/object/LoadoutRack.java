@@ -19,7 +19,11 @@ public class LoadoutRack extends SuperObject {
     }
 
     @Override
+    public boolean isInteractable() { return true; }
+
+    @Override
     public boolean onPlayerInteract(GamePanel gp, Player player) {
+        if (gp.campaign.inCombat()) { gp.ui.showMessage("In combat: equipment locked"); return true; }
         String weapon = melee ? player.cycleStartingMeleeWeapon() : player.cycleStartingRangedWeapon();
         gp.playSoundEffect(Sound.SWORD);
         gp.dialogueManager.startBlocking(NARRATION, (melee ? "You take the " : "You load the ") + weapon

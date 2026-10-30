@@ -45,6 +45,15 @@ public class Hud {
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
         drawStatus(g2, MARGIN, MARGIN);
+        shadowText(g2, gp.campaign.inCombat() ? "COMBAT - equipment / anchors / portals locked" : "Safe - [I] Equipment",
+                16, gp.screenHeight - 14, smallFont, gp.campaign.inCombat() ? UiSkin.TEXT_RED : UiSkin.TEXT_DIM);
+        if (gp.campaign.started()) shadowText(g2, "Floor " + gp.campaign.floor() + (gp.campaign.bossCleared() ? " - boss cleared" : ""),
+                16, gp.screenHeight - 32, smallFont, UiSkin.GOLD);
+        for (var object : gp.entities.objects()) if (object instanceof object.ChapterObject chapter
+                && Math.hypot(object.worldX - gp.player.worldX, object.worldY - gp.player.worldY) <= gp.tileSize * 1.3) {
+            shadowText(g2, chapter.interactionLabel(gp), 16, gp.screenHeight - 52, boldFont, UiSkin.CREAM);
+            break;
+        }
 
         int rightX = gp.screenWidth - MARGIN - RIGHT_PANEL_WIDTH;
         int rightBottom = drawMinimap(g2, rightX, MARGIN + 14);
@@ -116,8 +125,8 @@ public class Hud {
         boolean inRun = gp.levelManager.isRunActive();
         UiSkin.icon(g2, UiSkin.Icon.MUSHROOM, x + 12, y + ABILITY_SIZE / 2, 2, true);
         int textX = x + 30;
-        shadowText(g2, String.valueOf(inRun ? gp.wallet.run() : gp.wallet.banked()), textX, y + 17, boldFont, UiSkin.GOLD);
-        shadowText(g2, inRun ? "bank " + gp.wallet.banked() : "banked", textX, y + 31, smallFont, UiSkin.TEXT_DIM);
+        shadowText(g2, String.valueOf(gp.wallet.banked()), textX, y + 17, boldFont, UiSkin.GOLD);
+        shadowText(g2, "mushrooms", textX, y + 31, smallFont, UiSkin.TEXT_DIM);
     }
 
     private static void shadowText(Graphics2D g2, String text, int x, int y, Font font, Color color) {

@@ -1,5 +1,6 @@
 package main;
 
+import entity.anim.PlayerAnimationGallery;
 import dialogue.DialogueLine;
 import dialogue.DialogueSpeaker;
 import entity.enemy.Enemy;
@@ -99,6 +100,16 @@ public class UI {
             }
         }
 
+        String victory = gp.campaign.victoryBanner();
+        if (!victory.isEmpty()) {
+            int width = 440, x = (gp.screenWidth - width) / 2, y = gp.screenHeight / 3;
+            UiSkin.frame(this.g2, x, y, width, 78);
+            this.g2.setFont(UiFonts.of(Font.BOLD, 22));
+            this.g2.setColor(UiSkin.GOLD);
+            this.g2.drawString(victory, (gp.screenWidth - this.g2.getFontMetrics().stringWidth(victory)) / 2, y + 47);
+        }
+        if (gp.gameState == GameState.CHOICE) gp.choiceMenu.draw(this.g2);
+
         if (gp.gameState == GameState.DEAD) {
             drawDeathScreen();
         }
@@ -118,6 +129,9 @@ public class UI {
         }
         if (gp.gameState == GameState.SKILLS) {
             gp.skillTreeMenu.draw(this.g2);
+        }
+        if (gp.debugSettings.playerGallery() >= 0) {
+            PlayerAnimationGallery.draw(this.g2, gp.debugSettings.playerGallery(), 2, gp.screenWidth / 2, 8, gp.debugSettings.isGallerySlow());
         }
         if (gp.gameState != GameState.MOD_MENU) drawBlink();
     }
@@ -288,7 +302,7 @@ public class UI {
     }
 
     public void drawDeathScreen() {
-        String text = "You died";
+        String text = "Reawaken";
         String prompt = "Continue? Press ENTER";
 
         g2.setColor(new Color(10, 4, 6, 170));
@@ -307,7 +321,7 @@ public class UI {
         if (gp.canRetryBoss()) {
             int optionW = 156;
             int optionY = y + 88;
-            String[] options = {"FIGHT AGAIN", "VILLAGE"};
+            String[] options = {"RESPAWN", "QUIT GAME"};
             for (int i = 0; i < 2; i++) {
                 int ox = gp.screenWidth / 2 - optionW - 6 + i * (optionW + 12);
                 boolean selected = gp.deathChoice() == i;

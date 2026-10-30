@@ -22,6 +22,7 @@ public class Enemy_Skeleton extends Enemy {
     private int facing;
     private int cooldown = 60;
     private boolean alerted;
+    @Override public boolean isEngaged() { return alive && alerted; }
     private double aim;
 
     public Enemy_Skeleton(GamePanel gp) {

@@ -515,6 +515,10 @@ public class Enemy_Slime extends Enemy {
         velY = 0;
     }
 
+    public boolean isEngaged() {
+        return alive && (super.isEngaged() || state != State.WANDER);
+    }
+
     public void alert() {
         enter(State.CHASE);
         groundWaitFrames = 6;
