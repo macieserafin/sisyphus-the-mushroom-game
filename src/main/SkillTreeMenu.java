@@ -48,9 +48,9 @@ public class SkillTreeMenu {
 
     private final GamePanel gp;
     private final ConcurrentLinkedQueue<Integer> pressedKeys = new ConcurrentLinkedQueue<>();
-    private final Font titleFont = new Font("SansSerif", Font.BOLD, 17);
-    private final Font textFont = new Font("SansSerif", Font.PLAIN, 13);
-    private final Font smallFont = new Font("SansSerif", Font.BOLD, 12);
+    private final Font titleFont = UiFonts.of(Font.BOLD, 17);
+    private final Font textFont = UiFonts.of(Font.PLAIN, 13);
+    private final Font smallFont = UiFonts.of(Font.BOLD, 12);
 
     private NPC trainer;
     private int selected = 1;
@@ -120,7 +120,7 @@ public class SkillTreeMenu {
         if (best >= 0) {
             selected = best;
             feedback = "";
-            gp.playSoundEffect(Sound.COIN);
+            gp.playSoundEffect(Sound.UI_MOVE);
         }
     }
 
@@ -144,10 +144,13 @@ public class SkillTreeMenu {
         }
         gp.progression.learn(skill);
         say("Learned " + skill.title + ".", false);
-        gp.playSoundEffect(Sound.POWERUP);
+        gp.playSoundEffect(Sound.SKILL_LEARN);
     }
 
     private void say(String text, boolean bad) {
+        if (bad) {
+            gp.playSoundEffect(Sound.UI_ERROR);
+        }
         feedback = text;
         feedbackBad = bad;
     }

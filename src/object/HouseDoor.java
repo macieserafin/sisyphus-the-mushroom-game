@@ -55,7 +55,7 @@ public class HouseDoor extends SuperObject {
         }
         if (openTicks < 0) {
             openTicks = 0;
-            gp.playSoundEffect(Sound.UNLOCK);
+            gp.playSoundEffect(Sound.DOOR);
         }
     }
 

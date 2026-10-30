@@ -3,6 +3,7 @@ package main;
 import dialogue.DialogueLine;
 import dialogue.DialogueManager;
 import dialogue.DialogueSpeaker;
+import entity.Entity;
 import entity.Player;
 import entity.anim.SpriteSheet;
 import entity.anim.WeaponSprite;
@@ -13,6 +14,8 @@ import entity.npc.NPC;
 import level.AssetSetter;
 import level.LevelManager;
 import object.SuperObject;
+import save.SaveStore;
+import save.Settings;
 import story.PrologueTutorialManager;
 import story.QuestLog;
 import story.StoryFlags;
@@ -20,15 +23,21 @@ import story.StorySequenceManager;
 import story.StorySequences;
 import tile.TileManager;
 import world.BulletManager;
+import world.Ambience;
+import world.ScreenFx;
 import world.CollisionChecker;
 import world.EffectsManager;
 import world.EnemyShotManager;
+import world.Lighting;
 import world.WorldEntities;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.VolatileImage;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
@@ -48,6 +57,13 @@ public class GamePanel extends JPanel implements Runnable {
     int FPS = 60;
 
     public final Object frameLock = new Object();
+
+    // where the settings and the three save slots live; -Dsisyphus.saveDir=memory keeps them in memory (tests)
+    public final SaveStore store = SaveStore.createDefault();
+    public final Settings settings = Settings.load(store);
+    public final ComfortSettings comfort = new ComfortSettings(settings);
+    public final VisualSettings visuals = new VisualSettings(settings);
+    public GameSaves saves;
 
     public KeyHandler keyH = new KeyHandler(this);
     Sound music = new Sound();
@@ -89,7 +105,7 @@ public class GamePanel extends JPanel implements Runnable {
     public ModMenu modMenu = new ModMenu(this);
     public DisplayManager display = new DisplayManager(this);
     public AudioSettings audio = new AudioSettings(this);
-    public ControlSettings controls = new ControlSettings();
+    public ControlSettings controls = new ControlSettings(settings);
     public OptionsMenu optionsMenu = new OptionsMenu(this);
     public PauseMenu pauseMenu = new PauseMenu(this);
     public StorySequenceManager storySequenceManager = new StorySequenceManager(this);
@@ -99,6 +115,18 @@ public class GamePanel extends JPanel implements Runnable {
     public WorldEntities entities = new WorldEntities(this);
     public BulletManager bulletManager = new BulletManager(this);
     public EffectsManager effects = new EffectsManager(this);
+    public final ScreenFx screenFx = new ScreenFx(this);
+    private static final int TRANSITION_FRAMES = 26;
+    private String transitionMap = "";
+    private int transitionFrames;
+    private double viewX, viewY, viewScale;
+    private int bufferPixelSize = 1;
+    private VolatileImage volatileBuffer;
+    private BufferedImage softBuffer;
+    private final List<Entity> drawOrder = new ArrayList<>();
+    private static final Comparator<Entity> FEET_ORDER = Comparator.comparingInt(e -> e.worldY + e.solidArea.y + e.solidArea.height);
+    public final Ambience ambience = new Ambience(this);
+    public final Lighting lighting = new Lighting(this);
     public EnemyShotManager enemyShots = new EnemyShotManager(this);
     public LevelManager levelManager = new LevelManager(this);
     public DebugSettings debugSettings = new DebugSettings();
@@ -119,11 +147,46 @@ public class GamePanel extends JPanel implements Runnable {
         this.setFocusable(true);
         // Let TAB reach the key handler instead of moving keyboard focus.
         this.setFocusTraversalKeysEnabled(false);
+        saves = new GameSaves(this);
     }
 
     public void setupGame(){
         gameState = GameState.MENU;
         applyAudioSettings();
+        titleMenu.refresh();
+        // closing the window writes the active slot once more
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> saves.saveNow(), "save-on-exit"));
+    }
+
+    // Starts playing a save slot: an empty slot is a new game, a filled one resumes in the village
+    // (or restarts the prologue when it was not finished).
+    public void startSlot(int slot, boolean fresh) {
+        boolean resume = !fresh && saves.load(slot);
+        if (!resume) {
+            saves.startNew(slot);
+        }
+        storySequenceManager.cancel();
+        dialogueManager.clear();
+        questNotices.clear();
+        villageAwakeningPending = false;
+        restartAfterDeathPending = false;
+        tutorialRespawnPending = false;
+        prologueSkipRequested = false;
+        hitStopFrames = 0;
+        keyH.clearGameplayInput();
+        ui.clearBlink();
+        prologueTutorialManager = new PrologueTutorialManager(this);
+        player.setDefaultValues();
+        player.resetLoadout();
+        if (resume && storyFlags.isPrologueBytEncounterCompleted()) {
+            gameState = GameState.PLAYING;
+            levelManager.loadHub();
+            playAreaMusic();
+            ui.showMessage("Welcome back");
+        } else {
+            storyFlags = new StoryFlags();
+            startNewGame();
+        }
     }
 
     public void applyAudioSettings() {
@@ -202,6 +265,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        saves.tick();
         if (gameState == GameState.MOD_MENU) return;
         if (gameState == GameState.MENU) {
             titleMenu.update();
@@ -227,7 +291,13 @@ public class GamePanel extends JPanel implements Runnable {
         questLog.sync(this);
         questNotices.addAll(questLog.drainNotices());
         if (!ui.messageOn && !questNotices.isEmpty() && gameState == GameState.PLAYING) {
-            ui.showMessage(questNotices.poll());
+            String notice = questNotices.poll();
+            ui.showMessage(notice);
+            if (notice.startsWith("Quest complete")) {
+                playSoundEffect(Sound.QUEST_DONE);
+            } else if (notice.startsWith("New quest")) {
+                playSoundEffect(Sound.QUEST_START);
+            }
         }
 
         if (prologueSkipRequested) {
@@ -273,6 +343,9 @@ public class GamePanel extends JPanel implements Runnable {
             bulletManager.update();
             enemyShots.update();
             effects.update();
+            lighting.update();
+            ambience.update();
+            screenFx.update();
             if (storySequenceManager.isActive()) {
                 return;
             }
@@ -315,52 +388,105 @@ public class GamePanel extends JPanel implements Runnable {
         super.paintComponent(g);
 
         Graphics2D g2 = (Graphics2D) g;
-        double viewScale = Math.min(getWidth() / (double) screenWidth, getHeight() / (double) screenHeight);
-        if (viewScale <= 0) {
+        if (!computeView()) {
             return;
         }
-        g2.translate((getWidth() - screenWidth * viewScale) / 2, (getHeight() - screenHeight * viewScale) / 2);
-        g2.scale(viewScale, viewScale);
-        g2.clipRect(0, 0, screenWidth, screenHeight);
+        boolean sharp = visuals.scaling() == VisualSettings.Scaling.SHARP
+                && Math.abs(bufferPixelSize / deviceScale() - viewScale * scale) > 1e-6;
+        if (sharp) {
+            paintThroughBuffer(g2, true);
+        } else if (screenFx.active() && !visuals.reduceMotion()) {
+            paintThroughBuffer(g2, false);
+        } else {
+            applyUiTransform(g2);
+            renderScene(g2);
+        }
+        g2.dispose();
+    }
+
+    private void paintThroughBuffer(Graphics2D g2, boolean smooth) {
+        int width = nativeWidth() * bufferPixelSize;
+        int height = nativeHeight() * bufferPixelSize;
+        Image buffer = frameBuffer(width, height, smooth);
+        Graphics2D bg = (Graphics2D) buffer.getGraphics();
+        bg.setColor(Color.BLACK);
+        bg.fillRect(0, 0, width, height);
+        bg.scale(bufferPixelSize / (double) scale, bufferPixelSize / (double) scale);
+        bg.clipRect(0, 0, screenWidth, screenHeight);
+        renderScene(bg);
+        bg.dispose();
+        if (buffer instanceof BufferedImage image && screenFx.active() && !visuals.reduceMotion()) {
+            screenFx.apply(image, bufferPixelSize / (double) scale);
+        }
+        g2.translate(viewX, viewY);
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, smooth
+                ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2.drawImage(buffer, 0, 0, (int) Math.round(screenWidth * viewScale), (int) Math.round(screenHeight * viewScale), null);
+    }
+
+    private Image frameBuffer(int width, int height, boolean accelerated) {
+        GraphicsConfiguration config = getGraphicsConfiguration();
+        if (accelerated && config != null) {
+            if (volatileBuffer == null || volatileBuffer.getWidth() != width || volatileBuffer.getHeight() != height
+                    || volatileBuffer.validate(config) == VolatileImage.IMAGE_INCOMPATIBLE) {
+                volatileBuffer = config.createCompatibleVolatileImage(width, height);
+            }
+            return volatileBuffer;
+        }
+        if (softBuffer == null || softBuffer.getWidth() != width || softBuffer.getHeight() != height) {
+            softBuffer = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        }
+        return softBuffer;
+    }
+
+    private void renderScene(Graphics2D g2) {
         g2.setRenderingHint(
                 RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
         );
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        if (gameState == GameState.MENU) {
-            titleMenu.draw(g2);
-            g2.dispose();
-            return;
-        }
-
-        if (gameState == GameState.CUTSCENE || storySequenceManager.isVisualNovelSequenceActive()) {
-            ui.draw(g2);
-            g2.dispose();
+        if (gameState == GameState.MENU || gameState == GameState.CUTSCENE
+                || storySequenceManager.isVisualNovelSequenceActive()) {
+            if (gameState == GameState.MENU) {
+                titleMenu.draw(g2);
+            } else {
+                ui.draw(g2);
+            }
             return;
         }
 
         player.updateCamera();
         int shakeX = effects.shakeX();
         int shakeY = effects.shakeY();
+
         g2.translate(shakeX, shakeY);
         tileM.draw(g2);
         effects.drawGround(g2);
 
-        bulletManager.draw(g2);
-
         for(SuperObject object : entities.objects()) {
             object.draw(g2, this);
         }
-        for(NPC npc : entities.npcs()) {
-            npc.draw(g2);
-        }
-        for(Enemy enemy : entities.enemies()) {
-            enemy.draw(g2);
+        drawOrder.clear();
+        drawOrder.addAll(entities.npcs());
+        drawOrder.addAll(entities.enemies());
+        drawOrder.add(player);
+        drawOrder.sort(FEET_ORDER);
+        for(Entity entity : drawOrder) {
+            if (entity == player) {
+                player.draw(g2);
+            } else {
+                entity.draw(g2);
+            }
         }
 
-        player.draw(g2);
+        tileM.drawOverhead(g2);
+        bulletManager.draw(g2);
         enemyShots.draw(g2);
         player.drawProjectileCore(g2);
+        ambience.drawLow(g2);
+        lighting.draw(g2);
+        ambience.drawGlow(g2);
 
         for(Enemy enemy : entities.enemies()) {
             enemy.drawOverlay(g2);
@@ -368,10 +494,67 @@ public class GamePanel extends JPanel implements Runnable {
         effects.drawOver(g2);
         g2.translate(-shakeX, -shakeY);
         effects.drawScreen(g2);
+        drawMapTransition(g2);
 
         ui.draw(g2);
+    }
 
-        g2.dispose();
+    private void drawMapTransition(Graphics2D g2) {
+        String path = tileM.currentMapPath();
+        if (!path.equals(transitionMap)) {
+            transitionMap = path;
+            transitionFrames = TRANSITION_FRAMES;
+        }
+        if (transitionFrames <= 0) {
+            return;
+        }
+        float t = transitionFrames / (float) TRANSITION_FRAMES;
+        Composite old = g2.getComposite();
+        g2.setComposite(AlphaComposite.SrcOver.derive(t * t));
+        g2.setColor(Color.BLACK);
+        g2.fillRect(0, 0, screenWidth, screenHeight);
+        g2.setComposite(old);
+        transitionFrames--;
+    }
+
+    private int nativeWidth() {
+        return screenWidth / scale;
+    }
+
+    private int nativeHeight() {
+        return screenHeight / scale;
+    }
+
+    private double deviceScale() {
+        GraphicsConfiguration config = getGraphicsConfiguration();
+        return config == null ? 1.0 : Math.max(1.0, config.getDefaultTransform().getScaleX());
+    }
+
+    private boolean computeView() {
+        double device = deviceScale();
+        double width = getWidth();
+        double height = getHeight();
+        double fit = Math.min(width / nativeWidth(), height / nativeHeight());
+        if (fit <= 0) {
+            return false;
+        }
+        int whole = (int) Math.min(width * device / nativeWidth(), height * device / nativeHeight());
+        bufferPixelSize = Math.max(1, whole);
+        double artPixel = visuals.scaling() == VisualSettings.Scaling.PIXEL_PERFECT && whole >= 1 ? whole / device : fit;
+        viewScale = artPixel / scale;
+        viewX = Math.floor((width - nativeWidth() * artPixel) / 2 * device) / device;
+        viewY = Math.floor((height - nativeHeight() * artPixel) / 2 * device) / device;
+        return true;
+    }
+
+    public boolean applyUiTransform(Graphics2D g2) {
+        if (viewScale <= 0 && !computeView()) {
+            return false;
+        }
+        g2.translate(viewX, viewY);
+        g2.scale(viewScale, viewScale);
+        g2.clipRect(0, 0, screenWidth, screenHeight);
+        return true;
     }
 
     public void playMusic(int i) {
@@ -394,7 +577,14 @@ public class GamePanel extends JPanel implements Runnable {
         playAreaMusic();
     }
 
+    // Pause menu "Quit without saving": the slot goes back to its last manual save (or to how it was loaded).
+    public void quitWithoutSaving() {
+        saves.abandon();
+        returnToTitle();
+    }
+
     public void returnToTitle() {
+        saves.deactivate();
         storySequenceManager.cancel();
         dialogueManager.clear();
         music.stop();
@@ -417,6 +607,7 @@ public class GamePanel extends JPanel implements Runnable {
         player.setDefaultValues();
         player.resetLoadout();
         gameState = GameState.MENU;
+        titleMenu.refresh();
     }
 
     public void pauseMusic(int i) {
@@ -440,6 +631,11 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
         se.playEffect(i);
+    }
+
+    // Plays one of several variants of an effect so repeated sounds (hits, pickups) do not wear on the ear.
+    public void playSoundEffectOf(int... variants) {
+        playSoundEffect(variants[random.nextInt(variants.length)]);
     }
 
     public void enterCutsceneMode() {
@@ -532,7 +728,7 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
         deathChoice = Math.floorMod(deathChoice + delta, 2);
-        playSoundEffect(Sound.COIN);
+        playSoundEffect(Sound.UI_MOVE);
     }
 
     private boolean isPrologueBytEncounterActive() {

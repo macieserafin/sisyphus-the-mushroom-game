@@ -216,6 +216,17 @@ public class Enemy extends Entity {
     public void takeDamage(int damage) {
         super.takeDamage(damage);
         damageFlashFramesLeft = DAMAGE_FLASH_FRAMES;
+        if (damage > 0) {
+            gp.playSoundEffectOf(Sound.HIT_1, Sound.HIT_2, Sound.HIT_3);
+        }
+    }
+
+    // For sounds an enemy makes by itself: silent when it is more than about a screen away from the player.
+    protected void playNear(int sound) {
+        double range = gp.tileSize * 10.0;
+        if (Math.hypot(worldX - gp.player.worldX, worldY - gp.player.worldY) <= range) {
+            gp.playSoundEffect(sound);
+        }
     }
 
     @Override
@@ -329,6 +340,9 @@ public class Enemy extends Entity {
 
     private void detonate(Rectangle box, int count, int damage) {
         double cx = box.getCenterX(), cy = box.getCenterY();
+        gp.lighting.pulse(cx, cy, 190, world.Palette.GOLD[1], 1f, 14);
+        gp.screenFx.shockwave(cx, cy);
+        gp.screenFx.aberration(8);
         gp.effects.ring(cx, cy, 90, 18, new Color(0xF2C46A), false);
         gp.effects.ring(cx, cy, 130, 24, new Color(0xFFF6D0), true);
         gp.effects.burst(cx, cy, 18 + count * 3, 4.0, EffectsManager.GOLD);
@@ -563,6 +577,9 @@ public class Enemy extends Entity {
 
     // Drawn after the player, for effects that must appear on top of everything in the world.
     public void drawOverlay(Graphics2D g2) {
+    }
+
+    public void addLights(world.Lighting lighting) {
     }
 
     private void drawDamageFlash(Graphics g2) {

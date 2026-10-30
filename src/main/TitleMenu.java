@@ -9,34 +9,64 @@ import java.io.InputStream;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Title screen: Start Game / Options / Exit. Arrows or W/S move, ENTER picks, ESC goes back.
- * Keys arrive on the AWT thread and are queued, so the menu only acts inside the game loop.
+ * Title screen: Continue (when there is a save) / Slots / Options / Quit. Arrows or W/S move, ENTER picks, ESC goes
+ * back. Keys arrive on the AWT thread and are queued, so the menu only acts inside the game loop.
  */
 public class TitleMenu {
-    private static final String[] ITEMS = {"Start Game", "Options", "Exit"};
-    private static final int START = 0, OPTIONS = 1, EXIT = 2;
+    private enum Item {
+        CONTINUE("CONTINUE", UiSkin.Icon.PLAY),
+        NEW_GAME("NEW GAME", UiSkin.Icon.MUSHROOM),
+        OPTIONS("OPTIONS", UiSkin.Icon.OPTIONS),
+        QUIT("QUIT", UiSkin.Icon.CLOSE);
+
+        final String label;
+        final UiSkin.Icon icon;
+
+        Item(String label, UiSkin.Icon icon) {
+            this.label = label;
+            this.icon = icon;
+        }
+    }
+
     private static final String BACKGROUND = "backgrounds/vn_mushroom_forest.png";
 
     private final GamePanel gp;
     private final ConcurrentLinkedQueue<Integer> pressedKeys = new ConcurrentLinkedQueue<>();
     private final BufferedImage background;
     private final Font subtitleFont = new Font("Serif", Font.ITALIC, 20);
+    private final SlotMenu slotMenu;
 
-    private int selected = START;
+    private java.util.List<Item> items = java.util.List.of(Item.NEW_GAME, Item.OPTIONS, Item.QUIT);
+    private boolean itemsReady = false;
+    private int selected = 0;
     private boolean inOptions = false;
+    private boolean inSlots = false;
     private int tick = 0;
 
     public TitleMenu(GamePanel gp) {
         this.gp = gp;
         this.background = loadBackground();
+        this.slotMenu = new SlotMenu(gp);
     }
 
     public void keyPressed(int code) {
         pressedKeys.add(code);
     }
 
+    // Looks at the saves again (after a game ends or a slot is deleted): "Continue" exists only when there is one.
+    public void refresh() {
+        items = gp.saves.continueSlot() > 0
+                ? java.util.List.of(Item.CONTINUE, Item.NEW_GAME, Item.OPTIONS, Item.QUIT)
+                : java.util.List.of(Item.NEW_GAME, Item.OPTIONS, Item.QUIT);
+        selected = 0;
+        itemsReady = true;
+    }
+
     public void update() {
         tick++;
+        if (!itemsReady) {
+            refresh();
+        }
         Integer code;
         while ((code = pressedKeys.poll()) != null) {
             handle(code);
@@ -50,29 +80,43 @@ public class TitleMenu {
             }
             return;
         }
+        if (inSlots) {
+            if (slotMenu.handle(code)) {
+                inSlots = false;
+                refresh();
+            }
+            return;
+        }
 
         if (code == KeyEvent.VK_UP || code == KeyEvent.VK_W) {
-            selected = (selected + ITEMS.length - 1) % ITEMS.length;
+            selected = (selected + items.size() - 1) % items.size();
+            gp.playSoundEffect(Sound.UI_MOVE);
         }
         else if (code == KeyEvent.VK_DOWN || code == KeyEvent.VK_S) {
-            selected = (selected + 1) % ITEMS.length;
+            selected = (selected + 1) % items.size();
+            gp.playSoundEffect(Sound.UI_MOVE);
         }
         else if (code == KeyEvent.VK_ENTER) {
+            gp.playSoundEffect(Sound.UI_CONFIRM);
             choose();
         }
     }
 
     private void choose() {
-        switch (selected) {
-            case START:
-                pressedKeys.clear();
-                gp.startNewGame();
+        switch (items.get(selected)) {
+            case CONTINUE:
+                inSlots = true;
+                slotMenu.open(SlotMenu.Mode.CONTINUE);
+                break;
+            case NEW_GAME:
+                inSlots = true;
+                slotMenu.open(SlotMenu.Mode.NEW_GAME);
                 break;
             case OPTIONS:
                 inOptions = true;
                 gp.optionsMenu.open();
                 break;
-            case EXIT:
+            case QUIT:
                 System.exit(0);
                 break;
             default:
@@ -96,15 +140,22 @@ public class TitleMenu {
                 new Color[]{new Color(0, 0, 0, 0), new Color(0, 0, 0, 170)}));
         g2.fillRect(0, 0, w, h);
 
-        drawTitle(g2);
+        if (!inOptions) {
+            drawTitle(g2);
+        }
         if (inOptions) {
             drawOptions(g2);
+        } else if (inSlots) {
+            slotMenu.draw(g2);
         } else {
             drawItems(g2);
         }
 
         String[] hints = inOptions
-                ? new String[]{"A/D  CHANGE", "ESC  BACK"}
+                ? new String[]{"W/S  MOVE", "A/D  CHANGE", "ENTER  PICK", "ESC  BACK"}
+                : inSlots
+                ? new String[]{"W/S  MOVE", slotMenu.mode() == SlotMenu.Mode.CONTINUE ? "ENTER  LOAD" : "ENTER  START",
+                        "X  DELETE", "ESC  BACK"}
                 : new String[]{"W/S  MOVE", "ENTER  SELECT"};
         int totalW = 0;
         for (String hint : hints) {
@@ -144,19 +195,18 @@ public class TitleMenu {
     }
 
     private void drawItems(Graphics2D g2) {
-        UiSkin.Icon[] icons = {UiSkin.Icon.PLAY, UiSkin.Icon.OPTIONS, UiSkin.Icon.CLOSE};
-        String[] labels = {"START", "OPTIONS", "QUIT"};
-        int badge = 54;
+        int badge = 48;
         int plaqueW = 168;
         int left = gp.screenWidth / 2 - (badge + plaqueW - 12) / 2;
-        int y = 312;
-        for (int i = 0; i < ITEMS.length; i++) {
+        int y = 276;
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
             boolean active = i == selected;
             int x = left + (active ? 12 : 0);
-            UiSkin.plaque(g2, x + badge - 15, y + 12, plaqueW, 33, labels[i], active ? UiSkin.GLOW : UiSkin.DIM);
+            UiSkin.plaque(g2, x + badge - 15, y + 8, plaqueW, 33, item.label, active ? UiSkin.GLOW : UiSkin.DIM);
             UiSkin.badge(g2, x, y, badge, active ? UiSkin.RED : UiSkin.DIM);
-            UiSkin.icon(g2, icons[i], x + badge / 2 + (i == 0 ? 2 : 0), y + badge / 2, 3, active);
-            y += 64;
+            UiSkin.icon(g2, item.icon, x + badge / 2 + (item == Item.CONTINUE ? 2 : 0), y + badge / 2, 3, active);
+            y += 56;
         }
     }
 

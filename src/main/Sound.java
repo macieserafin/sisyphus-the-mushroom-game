@@ -26,14 +26,59 @@ public class Sound {
     public static final int CUTSCENE_MUSIC = 13;
     public static final int BOSS_MUSIC = 14;
     public static final int BYT_SNAP = 15;
+    // effects added later; their files are listed in EFFECT_FILES in this order, starting at UI_MOVE
+    public static final int UI_MOVE = 16;
+    public static final int UI_CONFIRM = 17;
+    public static final int UI_BACK = 18;
+    public static final int UI_ERROR = 19;
+    public static final int MUSHROOM_1 = 20;
+    public static final int MUSHROOM_2 = 21;
+    public static final int MUSHROOM_3 = 22;
+    public static final int HEART = 23;
+    public static final int PURCHASE = 24;
+    public static final int BANK = 25;
+    public static final int CHEST = 26;
+    public static final int SKILL_LEARN = 27;
+    public static final int QUEST_START = 28;
+    public static final int QUEST_DONE = 29;
+    public static final int PORTAL = 30;
+    public static final int DOOR = 31;
+    public static final int ROLL = 32;
+    public static final int DASH = 33;
+    public static final int SWAP = 34;
+    public static final int SHIELD_BLOCK = 35;
+    public static final int SHIELD_BREAK = 36;
+    public static final int STEP_1 = 37;
+    public static final int STEP_2 = 38;
+    public static final int HIT_1 = 39;
+    public static final int HIT_2 = 40;
+    public static final int HIT_3 = 41;
+    public static final int ENEMY_SHOT = 42;
+    public static final int BYT_FIRE = 43;
+    public static final int SLIME_ALERT = 44;
+    public static final int SLIME_LUNGE = 45;
+    public static final int KING_LAND = 46;
+    public static final int BOSS_SLAM = 47;
+    public static final int BOSS_ROAR = 48;
+    public static final int BOSS_DEATH = 49;
+
+    private static final String[] EFFECT_FILES = {"ui_move", "ui_confirm", "ui_back", "ui_error", "mushroom_1",
+            "mushroom_2", "mushroom_3", "heart", "purchase", "bank", "chest", "skill_learn", "quest_start", "quest_done",
+            "portal", "door", "roll", "dash", "swap", "shield_block", "shield_break", "step_1", "step_2", "hit_1",
+            "hit_2", "hit_3", "enemy_shot", "byt_fire", "slime_alert", "slime_lunge", "king_land", "boss_slam",
+            "boss_roar", "boss_death"};
+
+    // the same effect is not restarted more often than this (a ring of shots or a shotgun blast is one sound)
+    private static final long MIN_REPEAT_NANOS = 45_000_000L;
 
     private static final int EFFECT_VOICES = 12;
 
     Clip clip;
-    URL[] soundURL = new URL[30];
-    private final Clip[][] effectClips = new Clip[30][EFFECT_VOICES];
-    private final int[] nextEffectVoice = new int[30];
-    private final boolean[] effectLoadFailed = new boolean[30];
+    URL[] soundURL = new URL[64];
+    private final Clip[][] effectClips = new Clip[64][EFFECT_VOICES];
+    private final int[] nextEffectVoice = new int[64];
+    private final boolean[] effectLoadFailed = new boolean[64];
+    private final long[] lastEffectStart = new long[64];
     private float volume = 1f;
 
     public Sound() {
@@ -53,6 +98,9 @@ public class Sound {
         soundURL[CUTSCENE_MUSIC] = getClass().getResource("/sounds/cutscene.wav");
         soundURL[BOSS_MUSIC] = getClass().getResource("/sounds/babycore.wav");
         soundURL[BYT_SNAP] = getClass().getResource("/sounds/byt_snap.wav");
+        for (int n = 0; n < EFFECT_FILES.length; n++) {
+            soundURL[UI_MOVE + n] = getClass().getResource("/sounds/" + EFFECT_FILES[n] + ".wav");
+        }
 
     }
 
@@ -111,6 +159,13 @@ public class Sound {
     }
 
     public void playEffect(int i) {
+        if (i >= 0 && i < lastEffectStart.length) {
+            long now = System.nanoTime();
+            if (now - lastEffectStart[i] < MIN_REPEAT_NANOS) {
+                return;
+            }
+            lastEffectStart[i] = now;
+        }
         Clip effect = getEffectClipForPlayback(i);
         if (effect == null) {
             return;

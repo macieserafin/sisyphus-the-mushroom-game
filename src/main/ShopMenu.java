@@ -18,9 +18,9 @@ public class ShopMenu {
 
     private final GamePanel gp;
     private final ConcurrentLinkedQueue<Integer> pressedKeys = new ConcurrentLinkedQueue<>();
-    private final Font titleFont = new Font("SansSerif", Font.BOLD, 17);
-    private final Font itemFont = new Font("SansSerif", Font.BOLD, 16);
-    private final Font smallFont = new Font("SansSerif", Font.PLAIN, 13);
+    private final Font titleFont = UiFonts.of(Font.BOLD, 17);
+    private final Font itemFont = UiFonts.of(Font.BOLD, 16);
+    private final Font smallFont = UiFonts.of(Font.PLAIN, 13);
 
     private NPC npc;
     private Shop shop;
@@ -71,8 +71,8 @@ public class ShopMenu {
     private void handle(int code) {
         int rows = browsing ? shop.offers.size() + 1 : CHOICES.length;
         switch (code) {
-            case KeyEvent.VK_UP, KeyEvent.VK_W -> { selected = (selected + rows - 1) % rows; gp.playSoundEffect(Sound.COIN); }
-            case KeyEvent.VK_DOWN, KeyEvent.VK_S -> { selected = (selected + 1) % rows; gp.playSoundEffect(Sound.COIN); }
+            case KeyEvent.VK_UP, KeyEvent.VK_W -> { selected = (selected + rows - 1) % rows; gp.playSoundEffect(Sound.UI_MOVE); }
+            case KeyEvent.VK_DOWN, KeyEvent.VK_S -> { selected = (selected + 1) % rows; gp.playSoundEffect(Sound.UI_MOVE); }
             case KeyEvent.VK_ENTER, KeyEvent.VK_SPACE -> choose();
             case KeyEvent.VK_ESCAPE -> back();
             default -> {
@@ -120,10 +120,13 @@ public class ShopMenu {
         }
         offer.buy();
         say("Bought " + offer.name + ".", false);
-        gp.playSoundEffect(Sound.POWERUP);
+        gp.playSoundEffect(Sound.PURCHASE);
     }
 
     private void say(String text, boolean bad) {
+        if (bad) {
+            gp.playSoundEffect(Sound.UI_ERROR);
+        }
         feedback = text;
         feedbackBad = bad;
     }

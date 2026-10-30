@@ -75,7 +75,7 @@ public final class TileSet {
         ground("wall_stone", "Stone wall", true, NONE, -1, "wall_stone");
         ground("wall_mossy", "Mossy wall", true, NONE, -1, "wall_mossy");
         ground("mycelium", "Mycelium", false, MYCELIUM, MYCELIUM_ID, "mycelium");
-        ground("mycelium_glow", "Glowing mycelium", false, MYCELIUM, MYCELIUM_ID, "mycelium_glow");
+        ground("mycelium_glow", "Glowing mycelium", false, MYCELIUM, MYCELIUM_ID, "mycelium_glow", "mycelium_glow_2", "mycelium_glow_3");
         ground("water_deep", "Deep water", true, DEEP_WATER, 27, "water_deep", "water_deep_2", "water_deep_3");
         ground("lily_pad", "Lily pad", true, WATER, WATER_ID, "lily_pad", "lily_pad_2", "lily_pad_3");
         ground("bridge_h", "Bridge (horizontal)", false, NONE, -1, "bridge_h");
@@ -186,7 +186,7 @@ public final class TileSet {
         grid("dojo", "Dojo hall", 10, 6, "XXXXXXXXXX", "XXXXXXXXXX", "XXXXXXXXXX", "XXXXXXXXXX", "XXXXXXXXXX", "XXXXXXXXXX");
         grid("dojo_gate", "Dojo gate", 4, 3, "X..X", "X..X", "X..X");
         grid("pine", "Pine", 2, 3, "..", "..", "XX");
-        grid("oak", "Old tree", 2, 2, "XX", "XX");
+        grid("oak", "Old tree", 2, 2, "..", "XX");
         grid("hay_bed", "Hay bed", 2, 1, "XX");
         grid("mycologist_hut", "Mycologist hut", 4, 4, "XXXX", "XXXX", "XXXX", "XXXX");
         grid("gate", "Village gate", 4, 3, "X..X", "X..X", "X..X");
@@ -288,6 +288,25 @@ public final class TileSet {
         grid("beast_skull", "Beast skull", 3, 2, "XXX", "XXX");
         grid("dead_knight", "Fallen knight", 2, 1, "..");
         grid("stalagmite_big", "Tall stalagmite", 1, 2, ".", "X");
+
+        int lush = DEFS.size();
+        ground("grass_lush", "Lush grass", false, GRASS, lush, "grass_lush");
+        ground("grass_lush_2", "Lush grass (flowers)", false, GRASS, lush, "grass_lush_2");
+        ground("grass_lush_3", "Lush grass (mushrooms)", false, GRASS, lush, "grass_lush_3");
+        int meadow = DEFS.size();
+        ground("meadow", "Meadow", false, DARK_GRASS, meadow, "meadow");
+        ground("meadow_2", "Meadow (glow flowers)", false, DARK_GRASS, meadow, "meadow_2");
+        int cobble = DEFS.size();
+        ground("cobble", "Cobble path", false, DIRT_PATH, cobble, "cobble");
+        ground("cobble_2", "Cobble path (moss)", false, DIRT_PATH, cobble, "cobble_2");
+        ground("tilled", "Tilled soil", false, EARTH, DEFS.size(), "tilled");
+        object("mushroom_crop", "Mushroom crop", false, "mushroom_crop");
+        object("mushroom_crop_2", "Mushroom crop (violet)", false, "mushroom_crop_2");
+        object("mushroom_lamp", "Mushroom lamp", true, "mushroom_lamp", "mushroom_lamp_2");
+        object("glow_bells", "Glow bells", false, "glow_bells", "glow_bells_2");
+        object("fairy_ring", "Fairy ring", false, "fairy_ring");
+        ground("grass_lush_4", "Lush grass (blue flowers)", false, GRASS, lush, "grass_lush_4");
+        ground("grass_lush_5", "Lush grass (violet flowers)", false, GRASS, lush, "grass_lush_5");
     }
 
     private TileSet() {

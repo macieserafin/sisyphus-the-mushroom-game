@@ -10,13 +10,13 @@ import java.util.Random;
 
 public class EffectsManager {
 
-    public static final Color[] DUST = {new Color(0xC1AF91), new Color(0xA08F76), new Color(0x776A58)};
-    public static final Color[] SPARK = {new Color(0xF7EEC7), new Color(0xEBBC5F), new Color(0xC25D27)};
-    public static final Color[] SPORES = {new Color(0xEADEBB), new Color(0xD34134), new Color(0x89201E)};
-    public static final Color[] HURT = {new Color(0xF7F7F7), new Color(0xDA5341), new Color(0x89201E)};
+    public static final Color[] DUST = Palette.DUST;
+    public static final Color[] SPARK = Palette.SPARK;
+    public static final Color[] SPORES = Palette.SPORES;
+    public static final Color[] HURT = Palette.HURT;
 
-    public static final Color[] GOO = {new Color(0xCDEFB9), new Color(0x50C73B), new Color(0x17931A)};
-    public static final Color[] GOLD = {new Color(0xF7EEC7), new Color(0xEBBC5F), new Color(0xC17E25)};
+    public static final Color[] GOO = Palette.GOO;
+    public static final Color[] GOLD = Palette.GOLD;
 
     private final GamePanel gp;
     private final List<Particle> particles = new ArrayList<>();
@@ -45,6 +45,8 @@ public class EffectsManager {
         shakeTicks = 0;
         shakeX = 0;
         shakeY = 0;
+        gp.lighting.clear();
+        gp.screenFx.clear();
     }
 
     public void update() {
@@ -84,6 +86,10 @@ public class EffectsManager {
     }
 
     public void shake(int ticks, double strengthPixels) {
+        strengthPixels *= gp.comfort.shakeScale();
+        if (strengthPixels <= 0) {
+            return;
+        }
         if (strengthPixels >= shakeStrength * shakeTicks / Math.max(1.0, shakeTotalTicks)) {
             shakeTicks = ticks;
             shakeTotalTicks = ticks;
@@ -169,7 +175,7 @@ public class EffectsManager {
     public void flash(int ticks, Color color, float alpha) {
         flashTicks = flashTotalTicks = ticks;
         flashColor = color;
-        flashAlpha = alpha;
+        flashAlpha = alpha * gp.comfort.flashScale();
     }
 
     public void drawGround(Graphics2D g2) {

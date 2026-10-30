@@ -100,7 +100,7 @@ public class MushroomPickup extends SuperObject {
         gp.wallet.collect(value);
         gp.effects.text(x, y - 46, "+" + value, GLOW, value >= BIG_VALUE ? 2 : 1);
         gp.effects.sparks(x, y - 20, 0, -1, value >= BIG_VALUE ? 8 : 4, EffectsManager.GOLD);
-        gp.playSoundEffect(Sound.COIN);
+        gp.playSoundEffectOf(Sound.MUSHROOM_1, Sound.MUSHROOM_2, Sound.MUSHROOM_3);
         gp.entities.removeObject(this);
     }
 

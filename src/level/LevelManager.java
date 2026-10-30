@@ -241,6 +241,9 @@ public class LevelManager {
 
     public void finishRun() {
         int banked = gp.wallet.bankRun();
+        if (banked > 0) {
+            gp.playSoundEffect(main.Sound.BANK);
+        }
         gp.questLog.complete(QuestLog.HOME);
         runActive = false;
         floorNumber = 0;

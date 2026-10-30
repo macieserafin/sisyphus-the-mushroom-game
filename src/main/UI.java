@@ -27,11 +27,11 @@ public class UI {
     private static final int DIALOGUE_WIDTH = 600;
     private static final int DIALOGUE_HEIGHT = 120;
     private static final int DIALOGUE_BOTTOM_MARGIN = 18;
-    private final Font dialogueFont = new Font("SansSerif", Font.PLAIN, 16);
+    private final Font dialogueFont = UiFonts.of(Font.PLAIN, 16);
     private final Map<String, BufferedImage> visualNovelBackgroundCache = new HashMap<>();
 
     public boolean messageOn = false;
-    private final Font toastFont = new Font("SansSerif", Font.BOLD, 13);
+    private final Font toastFont = UiFonts.of(Font.BOLD, 13);
     public String message = "";
     int messageCounter = 0;
 
@@ -49,8 +49,8 @@ public class UI {
     public UI(GamePanel gp) {
         this.gp = gp;
 
-        arial_40 = new Font("Arial", Font.PLAIN, 20);
-        consolas_18 = new Font("Consolas", Font.PLAIN, 18);
+        arial_40 = UiFonts.of(Font.PLAIN, 20);
+        consolas_18 = UiFonts.of(Font.PLAIN, 18);
 
         Key key = new Key();
         keyImage = key.image;

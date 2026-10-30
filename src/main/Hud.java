@@ -22,10 +22,10 @@ public class Hud {
     private static final Color SIDE_QUEST_COLOR = new Color(0x8FD0C8);
 
     private final GamePanel gp;
-    private final Font smallFont = new Font("SansSerif", Font.PLAIN, 12);
-    private final Font boldFont = new Font("SansSerif", Font.BOLD, 15);
-    private final Font questTitleFont = new Font("SansSerif", Font.BOLD, 12);
-    private final Font questTextFont = new Font("SansSerif", Font.PLAIN, 11);
+    private final Font smallFont = UiFonts.of(Font.PLAIN, 12);
+    private final Font boldFont = UiFonts.of(Font.BOLD, 15);
+    private final Font questTitleFont = UiFonts.of(Font.BOLD, 12);
+    private final Font questTextFont = UiFonts.of(Font.PLAIN, 11);
     private final Color[] tileColors;
 
     private int[][] minimapGround;

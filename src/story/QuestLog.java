@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 // All quests of the game. The main story quests unlock one after another; side quests open once the player
@@ -216,6 +217,51 @@ public class QuestLog {
     public void visitHouse(String house) {
         visitedHouses.add(house);
         setProgress(VILLAGE, visitedHouses.size());
+    }
+
+    // ------------------------------------------------------------------ saving
+
+    public void save(Properties out) {
+        for (Quest quest : quests.values()) {
+            out.setProperty("quest." + quest.id, quest.state.name() + "," + quest.progress);
+        }
+        StringBuilder done = new StringBuilder();
+        for (Quest quest : completed) {
+            done.append(done.length() == 0 ? "" : ",").append(quest.id);
+        }
+        out.setProperty("quests.completed", done.toString());
+        out.setProperty("quests.houses", String.join(",", new java.util.TreeSet<>(visitedHouses)));
+    }
+
+    // Starts from the fresh log and puts back the saved states, progress and the order of completion.
+    public void load(Properties in) {
+        reset();
+        for (Quest quest : quests.values()) {
+            String[] saved = in.getProperty("quest." + quest.id, "").split(",");
+            if (saved.length != 2) {
+                continue;
+            }
+            try {
+                quest.state = State.valueOf(saved[0].trim());
+                quest.progress = Math.max(0, Math.min(quest.target, Integer.parseInt(saved[1].trim())));
+            } catch (IllegalArgumentException e) {
+                // keep the fresh state of this quest
+            }
+        }
+        completed.clear();
+        for (String id : in.getProperty("quests.completed", "").split(",")) {
+            Quest quest = quests.get(id.trim());
+            if (quest != null && quest.state == State.DONE && !completed.contains(quest)) {
+                completed.add(quest);
+            }
+        }
+        visitedHouses.clear();
+        for (String house : in.getProperty("quests.houses", "").split(",")) {
+            if (!house.isBlank()) {
+                visitedHouses.add(house.trim());
+            }
+        }
+        notices.clear();
     }
 
     // Messages about started and finished quests since the last call, oldest first.

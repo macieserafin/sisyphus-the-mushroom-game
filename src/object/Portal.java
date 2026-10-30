@@ -28,7 +28,13 @@ public class Portal extends SuperObject {
     }
 
     @Override
+    public void addLights(world.Lighting lighting) {
+        lighting.add(worldX + 24, worldY + 24, 150, world.Palette.VOID, 0.9f, 0.1f);
+    }
+
+    @Override
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
+        gp.playSoundEffect(main.Sound.PORTAL);
         gp.levelManager.transitionTo(target);
     }
 }

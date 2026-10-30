@@ -108,6 +108,12 @@ public class Enemy_Slime extends Enemy {
         this(gp, false);
     }
 
+    @Override
+    public void addLights(world.Lighting lighting) {
+        Rectangle box = getWorldHitBox();
+        lighting.add(box.getCenterX(), box.getCenterY(), 80, world.Palette.GOO_LIGHT, 0.45f, 0.06f);
+    }
+
     protected Enemy_Slime(GamePanel gp, boolean legacySprites) {
         super(gp);
         this.legacySprites = legacySprites;
@@ -262,6 +268,11 @@ public class Enemy_Slime extends Enemy {
         dazedFrames = DAZED_FRAMES;
         state = next;
         stateFrames = 0;
+        if (next == State.ALERT) {
+            playNear(Sound.SLIME_ALERT);
+        } else if (next == State.LUNGE) {
+            playNear(Sound.SLIME_LUNGE);
+        }
         if (next == State.WANDER) {
             hop = Hop.GROUND;
             groundWaitFrames = 30 + random.nextInt(40);

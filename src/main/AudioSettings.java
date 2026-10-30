@@ -1,7 +1,5 @@
 package main;
 
-import java.util.prefs.Preferences;
-
 public class AudioSettings {
     public static final int STEP = 10;
 
@@ -10,14 +8,16 @@ public class AudioSettings {
     private static final String MUTED_KEY = "muted";
 
     private final GamePanel gp;
-    private final Preferences prefs = Preferences.userNodeForPackage(AudioSettings.class);
 
-    private int musicPercent = clampPercent(prefs.getInt(MUSIC_KEY, 100));
-    private int effectsPercent = clampPercent(prefs.getInt(EFFECTS_KEY, 100));
-    private boolean muted = prefs.getBoolean(MUTED_KEY, false);
+    private int musicPercent;
+    private int effectsPercent;
+    private boolean muted;
 
     public AudioSettings(GamePanel gp) {
         this.gp = gp;
+        musicPercent = clampPercent(gp.settings.getInt(MUSIC_KEY, 100));
+        effectsPercent = clampPercent(gp.settings.getInt(EFFECTS_KEY, 100));
+        muted = gp.settings.getBoolean(MUTED_KEY, false);
     }
 
     public int musicPercent() {
@@ -55,15 +55,17 @@ public class AudioSettings {
         save();
     }
 
+    public void reset() {
+        musicPercent = 100;
+        effectsPercent = 100;
+        muted = false;
+        save();
+    }
+
     private void save() {
-        try {
-            prefs.putInt(MUSIC_KEY, musicPercent);
-            prefs.putInt(EFFECTS_KEY, effectsPercent);
-            prefs.putBoolean(MUTED_KEY, muted);
-            prefs.flush();
-        } catch (Exception e) {
-            System.err.println("Could not save audio settings: " + e.getMessage());
-        }
+        gp.settings.putInt(MUSIC_KEY, musicPercent);
+        gp.settings.putInt(EFFECTS_KEY, effectsPercent);
+        gp.settings.putBoolean(MUTED_KEY, muted);
         gp.applyAudioSettings();
     }
 

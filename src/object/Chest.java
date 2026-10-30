@@ -37,7 +37,7 @@ public class Chest extends SuperObject {
         gp.entities.removeObject(this);
         gp.effects.burst(cx, groundY - 20, 20, 3, EffectsManager.GOLD);
         gp.effects.ring(cx, groundY - 10, 50, 14, EffectsManager.GOLD[1], true);
-        gp.playSoundEffect(Sound.POWERUP_KEY);
+        gp.playSoundEffect(Sound.CHEST);
 
         if (RANDOM.nextBoolean()) {
             gp.entities.addFreeObject(PowerUp.random(cx, groundY));

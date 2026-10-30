@@ -1,30 +1,43 @@
 package main;
 
-import java.util.prefs.Preferences;
+import java.util.Properties;
 
 // Mushrooms are the currency. The ones picked up during a run are only safe once the run ends:
-// finishing it banks all of them, dying keeps a quarter. The bank is saved between sessions.
+// finishing it banks all of them, dying keeps a quarter. The bank belongs to the save slot: GameSaves reads and
+// writes it, and the change listener tells it when the bank moved.
 public class MushroomWallet {
     public static final double KEPT_ON_DEATH = 0.25;
 
-    private static final String BANK_KEY = "bankedMushrooms";
+    private static final String BANK_KEY = "wallet.banked";
 
-    private final Preferences prefs;
     private int banked;
     private int run = 0;
+    private Runnable onChange;
 
-    public MushroomWallet() {
-        this(Preferences.userNodeForPackage(MushroomWallet.class));
-    }
-
-    private MushroomWallet(Preferences prefs) {
-        this.prefs = prefs;
-        banked = prefs == null ? 0 : Math.max(0, prefs.getInt(BANK_KEY, 0));
-    }
-
-    // A wallet that starts empty and saves nothing (the demo).
+    // An empty wallet that is not tied to any save (the demo uses it as is).
     public static MushroomWallet unsaved() {
-        return new MushroomWallet(null);
+        return new MushroomWallet();
+    }
+
+    public void setOnChange(Runnable onChange) {
+        this.onChange = onChange;
+    }
+
+    public void save(Properties out) {
+        out.setProperty(BANK_KEY, Integer.toString(banked));
+    }
+
+    public void load(Properties in) {
+        banked = parse(in.getProperty(BANK_KEY));
+        run = 0;
+    }
+
+    private static int parse(String value) {
+        try {
+            return Math.max(0, Integer.parseInt(value.trim()));
+        } catch (RuntimeException e) {
+            return 0;
+        }
     }
 
     public int banked() {
@@ -45,7 +58,7 @@ public class MushroomWallet {
             return false;
         }
         banked -= amount;
-        save();
+        changed();
         return true;
     }
 
@@ -53,6 +66,16 @@ public class MushroomWallet {
         if (amount > 0) {
             run += amount;
         }
+    }
+
+    // Developer menu: adds (or takes, when negative) mushrooms straight to the bank or the current run.
+    public void debugAdjustBanked(int delta) {
+        banked = Math.max(0, banked + delta);
+        changed();
+    }
+
+    public void debugAdjustRun(int delta) {
+        run = Math.max(0, run + delta);
     }
 
     // Returns how many mushrooms went into the bank.
@@ -68,14 +91,14 @@ public class MushroomWallet {
         run = 0;
         if (amount > 0) {
             banked += amount;
-            save();
+            changed();
         }
         return amount;
     }
 
-    private void save() {
-        if (prefs != null) {
-            prefs.putInt(BANK_KEY, banked);
+    private void changed() {
+        if (onChange != null) {
+            onChange.run();
         }
     }
 }

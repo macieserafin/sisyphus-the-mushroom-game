@@ -22,6 +22,10 @@ public class BulletManager {
         this.gp = gp;
     }
 
+    public List<Bullet> bullets() {
+        return java.util.Collections.unmodifiableList(bullets);
+    }
+
     public void addBullet(Bullet bullet) {
         bullets.add(bullet);
     }

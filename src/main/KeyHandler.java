@@ -47,42 +47,42 @@ public class KeyHandler implements KeyListener {
         }
 
         if(gp.gameState == GameState.PLAYING){
-            if (code == KeyEvent.VK_W) {
+            if (code == gp.controls.key(ControlSettings.Action.MOVE_UP)) {
                 upPressed = true;
             }
-            if (code == KeyEvent.VK_S) {
+            if (code == gp.controls.key(ControlSettings.Action.MOVE_DOWN)) {
                 downPressed = true;
             }
-            if (code == KeyEvent.VK_A) {
+            if (code == gp.controls.key(ControlSettings.Action.MOVE_LEFT)) {
                 leftPressed = true;
             }
-            if (code == KeyEvent.VK_D) {
+            if (code == gp.controls.key(ControlSettings.Action.MOVE_RIGHT)) {
                 rightPressed = true;
             }
 
-            if (code == KeyEvent.VK_UP) {
+            if (code == gp.controls.key(ControlSettings.Action.AIM_UP)) {
                 upShootPressed = true;
             }
-            if (code == KeyEvent.VK_DOWN) {
+            if (code == gp.controls.key(ControlSettings.Action.AIM_DOWN)) {
                 downShootPressed = true;
             }
-            if (code == KeyEvent.VK_LEFT) {
+            if (code == gp.controls.key(ControlSettings.Action.AIM_LEFT)) {
                 leftShootPressed = true;
             }
-            if (code == KeyEvent.VK_RIGHT) {
+            if (code == gp.controls.key(ControlSettings.Action.AIM_RIGHT)) {
                 rightShootPressed = true;
             }
 
-            if (code == KeyEvent.VK_SPACE) {
+            if (code == gp.controls.key(ControlSettings.Action.MANEUVER)) {
                 spacePressed = true;
             }
-            if (code == KeyEvent.VK_SHIFT) {
+            if (code == gp.controls.key(ControlSettings.Action.SPRINT)) {
                 shiftPressed = true;
             }
-            if (code == KeyEvent.VK_Q) {
+            if (code == gp.controls.key(ControlSettings.Action.MODE_A)) {
                 qPressed = true;
             }
-            if (code == KeyEvent.VK_E) {
+            if (code == gp.controls.key(ControlSettings.Action.MODE_B)) {
                 ePressed = true;
             }
             if (code == KeyEvent.VK_1) {
@@ -98,6 +98,12 @@ public class KeyHandler implements KeyListener {
             if (code == KeyEvent.VK_F3) {
                 gp.debugSettings.toggleOverlay();
             }
+            if (code == KeyEvent.VK_F7) {
+                gp.ui.showMessage(gp.ambience.toggle() ? "Ambience on" : "Ambience off");
+            }
+            if (code == KeyEvent.VK_F6) {
+                gp.ui.showMessage(gp.lighting.toggle() ? "Lighting on" : "Lighting off");
+            }
             if (code == KeyEvent.VK_F4 && gp.debugSettings.isOverlayEnabled()) {
                 gp.debugDamageActiveBoss(100);
             }
@@ -109,7 +115,7 @@ public class KeyHandler implements KeyListener {
                 gp.pauseGame();
                 return;
             }
-            if (code == KeyEvent.VK_J) {
+            if (code == gp.controls.key(ControlSettings.Action.JOURNAL)) {
                 gp.questMenu.open();
                 return;
             }
@@ -160,43 +166,43 @@ public class KeyHandler implements KeyListener {
     public void keyReleased(KeyEvent e) {
         int code = e.getKeyCode();
 
-        if (code == KeyEvent.VK_W) {
+        if (code == gp.controls.key(ControlSettings.Action.MOVE_UP)) {
             upPressed = false;
         }
-        if (code == KeyEvent.VK_S) {
+        if (code == gp.controls.key(ControlSettings.Action.MOVE_DOWN)) {
             downPressed = false;
         }
-        if (code == KeyEvent.VK_A) {
+        if (code == gp.controls.key(ControlSettings.Action.MOVE_LEFT)) {
             leftPressed = false;
         }
-        if (code == KeyEvent.VK_D) {
+        if (code == gp.controls.key(ControlSettings.Action.MOVE_RIGHT)) {
             rightPressed = false;
         }
 
-        if (code == KeyEvent.VK_UP) {
+        if (code == gp.controls.key(ControlSettings.Action.AIM_UP)) {
             upShootPressed = false;
         }
-        if (code == KeyEvent.VK_DOWN) {
+        if (code == gp.controls.key(ControlSettings.Action.AIM_DOWN)) {
             downShootPressed = false;
         }
-        if (code == KeyEvent.VK_LEFT) {
+        if (code == gp.controls.key(ControlSettings.Action.AIM_LEFT)) {
             leftShootPressed = false;
         }
-        if (code == KeyEvent.VK_RIGHT) {
+        if (code == gp.controls.key(ControlSettings.Action.AIM_RIGHT)) {
             rightShootPressed = false;
         }
 
-        if (code == KeyEvent.VK_SPACE) {
+        if (code == gp.controls.key(ControlSettings.Action.MANEUVER)) {
             spacePressed = false;
         }
-        if (code == KeyEvent.VK_SHIFT) {
+        if (code == gp.controls.key(ControlSettings.Action.SPRINT)) {
             shiftPressed = false;
         }
 
-        if (code == KeyEvent.VK_Q) {
+        if (code == gp.controls.key(ControlSettings.Action.MODE_A)) {
             qPressed = false;
         }
-        if (code == KeyEvent.VK_E) {
+        if (code == gp.controls.key(ControlSettings.Action.MODE_B)) {
             ePressed = false;
         }
 

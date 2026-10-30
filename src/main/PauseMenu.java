@@ -2,17 +2,39 @@ package main;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+// Pause menu. With an active save slot: Resume / Options / Save / Save and quit to title / Quit without saving.
+// Without one (the demo): Resume / Options / Back to title.
 public class PauseMenu {
-    private static final String[] ITEMS = {"Resume", "Options", "Back to title"};
-    private static final int RESUME = 0, OPTIONS = 1, TITLE = 2;
+    private enum Item {
+        RESUME("Resume"),
+        OPTIONS("Options"),
+        SAVE("Save game"),
+        SAVE_QUIT("Save and quit to title"),
+        QUIT("Quit without saving"),
+        TITLE("Back to title");
+
+        final String label;
+
+        Item(String label) {
+            this.label = label;
+        }
+    }
+
+    private static final int FEEDBACK_TICKS = 150;
 
     private final GamePanel gp;
     private final ConcurrentLinkedQueue<Integer> pressedKeys = new ConcurrentLinkedQueue<>();
-    private final Font itemFont = new Font("SansSerif", Font.BOLD, 17);
-    private int selected = RESUME;
+    private final Font itemFont = UiFonts.of(Font.BOLD, 17);
+    private final Font hintFont = UiFonts.of(Font.PLAIN, 13);
+    private List<Item> items = List.of(Item.RESUME, Item.OPTIONS, Item.TITLE);
+    private int selected = 0;
     private boolean inOptions = false;
+    private boolean confirmingQuit = false;
+    private String feedback = "";
+    private int feedbackTicks = 0;
 
     public PauseMenu(GamePanel gp) {
         this.gp = gp;
@@ -20,8 +42,14 @@ public class PauseMenu {
 
     public void open() {
         pressedKeys.clear();
-        selected = RESUME;
+        items = gp.saves.isActive()
+                ? List.of(Item.RESUME, Item.OPTIONS, Item.SAVE, Item.SAVE_QUIT, Item.QUIT)
+                : List.of(Item.RESUME, Item.OPTIONS, Item.TITLE);
+        selected = 0;
         inOptions = false;
+        confirmingQuit = false;
+        feedback = "";
+        feedbackTicks = 0;
     }
 
     public void keyPressed(int code) {
@@ -29,6 +57,9 @@ public class PauseMenu {
     }
 
     public void update() {
+        if (feedbackTicks > 0) {
+            feedbackTicks--;
+        }
         Integer code;
         while (gp.gameState == GameState.PAUSED && (code = pressedKeys.poll()) != null) {
             handle(code);
@@ -42,11 +73,27 @@ public class PauseMenu {
             }
             return;
         }
+        if (confirmingQuit) {
+            if (code == KeyEvent.VK_ENTER) {
+                confirmingQuit = false;
+                gp.quitWithoutSaving();
+            } else if (code == KeyEvent.VK_ESCAPE) {
+                confirmingQuit = false;
+                gp.playSoundEffect(Sound.UI_BACK);
+            }
+            return;
+        }
 
         switch (code) {
             case KeyEvent.VK_ESCAPE -> gp.resumeGame();
-            case KeyEvent.VK_UP, KeyEvent.VK_W -> selected = (selected + ITEMS.length - 1) % ITEMS.length;
-            case KeyEvent.VK_DOWN, KeyEvent.VK_S -> selected = (selected + 1) % ITEMS.length;
+            case KeyEvent.VK_UP, KeyEvent.VK_W -> {
+                selected = (selected + items.size() - 1) % items.size();
+                gp.playSoundEffect(Sound.UI_MOVE);
+            }
+            case KeyEvent.VK_DOWN, KeyEvent.VK_S -> {
+                selected = (selected + 1) % items.size();
+                gp.playSoundEffect(Sound.UI_MOVE);
+            }
             case KeyEvent.VK_ENTER -> choose();
             default -> {
             }
@@ -54,13 +101,30 @@ public class PauseMenu {
     }
 
     private void choose() {
-        switch (selected) {
-            case RESUME -> gp.resumeGame();
+        switch (items.get(selected)) {
+            case RESUME -> {
+                gp.playSoundEffect(Sound.UI_CONFIRM);
+                gp.resumeGame();
+            }
             case OPTIONS -> {
+                gp.playSoundEffect(Sound.UI_CONFIRM);
                 inOptions = true;
                 gp.optionsMenu.open();
             }
-            case TITLE -> gp.returnToTitle();
+            case SAVE -> {
+                boolean saved = gp.saves.saveManually();
+                gp.playSoundEffect(saved ? Sound.UI_CONFIRM : Sound.UI_ERROR);
+                feedback = saved ? "Game saved" : "Could not save, see the console";
+                feedbackTicks = FEEDBACK_TICKS;
+            }
+            case SAVE_QUIT, TITLE -> {
+                gp.playSoundEffect(Sound.UI_CONFIRM);
+                gp.returnToTitle();
+            }
+            case QUIT -> {
+                gp.playSoundEffect(Sound.UI_ERROR);
+                confirmingQuit = true;
+            }
             default -> {
             }
         }
@@ -76,6 +140,9 @@ public class PauseMenu {
         if (inOptions) {
             gp.optionsMenu.draw(g2, gp.screenHeight / 2 - 60);
             drawHints(g2, "A/D  CHANGE", "ESC  BACK");
+        } else if (confirmingQuit) {
+            drawItems(g2);
+            drawHints(g2, "ENTER  QUIT", "ESC  CANCEL");
         } else {
             drawItems(g2);
             drawHints(g2, "W/S  MOVE", "ESC  RESUME");
@@ -86,16 +153,16 @@ public class PauseMenu {
     }
 
     private void drawItems(Graphics2D g2) {
-        int width = 300;
+        int width = 340;
         int rowH = 36;
-        int height = 30 + ITEMS.length * rowH + 18;
+        int height = 30 + items.size() * rowH + 40;
         int x = gp.screenWidth / 2 - width / 2;
         int y = gp.screenHeight / 2 - height / 2;
         UiSkin.frame(g2, x, y, width, height);
         UiSkin.header(g2, gp.screenWidth / 2, y - 14, "PAUSED");
 
         g2.setFont(itemFont);
-        for (int i = 0; i < ITEMS.length; i++) {
+        for (int i = 0; i < items.size(); i++) {
             int rowY = y + 24 + i * rowH;
             boolean active = i == selected;
             if (active) {
@@ -103,7 +170,17 @@ public class PauseMenu {
                 UiSkin.PixelFont.draw(g2, ">", x + 30, rowY + 8, 2, UiSkin.CREAM);
             }
             g2.setColor(active ? UiSkin.TEXT : UiSkin.TEXT_DIM);
-            g2.drawString(ITEMS[i], x + 54, rowY + 21);
+            g2.drawString(items.get(i).label, x + 54, rowY + 21);
+        }
+
+        g2.setFont(hintFont);
+        int noteY = y + height - 16;
+        if (confirmingQuit) {
+            g2.setColor(UiSkin.TEXT_RED);
+            g2.drawString("Everything since your last save is lost.", x + 27, noteY);
+        } else if (feedbackTicks > 0) {
+            g2.setColor(new Color(0x9CC890));
+            g2.drawString(feedback, x + 27, noteY);
         }
     }
 

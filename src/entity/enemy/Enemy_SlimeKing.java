@@ -31,7 +31,7 @@ public class Enemy_SlimeKing extends Enemy {
     private static final int FRAME_H = 34;
     private static final int SOURCE_SCALE = 2;
     private static final int BASE_ROW = 32;
-    private static final int ART_SCALE = 5;
+    private static final int ART_SCALE = 6;
 
     // frames in each row of the sheet (row 0 gel, row 1 crystal)
     private static final int F_IDLE = 0;          // 0..3
@@ -910,6 +910,11 @@ public class Enemy_SlimeKing extends Enemy {
 
     private void landEffects(boolean big) {
         double[] f = footCenter();
+        gp.lighting.pulse(f[0], f[1], big ? 260 : 150, world.Palette.GOO_LIGHT, 0.9f, big ? 16 : 10);
+        if (big) {
+            gp.screenFx.shockwave(f[0], f[1]);
+        }
+        gp.playSoundEffect(big ? main.Sound.BOSS_SLAM : main.Sound.KING_LAND);
         gp.effects.dust(f[0] - 50, f[1], -1, 0, big ? 8 : 4);
         gp.effects.dust(f[0] + 50, f[1], 1, 0, big ? 8 : 4);
         gp.effects.ring(f[0], f[1], big ? 160 : 90, big ? 20 : 14, new Color(0xC1AF91), true);
@@ -918,6 +923,7 @@ public class Enemy_SlimeKing extends Enemy {
 
     private void roarEffects() {
         Rectangle box = getWorldHitBox();
+        gp.playSoundEffect(main.Sound.BOSS_ROAR);
         gp.effects.ring(box.getCenterX(), box.getCenterY(), 180, 26, new Color(0xDED5AF), false);
         gp.effects.ring(box.getCenterX(), box.getCenterY(), 120, 20, new Color(0xC23228), false);
         gp.effects.shake(24, 8);
@@ -947,6 +953,7 @@ public class Enemy_SlimeKing extends Enemy {
         gp.effects.burst(cx, cy - 40, 24, 4.0, EffectsManager.GOLD);
         gp.effects.text(cx, box.y - 20, "THE KING FALLS", new Color(0xDEAE4C), 3);
         gp.playSoundEffect(main.Sound.SLIME_DEATH);
+        gp.playSoundEffect(main.Sound.BOSS_DEATH);
         gp.levelManager.onBossDefeated();
     }
 
@@ -1152,6 +1159,15 @@ public class Enemy_SlimeKing extends Enemy {
         }
         g2.setStroke(oldStroke);
         g2.setComposite(old);
+    }
+
+    @Override
+    public void addLights(world.Lighting lighting) {
+        Rectangle box = getWorldHitBox();
+        double cx = box.getCenterX();
+        double cy = box.getCenterY() - lift * ART_SCALE;
+        lighting.addShadowed(cx, cy, 240, shell == Shell.GEL ? world.Palette.GOO_LIGHT : world.Palette.PURPLE_CAP, 0.85f, 0.04f);
+        lighting.add(cx, cy - 66, 90, world.Palette.FIRE, 0.7f, 0.12f);
     }
 
     @Override

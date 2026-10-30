@@ -21,10 +21,10 @@ public class QuestMenu {
 
     private final GamePanel gp;
     private final ConcurrentLinkedQueue<Integer> pressedKeys = new ConcurrentLinkedQueue<>();
-    private final Font titleFont = new Font("SansSerif", Font.BOLD, 18);
-    private final Font rowFont = new Font("SansSerif", Font.BOLD, 14);
-    private final Font textFont = new Font("SansSerif", Font.PLAIN, 14);
-    private final Font smallFont = new Font("SansSerif", Font.PLAIN, 12);
+    private final Font titleFont = UiFonts.of(Font.BOLD, 18);
+    private final Font rowFont = UiFonts.of(Font.BOLD, 14);
+    private final Font textFont = UiFonts.of(Font.PLAIN, 14);
+    private final Font smallFont = UiFonts.of(Font.PLAIN, 12);
 
     private boolean completedTab = false;
     private int selected = 0;
@@ -70,7 +70,7 @@ public class QuestMenu {
                 completedTab = !completedTab;
                 selected = 0;
                 scroll = 0;
-                gp.playSoundEffect(Sound.COIN);
+                gp.playSoundEffect(Sound.UI_MOVE);
             }
             case KeyEvent.VK_W, KeyEvent.VK_UP -> move(-1, count);
             case KeyEvent.VK_S, KeyEvent.VK_DOWN -> move(1, count);
@@ -86,7 +86,7 @@ public class QuestMenu {
         selected = Math.floorMod(selected + delta, count);
         if (selected < scroll) scroll = selected;
         if (selected >= scroll + VISIBLE_ROWS) scroll = selected - VISIBLE_ROWS + 1;
-        gp.playSoundEffect(Sound.COIN);
+        gp.playSoundEffect(Sound.UI_MOVE);
     }
 
     private void close() {

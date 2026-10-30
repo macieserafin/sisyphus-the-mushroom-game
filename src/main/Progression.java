@@ -3,7 +3,7 @@ package main;
 import entity.Player;
 
 import java.util.EnumSet;
-import java.util.prefs.Preferences;
+import java.util.Properties;
 
 // Permanent upgrades bought in the village. They survive deaths, runs and restarts of the game.
 public class Progression {
@@ -12,52 +12,76 @@ public class Progression {
     public static final int MAX_SPEED_ELIXIRS = 2;
     public static final double SPEED_PER_ELIXIR = 1.0;
 
-    private static final String HEALTH_KEY = "upgradeHealth";
-    private static final String SHIELD_KEY = "upgradeShield";
-    private static final String SPEED_KEY = "upgradeSpeed";
-    private static final String SHOTGUN_KEY = "ownsShotgun";
-    private static final String HEAVY_SWORD_KEY = "ownsHeavySword";
-    private static final String SKILLS_KEY = "skills";
+    private static final String HEALTH_KEY = "prog.health";
+    private static final String SHIELD_KEY = "prog.shield";
+    private static final String SPEED_KEY = "prog.speed";
+    private static final String SHOTGUN_KEY = "prog.shotgun";
+    private static final String HEAVY_SWORD_KEY = "prog.heavySword";
+    private static final String SKILLS_KEY = "prog.skills";
 
     // Loadout slots of the weapons sold in the village (see CombatLoadout).
     private static final int SHOTGUN_SLOT = 1;
     private static final int HEAVY_SWORD_SLOT = 1;
 
-    private final Preferences prefs;
     private int health;
     private int shield;
     private int speed;
     private boolean shotgun;
     private boolean heavySword;
     private final EnumSet<Skill> skills = EnumSet.noneOf(Skill.class);
+    private Runnable onChange;
 
+    // Base stats, no skills. The save slot fills it in through load().
     public Progression() {
-        this(Preferences.userNodeForPackage(Progression.class));
     }
 
-    private Progression(Preferences prefs) {
-        this.prefs = prefs;
-        if (prefs != null) {
-            health = prefs.getInt(HEALTH_KEY, 0);
-            shield = prefs.getInt(SHIELD_KEY, 0);
-            speed = prefs.getInt(SPEED_KEY, 0);
-            shotgun = prefs.getBoolean(SHOTGUN_KEY, false);
-            heavySword = prefs.getBoolean(HEAVY_SWORD_KEY, false);
-            for (String name : prefs.get(SKILLS_KEY, "").split(",")) {
-                for (Skill skill : Skill.values()) {
-                    if (skill.name().equals(name)) {
-                        skills.add(skill);
-                    }
+    // Base stats, every skill known (the demo plays this way and teaches roll and dash).
+    public static Progression unsaved() {
+        Progression progression = new Progression();
+        progression.skills.addAll(EnumSet.allOf(Skill.class));
+        return progression;
+    }
+
+    public void setOnChange(Runnable onChange) {
+        this.onChange = onChange;
+    }
+
+    public void save(Properties out) {
+        out.setProperty(HEALTH_KEY, Integer.toString(health));
+        out.setProperty(SHIELD_KEY, Integer.toString(shield));
+        out.setProperty(SPEED_KEY, Integer.toString(speed));
+        out.setProperty(SHOTGUN_KEY, Boolean.toString(shotgun));
+        out.setProperty(HEAVY_SWORD_KEY, Boolean.toString(heavySword));
+        StringBuilder known = new StringBuilder();
+        for (Skill skill : skills) {
+            known.append(known.length() == 0 ? "" : ",").append(skill.name());
+        }
+        out.setProperty(SKILLS_KEY, known.toString());
+    }
+
+    // Replaces everything with what the save holds (missing or broken values fall back to the base stats).
+    public void load(Properties in) {
+        health = count(in, HEALTH_KEY, MAX_HEALTH_UPGRADES);
+        shield = count(in, SHIELD_KEY, MAX_SHIELD_UPGRADES);
+        speed = count(in, SPEED_KEY, MAX_SPEED_ELIXIRS);
+        shotgun = Boolean.parseBoolean(in.getProperty(SHOTGUN_KEY, "false").trim());
+        heavySword = Boolean.parseBoolean(in.getProperty(HEAVY_SWORD_KEY, "false").trim());
+        skills.clear();
+        for (String name : in.getProperty(SKILLS_KEY, "").split(",")) {
+            for (Skill skill : Skill.values()) {
+                if (skill.name().equals(name.trim())) {
+                    skills.add(skill);
                 }
             }
         }
     }
 
-    // Base stats, nothing saved, every skill known (the demo plays this way and teaches roll and dash).
-    public static Progression unsaved() {
-        Progression progression = new Progression(null);
-        progression.skills.addAll(EnumSet.allOf(Skill.class));
-        return progression;
+    private static int count(Properties in, String key, int max) {
+        try {
+            return Math.max(0, Math.min(max, Integer.parseInt(in.getProperty(key, "0").trim())));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     public boolean hasSkill(Skill skill) {
@@ -71,6 +95,32 @@ public class Progression {
 
     public void learn(Skill skill) {
         skills.add(skill);
+        save();
+    }
+
+    // Developer menu: forgets a skill together with every skill that grows from it.
+    public void forget(Skill skill) {
+        skills.remove(skill);
+        boolean removed = true;
+        while (removed) {
+            removed = skills.removeIf(s -> s.requires != null && !skills.contains(s.requires));
+        }
+        save();
+    }
+
+    // Developer menu: takes back every bought upgrade and weapon.
+    public void resetUpgrades(Player player) {
+        player.addMaxHealth(-health);
+        player.addMaxShield(-shield);
+        player.addMaxSpeed(-bonusSpeed());
+        if (shotgun) {
+            player.setRangedSlotOwned(SHOTGUN_SLOT, false);
+        }
+        if (heavySword) {
+            player.setMeleeSlotOwned(HEAVY_SWORD_SLOT, false);
+        }
+        health = shield = speed = 0;
+        shotgun = heavySword = false;
         save();
     }
 
@@ -128,20 +178,11 @@ public class Progression {
         applyWeapons(player);
     }
 
+    // Tells the save slot something changed; it writes the slot soon after.
     private void save() {
-        if (prefs == null) {
-            return;
+        if (onChange != null) {
+            onChange.run();
         }
-        prefs.putInt(HEALTH_KEY, health);
-        prefs.putInt(SHIELD_KEY, shield);
-        prefs.putInt(SPEED_KEY, speed);
-        prefs.putBoolean(SHOTGUN_KEY, shotgun);
-        prefs.putBoolean(HEAVY_SWORD_KEY, heavySword);
-        StringBuilder known = new StringBuilder();
-        for (Skill skill : skills) {
-            known.append(known.length() == 0 ? "" : ",").append(skill.name());
-        }
-        prefs.put(SKILLS_KEY, known.toString());
     }
 
     // The prologue resets the loadout, so bought weapons are handed back whenever the village loads.

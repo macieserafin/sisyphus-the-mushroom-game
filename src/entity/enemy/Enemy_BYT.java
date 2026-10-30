@@ -509,6 +509,7 @@ public class Enemy_BYT extends Enemy {
     }
 
     private void fireWall(int side) {
+        gp.playSoundEffect(Sound.BYT_FIRE);
         expelMatter(side * Math.PI / 2, Math.PI * 2, 18, 1.0);
         int tile = gp.tileSize;
         double minX = tile;
@@ -550,6 +551,7 @@ public class Enemy_BYT extends Enemy {
     }
 
     private void fireRing(int count, double speed, double offset, double radius) {
+        gp.playSoundEffect(Sound.BYT_FIRE);
         expelMatter(offset, Math.PI * 2, 16, 1.0);
         for (int i = 0; i < count; i++) {
             double angle = offset + i * Math.PI * 2 / count;
@@ -559,6 +561,7 @@ public class Enemy_BYT extends Enemy {
 
     private void fireAimedShards(int count, double spread, double speed) {
         double aim = angleToPlayer(centerX(), centerY());
+        gp.playSoundEffect(Sound.BYT_FIRE);
         expelMatter(aim, 0.7, 7, 0.65);
         for (int i = 0; i < count; i++) {
             double angle = aim + (i - (count - 1) / 2.0) * spread;
@@ -883,6 +886,12 @@ public class Enemy_BYT extends Enemy {
         drawBody(g2);
 
         g2.dispose();
+    }
+
+    @Override
+    public void addLights(world.Lighting lighting) {
+        Rectangle box = getWorldHitBox();
+        lighting.addShadowed(box.getCenterX(), box.getCenterY(), 250, world.Palette.PALE, 0.8f, 0.1f);
     }
 
     @Override

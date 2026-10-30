@@ -24,6 +24,7 @@ public class EnemyShotManager {
 
     public void add(EnemyShot shot) {
         spawned.add(shot);
+        gp.playSoundEffect(main.Sound.ENEMY_SHOT);
     }
 
     public void clear() {

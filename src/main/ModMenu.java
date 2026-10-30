@@ -5,9 +5,11 @@ import entity.enemy.Enemy;
 import entity.enemy.Enemy_BYT;
 import entity.enemy.Enemy_Slime;
 import entity.enemy.Enemy_SlimeKing;
+import story.QuestLog;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
@@ -16,7 +18,7 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 public class ModMenu {
-    private enum Page { MAIN, TELEPORT, COMBAT, EQUIPMENT, TOOLS }
+    private enum Page { MAIN, TELEPORT, COMBAT, EQUIPMENT, PROGRESS, QUESTS, TOOLS }
     private record Item(Supplier<String> label, Runnable action, IntConsumer adjust) {
         Item(Supplier<String> label, Runnable action) { this(label, action, null); }
     }
@@ -28,8 +30,8 @@ public class ModMenu {
     private int selected;
     private int rootSelection;
     private String feedback = "";
-    private final Font itemFont = new Font("SansSerif", Font.BOLD, 16);
-    private final Font hintFont = new Font("SansSerif", Font.PLAIN, 12);
+    private final Font itemFont = UiFonts.of(Font.BOLD, 16);
+    private final Font hintFont = UiFonts.of(Font.PLAIN, 12);
 
     public ModMenu(GamePanel gp) {
         this.gp = gp;
@@ -37,6 +39,8 @@ public class ModMenu {
                 item("Przenieś  >", () -> enter(Page.TELEPORT)),
                 item("Walka i obrażenia  >", () -> enter(Page.COMBAT)),
                 item("Ekwipunek  >", () -> enter(Page.EQUIPMENT)),
+                item("Grzyby i umiejętności  >", () -> enter(Page.PROGRESS)),
+                item("Questy  >", () -> enter(Page.QUESTS)),
                 item("Narzędzia  >", () -> enter(Page.TOOLS)),
                 item("Zamknij", this::close)));
         pages.put(Page.TELEPORT, List.of(
@@ -78,6 +82,45 @@ public class ModMenu {
                         () -> {gp.player.toggleWeaponLockOverride(); feedback = "Zmieniono blokadę broni w lobby";}),
                 item("Reset ekwipunku (miecz + pistolet)", () -> {
                     gp.player.resetLoadout(); feedback = "Ekwipunek zresetowany";
+                }),
+                item("Wstecz", this::back)));
+        List<Item> progress = new ArrayList<>(List.of(
+                new Item(() -> "Grzyby w banku: " + gp.wallet.banked() + "  (A/D ±50)",
+                        () -> adjustBanked(100), d -> adjustBanked(d * 50)),
+                new Item(() -> "Grzyby w biegu: " + gp.wallet.run() + "  (A/D ±10)",
+                        () -> adjustRun(50), d -> adjustRun(d * 10)),
+                item("Wyzeruj grzyby (bank i bieg)", () -> {
+                    gp.wallet.debugAdjustBanked(-gp.wallet.banked());
+                    gp.wallet.debugAdjustRun(-gp.wallet.run());
+                    feedback = "Grzyby wyzerowane";
+                })));
+        for (Skill skill : Skill.values()) {
+            progress.add(new Item(() -> (gp.progression.hasSkill(skill) ? "[x] " : "[ ] ") + "Umiejętność: " + skill.title,
+                    () -> toggleSkill(skill)));
+        }
+        progress.addAll(List.of(
+                item("Naucz wszystkich umiejętności", () -> {
+                    for (Skill skill : Skill.values()) if (!gp.progression.hasSkill(skill)) gp.progression.learn(skill);
+                    feedback = "Wszystkie umiejętności poznane";
+                }),
+                item("Zapomnij wszystkie umiejętności", () -> {
+                    for (Skill skill : Skill.values()) gp.progression.forget(skill);
+                    feedback = "Umiejętności zapomniane";
+                }),
+                item("Ulepszenia sklepu do maksimum", this::maxUpgrades),
+                item("Cofnij ulepszenia i bronie ze sklepu", () -> {
+                    gp.progression.resetUpgrades(gp.player);
+                    gp.player.debugRestoreVitals();
+                    feedback = "Ulepszenia sklepu cofnięte";
+                }),
+                item("Wstecz", this::back)));
+        pages.put(Page.PROGRESS, List.copyOf(progress));
+        pages.put(Page.QUESTS, List.of(
+                new Item(() -> "Ukończ bieżący quest fabularny" + currentMainLabel(), this::completeMainQuest),
+                item("Ukończ wszystkie questy poboczne", this::completeSideQuests),
+                item("Zresetuj dziennik questów", () -> {
+                    gp.questLog.reset();
+                    feedback = "Dziennik zresetowany (flagi fabuły zostają)";
                 }),
                 item("Wstecz", this::back)));
         pages.put(Page.TOOLS, List.of(
@@ -204,6 +247,63 @@ public class ModMenu {
         feedback = "Brak wolnego miejsca w pobliżu";
     }
 
+    private void adjustBanked(int delta) {
+        gp.wallet.debugAdjustBanked(delta);
+        feedback = "Grzyby w banku: " + gp.wallet.banked();
+    }
+
+    private void adjustRun(int delta) {
+        gp.wallet.debugAdjustRun(delta);
+        feedback = gp.levelManager.isRunActive() ? "Grzyby w biegu: " + gp.wallet.run()
+                : "Poza biegiem: grzyby przepadną przy następnym starcie";
+    }
+
+    private void toggleSkill(Skill skill) {
+        if (gp.progression.hasSkill(skill)) {
+            gp.progression.forget(skill);
+            feedback = "Zapomniano: " + skill.title;
+        } else {
+            if (skill.requires != null && !gp.progression.hasSkill(skill.requires)) gp.progression.learn(skill.requires);
+            gp.progression.learn(skill);
+            feedback = "Poznano: " + skill.title;
+        }
+    }
+
+    private void maxUpgrades() {
+        Progression p = gp.progression;
+        while (p.healthUpgrades() < Progression.MAX_HEALTH_UPGRADES) p.buyHealth(gp.player);
+        while (p.shieldUpgrades() < Progression.MAX_SHIELD_UPGRADES) p.buyShield(gp.player);
+        while (p.speedElixirs() < Progression.MAX_SPEED_ELIXIRS) p.buySpeedElixir(gp.player);
+        if (!p.ownsShotgun()) p.buyShotgun(gp.player);
+        if (!p.ownsHeavySword()) p.buyHeavySword(gp.player);
+        gp.player.debugRestoreVitals();
+        feedback = "Wszystkie ulepszenia i bronie ze sklepu";
+    }
+
+    private QuestLog.Quest currentMainQuest() {
+        for (QuestLog.Quest quest : gp.questLog.active()) if (quest.main) return quest;
+        return null;
+    }
+
+    private String currentMainLabel() {
+        QuestLog.Quest quest = currentMainQuest();
+        return quest == null ? " (brak)" : ": " + quest.title;
+    }
+
+    private void completeMainQuest() {
+        QuestLog.Quest quest = currentMainQuest();
+        if (quest == null) {feedback = "Brak aktywnego questa fabularnego"; return;}
+        gp.questLog.complete(quest.id);
+        feedback = "Ukończono: " + quest.title;
+    }
+
+    private void completeSideQuests() {
+        for (String id : List.of(QuestLog.HOARD, QuestLog.SHOPPING, QuestLog.GROTTO, QuestLog.PESTS, QuestLog.CHESTS)) {
+            gp.questLog.complete(id);
+        }
+        feedback = "Questy poboczne ukończone";
+    }
+
     private void toggleMelee(int slot) {
         Player p = gp.player;
         p.setMeleeSlotOwned(slot,!p.ownsMeleeSlot(slot));
@@ -237,6 +337,8 @@ public class ModMenu {
             case TELEPORT -> "Przenieś / wybór sceny";
             case COMBAT -> "Walka i obrażenia";
             case EQUIPMENT -> "Ekwipunek";
+            case PROGRESS -> "Grzyby, umiejętności i sklep (zapisywane na stałe)";
+            case QUESTS -> "Questy";
             case TOOLS -> "Narzędzia testowe";
         };
         g.drawString(title,x+27,y+25);
@@ -255,7 +357,7 @@ public class ModMenu {
         g.setFont(hintFont);g.setColor(new Color(0x9CC890));
         g.drawString(feedback,x+27,footer+21);
         g.setColor(UiSkin.TEXT_DIM);
-        g.drawString("W/S: wybór   ENTER: użyj   A/D: mnożnik   ESC: wstecz   F1: zamknij",x+27,footer+43);
+        g.drawString("W/S: wybór   ENTER: użyj   A/D: zmień wartość   ESC: wstecz   F1: zamknij",x+27,footer+43);
         g.dispose();
     }
 }

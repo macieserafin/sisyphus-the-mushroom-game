@@ -84,7 +84,7 @@ public class HeartPickup extends SuperObject {
         gp.effects.text(x, y - 50, "+1", new Color(0xF08C80), 2);
         gp.effects.burst(x, y - 20, 14, 2.6, PINK);
         gp.effects.ring(x, y - 20, 40, 12, new Color(0xF08C80), false);
-        gp.playSoundEffect(Sound.POWERUP);
+        gp.playSoundEffect(Sound.HEART);
         gp.entities.removeObject(this);
     }
 

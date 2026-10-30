@@ -37,6 +37,9 @@ public class SuperObject {
     public void update(GamePanel gp) {
     }
 
+    public void addLights(world.Lighting lighting) {
+    }
+
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
     }
 

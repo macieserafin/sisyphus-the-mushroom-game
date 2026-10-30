@@ -64,6 +64,11 @@ public class PowerUp extends SuperObject {
     }
 
     @Override
+    public void addLights(world.Lighting lighting) {
+        lighting.add(x, y - 24, 80, kind.glow, 0.8f, 0.08f);
+    }
+
+    @Override
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
         if (age < 20 || !player.alive) {
             return;

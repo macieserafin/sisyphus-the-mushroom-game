@@ -82,6 +82,11 @@ public class Player extends Entity {
     public int screenX;
     public int screenY;
     private double coveredByDialogue = 0;
+    private static final int CAMERA_SLACK_X = 20;
+    private static final int CAMERA_SLACK_Y = 16;
+    private static final int CAMERA_JUMP = 400;
+    private int followX = Integer.MIN_VALUE;
+    private int followY = Integer.MIN_VALUE;
 
     private double velX = 0.0;
     private double velY = 0.0;
@@ -94,6 +99,9 @@ public class Player extends Entity {
 
     private Direction8 facing = Direction8.S;
     private boolean moving;
+    private static final double STEP_SOUND_DISTANCE = 56;
+    private double stepDistance;
+    private boolean stepFlip;
     private Direction8 aim;
     private Direction8 heldAim;
     private Direction8 lastAim;
@@ -222,10 +230,30 @@ public class Player extends Entity {
 
         int centerX = gp.screenWidth / 2 - gp.tileSize / 2;
         int centerY = visibleHeight / 2 - gp.tileSize / 2;
-        int cameraX = cameraOrigin(worldX - centerX, gp.tileM.getWorldCols() * gp.tileSize, gp.screenWidth);
-        int cameraY = cameraOrigin(worldY - centerY, gp.tileM.getWorldRows() * gp.tileSize, visibleHeight);
+        int wantedX = worldX - centerX;
+        int wantedY = worldY - centerY;
+        if (followX == Integer.MIN_VALUE || gp.visuals.reduceMotion()
+                || Math.abs(wantedX - followX) > CAMERA_JUMP || Math.abs(wantedY - followY) > CAMERA_JUMP) {
+            followX = wantedX;
+            followY = wantedY;
+        } else {
+            followX = follow(followX, wantedX, CAMERA_SLACK_X);
+            followY = follow(followY, wantedY, CAMERA_SLACK_Y);
+        }
+        int cameraX = cameraOrigin(followX, gp.tileM.getWorldCols() * gp.tileSize, gp.screenWidth);
+        int cameraY = cameraOrigin(followY, gp.tileM.getWorldRows() * gp.tileSize, visibleHeight);
         screenX = worldX - cameraX;
         screenY = worldY - cameraY;
+    }
+
+    private static int follow(int current, int wanted, int slack) {
+        if (wanted - current > slack) {
+            return wanted - slack;
+        }
+        if (current - wanted > slack) {
+            return wanted + slack;
+        }
+        return current + Integer.signum(wanted - current);
     }
 
     private static int cameraOrigin(int wanted, int mapSize, int screenSize) {
@@ -399,6 +427,7 @@ public class Player extends Entity {
             return;
         }
         combatState = target;
+        gp.playSoundEffect(Sound.SWAP);
         swapBonusTicks = SWAP_BONUS_TICKS;
         gp.effects.ring(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 30, 10,
                 combatState == CombatState.MELEE ? new Color(0xF2C46A) : new Color(0x9AD8F0), false);
@@ -428,11 +457,13 @@ public class Player extends Entity {
             rollTicks = ROLL_TICKS;
             rollCooldown = ROLL_COOLDOWN_TICKS;
             squash = 0.6;
+            gp.playSoundEffect(Sound.ROLL);
             spawnFootDust(-dirX, -dirY, 5);
         } else if (combatState == CombatState.RANGE && dashCooldown == 0 && gp.progression.hasSkill(Skill.DASH)) {
             startManeuver(dirX, dirY);
             dashTicks = DASH_TICKS;
             dashCooldown = DASH_COOLDOWN_TICKS;
+            gp.playSoundEffect(Sound.DASH);
             spawnFootDust(-dirX, -dirY, 7);
         }
     }
@@ -885,6 +916,18 @@ public class Player extends Entity {
         double speed = vectorLength(velX, velY);
         boolean hasInput = inputX != 0 || inputY != 0;
 
+        // a footstep every few tiles of walking, not while rolling or dashing
+        if (hasInput && rollTicks == 0 && dashTicks == 0) {
+            stepDistance += speed;
+            if (stepDistance >= STEP_SOUND_DISTANCE) {
+                stepDistance = 0;
+                stepFlip = !stepFlip;
+                gp.playSoundEffect(stepFlip ? Sound.STEP_1 : Sound.STEP_2);
+            }
+        } else if (!hasInput) {
+            stepDistance = STEP_SOUND_DISTANCE * 0.6;
+        }
+
         if (moving && !wasMoving && hasInput) {
             squash = -0.7;
             spawnFootDust(-inputX, -inputY, 4);
@@ -996,6 +1039,7 @@ public class Player extends Entity {
     private void fireBullet(Direction8 shootDirection) {
         muzzleFlashTicks = MUZZLE_FLASH_TICKS;
         recoilKickTicks = RECOIL_KICK_TICKS;
+        gp.lighting.pulse(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 120, world.Palette.FIRE, 0.9f, 5);
         addMovementImpulse(rangedWeapon.fire(
                 gp.tileSize,
                 gp.bulletManager,
@@ -1503,9 +1547,9 @@ public class Player extends Entity {
             gp.effects.burst(cx, cy, 12, 3.0, SHIELD_SHARDS);
             gp.effects.ring(cx, cy, 44, 12, new Color(0x9AD8F0), false);
             gp.effects.text(cx, worldY - 10, shield == 0 ? "SHIELD BROKEN" : "BLOCKED", new Color(0x9AD8F0), 1);
+            gp.playSoundEffect(shield == 0 ? Sound.SHIELD_BREAK : Sound.SHIELD_BLOCK);
             if (damage == 0) {
                 hurtInvincibleCounter = HURT_INVINCIBLE_FRAMES;
-                gp.playSoundEffect(Sound.UNLOCK);
                 squash = 0.6;
                 gp.effects.shake(6, 4);
                 return;

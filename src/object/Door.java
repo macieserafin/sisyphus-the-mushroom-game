@@ -42,6 +42,7 @@ public class Door extends SuperObject {
 
         gp.entities.removeObject(this);
         gp.playSoundEffect(2);
+        gp.playSoundEffect(main.Sound.DOOR);
     }
 
     public boolean isKeyNeeded() {
