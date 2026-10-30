@@ -194,7 +194,6 @@ public final class TileSet {
         grid("dead_tree", "Dead tree", 2, 3, "..", "XX", "XX");
         grid("ruin_wall", "Ruined wall", 3, 2, "XXX", "XXX");
 
-        // Forest of the first story level and the training clearing.
         int forestFloor = DEFS.size();
         ground("forest_floor", "Forest floor", false, FOREST_FLOOR, forestFloor, "forest_floor");
         ground("forest_floor_2", "Forest floor (leaves)", false, FOREST_FLOOR, forestFloor, "forest_floor_2");
@@ -237,7 +236,6 @@ public final class TileSet {
         grid("fallen_log", "Fallen log", 3, 1, "XXX");
         grid("cave_entrance", "Cave entrance", 4, 3, "XXXX", "X..X", "X..X");
 
-        // BYT's ruin: grey stone and purple-black void.
         ground("void_floor", "Void flagstones", false, NONE, -1, "void_floor");
         ground("void_floor_cracked", "Cracked void flagstones", false, NONE, -1, "void_floor_cracked");
         ground("ash_stone", "Ash slab", false, NONE, -1, "ash_stone");
@@ -260,7 +258,6 @@ public final class TileSet {
         grid("grey_pillar", "Grey rune pillar", 1, 3, ".", ".", "X");
         grid("void_obelisk", "Void obelisk", 2, 3, "..", "XX", "XX");
 
-        // Treasure cave of the Slime King.
         int caveFloor = DEFS.size();
         ground("cave_floor", "Cave floor", false, CAVE_FLOOR, caveFloor, "cave_floor");
         ground("cave_floor_2", "Cave floor (pebbles)", false, CAVE_FLOOR, caveFloor, "cave_floor_2");

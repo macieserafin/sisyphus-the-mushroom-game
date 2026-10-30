@@ -5,8 +5,9 @@ import entity.Player;
 import java.util.EnumSet;
 import java.util.Properties;
 
-// Permanent upgrades bought in the village. They survive deaths, runs and restarts of the game.
+// Character levels, skill points and village upgrades survive deaths, runs and restarts.
 public class Progression {
+    public static final int MAX_LEVEL = 100;
     public static final int MAX_HEALTH_UPGRADES = 3;
     public static final int MAX_SHIELD_UPGRADES = 2;
     public static final int MAX_SPEED_ELIXIRS = 2;
@@ -18,8 +19,10 @@ public class Progression {
     private static final String SHOTGUN_KEY = "prog.shotgun";
     private static final String HEAVY_SWORD_KEY = "prog.heavySword";
     private static final String SKILLS_KEY = "prog.skills";
+    private static final String LEVEL_KEY = "prog.level";
+    private static final String EXPERIENCE_KEY = "prog.experience";
+    private static final String SKILL_POINTS_KEY = "prog.skillPoints";
 
-    // Loadout slots of the weapons sold in the village (see CombatLoadout).
     private static final int SHOTGUN_SLOT = 1;
     private static final int HEAVY_SWORD_SLOT = 1;
 
@@ -28,10 +31,12 @@ public class Progression {
     private int speed;
     private boolean shotgun;
     private boolean heavySword;
+    private int level = 1;
+    private int experience;
+    private int skillPoints;
     private final EnumSet<Skill> skills = EnumSet.noneOf(Skill.class);
     private Runnable onChange;
 
-    // Base stats, no skills. The save slot fills it in through load().
     public Progression() {
     }
 
@@ -47,6 +52,9 @@ public class Progression {
     }
 
     public void save(Properties out) {
+        out.setProperty(LEVEL_KEY, Integer.toString(level));
+        out.setProperty(EXPERIENCE_KEY, Integer.toString(experience));
+        out.setProperty(SKILL_POINTS_KEY, Integer.toString(skillPoints));
         out.setProperty(HEALTH_KEY, Integer.toString(health));
         out.setProperty(SHIELD_KEY, Integer.toString(shield));
         out.setProperty(SPEED_KEY, Integer.toString(speed));
@@ -59,8 +67,10 @@ public class Progression {
         out.setProperty(SKILLS_KEY, known.toString());
     }
 
-    // Replaces everything with what the save holds (missing or broken values fall back to the base stats).
     public void load(Properties in) {
+        level = Math.max(1, count(in, LEVEL_KEY, MAX_LEVEL));
+        experience = level == MAX_LEVEL ? 0 : count(in, EXPERIENCE_KEY, experienceToNextLevel() - 1);
+        skillPoints = count(in, SKILL_POINTS_KEY, Integer.MAX_VALUE);
         health = count(in, HEALTH_KEY, MAX_HEALTH_UPGRADES);
         shield = count(in, SHIELD_KEY, MAX_SHIELD_UPGRADES);
         speed = count(in, SPEED_KEY, MAX_SPEED_ELIXIRS);
@@ -88,11 +98,55 @@ public class Progression {
         return skills.contains(skill);
     }
 
-    // A skill can be learned when it is new and the skill it grows from is known.
+    public int level() {
+        return level;
+    }
+
+    public int experience() {
+        return experience;
+    }
+
+    public int skillPoints() {
+        return skillPoints;
+    }
+
+    public int experienceToNextLevel() {
+        return level == MAX_LEVEL ? 0 : 100 + (level - 1) * 50;
+    }
+
+    // Returns the number of levels gained; one reward can cross several thresholds.
+    public int gainExperience(int amount) {
+        if (amount <= 0 || level == MAX_LEVEL) {
+            return 0;
+        }
+        int previousLevel = level;
+        long remaining = (long) experience + amount;
+        while (level < MAX_LEVEL && remaining >= experienceToNextLevel()) {
+            remaining -= experienceToNextLevel();
+            level++;
+            if (skillPoints < Integer.MAX_VALUE) skillPoints++;
+        }
+        experience = level == MAX_LEVEL ? 0 : (int) remaining;
+        save();
+        return level - previousLevel;
+    }
+
+    // Deduct points and unlock together, so autosaves never capture half a purchase.
+    public boolean purchaseSkill(Skill skill) {
+        if (!canLearn(skill) || skillPoints < skill.cost) {
+            return false;
+        }
+        skillPoints -= skill.cost;
+        skills.add(skill);
+        save();
+        return true;
+    }
+
     public boolean canLearn(Skill skill) {
         return !hasSkill(skill) && (skill.requires == null || hasSkill(skill.requires));
     }
 
+    // Developer/demo grants bypass point costs. Gameplay uses purchaseSkill().
     public void learn(Skill skill) {
         skills.add(skill);
         save();
@@ -108,7 +162,6 @@ public class Progression {
         save();
     }
 
-    // Developer menu: takes back every bought upgrade and weapon.
     public void resetUpgrades(Player player) {
         player.addMaxHealth(-health);
         player.addMaxShield(-shield);
@@ -178,7 +231,6 @@ public class Progression {
         applyWeapons(player);
     }
 
-    // Tells the save slot something changed; it writes the slot soon after.
     private void save() {
         if (onChange != null) {
             onChange.run();

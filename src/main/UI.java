@@ -38,7 +38,6 @@ public class UI {
     private int blinkClose, blinkHold, blinkOpen;
     private int blinkTick = -1;
     private DialogueLine lastVisualNovelLine;
-    // boss bar animation state
     private Enemy barBoss;
     private double ghostFraction = 1;
     private double lastBarFraction = 1;
@@ -241,7 +240,6 @@ public class UI {
         g2.setColor(oldColor);
     }
 
-    // The attack mode the boss is weak to right now, pulsing next to the bar.
     private void drawWantedMode(Enemy boss, int x, int y) {
         entity.CombatState wanted = boss.wantedMode();
         if (wanted == null) {
@@ -260,7 +258,6 @@ public class UI {
         }
     }
 
-    // Two meters (melee and ranged): they fill while the player keeps using one mode, then turn red: ADAPTING.
     private void drawAdaptation(Enemy boss, int x, int y, int barWidth) {
         int half = barWidth / 2 - 4;
         drawAdaptMeter(boss, entity.combat.HitType.MELEE, UiSkin.Icon.SWORD, x, y, half);
@@ -308,7 +305,6 @@ public class UI {
         UiSkin.divider(g2, x + 30, y + 72, width - 60);
 
         if (gp.canRetryBoss()) {
-            // boss fight: fight again or go back to the village
             int optionW = 156;
             int optionY = y + 88;
             String[] options = {"FIGHT AGAIN", "VILLAGE"};
@@ -350,7 +346,6 @@ public class UI {
         drawDialogueWindow(x, y, DIALOGUE_WIDTH, DIALOGUE_HEIGHT, line);
     }
 
-    // Small toast near the top of the screen, between the status HUD and the minimap, so it never covers the player.
     private void drawMessageToast() {
         Font oldFont = g2.getFont();
         Object oldAa = g2.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);

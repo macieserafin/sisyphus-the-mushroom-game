@@ -33,7 +33,6 @@ public class SuperObject {
         return image;
     }
 
-    /** Called once per game update for objects that animate or run timers. */
     public void update(GamePanel gp) {
     }
 

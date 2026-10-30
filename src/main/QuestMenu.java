@@ -7,8 +7,6 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-// Quest journal (J): active and completed quests on two tabs, the selected one described on the right with
-// its objective and progress. The world stands still while it is open.
 public class QuestMenu {
     private static final int WIDTH = 660;
     private static final int HEIGHT = 410;
@@ -95,7 +93,6 @@ public class QuestMenu {
         gp.gameState = GameState.PLAYING;
     }
 
-    // ---------------------------------------------------------------- drawing
 
     public void draw(Graphics2D g2) {
         Font oldFont = g2.getFont();

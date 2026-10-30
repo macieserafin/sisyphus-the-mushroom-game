@@ -14,7 +14,6 @@ public class MushroomWallet {
     private int run = 0;
     private Runnable onChange;
 
-    // An empty wallet that is not tied to any save (the demo uses it as is).
     public static MushroomWallet unsaved() {
         return new MushroomWallet();
     }
@@ -52,7 +51,6 @@ public class MushroomWallet {
         run = 0;
     }
 
-    // Spends banked mushrooms; returns false (and spends nothing) when the bank is short.
     public boolean spend(int amount) {
         if (amount < 0 || amount > banked) {
             return false;
@@ -68,7 +66,6 @@ public class MushroomWallet {
         }
     }
 
-    // Developer menu: adds (or takes, when negative) mushrooms straight to the bank or the current run.
     public void debugAdjustBanked(int delta) {
         banked = Math.max(0, banked + delta);
         changed();
@@ -78,7 +75,6 @@ public class MushroomWallet {
         run = Math.max(0, run + delta);
     }
 
-    // Returns how many mushrooms went into the bank.
     public int bankRun() {
         return bank(run);
     }

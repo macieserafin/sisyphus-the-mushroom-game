@@ -175,8 +175,6 @@ public class AssetSetter {
         spawnObject(new HouseDoor(TransitionTarget.interior(interior), style), building.doorCol(), building.doorRow());
     }
 
-    // Level 1 (maps/level1_forest.txt): boots and the key wait in maze dead ends,
-    // the key opens the grotto off the second valley, the cave mouth leads to the Slime King.
     public void setRunFloorObject() {
         spawnObject(new Boots(), 96, 77);
         spawnObject(new Key(), 104, 46);

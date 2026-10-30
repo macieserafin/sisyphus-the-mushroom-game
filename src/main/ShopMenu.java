@@ -7,8 +7,6 @@ import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-// Talking to an NPC who sells something first asks "Talk or Shop?". The shop lists the offers with their prices;
-// buying spends banked mushrooms. The world stands still while the window is open.
 public class ShopMenu {
     private static final String[] CHOICES = {"Talk", "Shop", "Leave"};
     private static final int TALK = 0, SHOP = 1, LEAVE = 2;
@@ -46,7 +44,6 @@ public class ShopMenu {
         gp.gameState = GameState.SHOP;
     }
 
-    // A teacher (Master Kuro) offers "Skills" instead of "Shop"; it opens the skill tree.
     public void openTrainer(NPC npc, boolean onSkills) {
         open(npc, null);
         trainer = true;
@@ -107,7 +104,6 @@ public class ShopMenu {
         buy(shop.offers.get(selected));
     }
 
-    // Buys one offer if it is not sold out and the bank can pay for it.
     void buy(Shop.Offer offer) {
         if (offer.soldOut()) {
             say(offer.limit() > 1 ? "Sold out." : "You already own it.", true);
@@ -147,7 +143,6 @@ public class ShopMenu {
         gp.gameState = GameState.PLAYING;
     }
 
-    // ---------------------------------------------------------------- drawing
 
     public void draw(Graphics2D g2) {
         if (npc == null) {

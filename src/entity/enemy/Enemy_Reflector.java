@@ -13,7 +13,6 @@ public class Enemy_Reflector extends Enemy_Slime {
         super(gp);
         name = "Reflector";
         mushroomValue = 2;
-        // steel-blue jelly: it throws bullets back, so it has to be cut
         useVariant("reflector", java.util.Map.of(
                 0xFF08270A, 0xFF081C28,
                 0xFF0B4A10, 0xFF0C364B,

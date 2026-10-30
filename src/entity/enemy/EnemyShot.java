@@ -19,6 +19,7 @@ public final class EnemyShot {
     public double vy;
     public double radius;
     public int damage = 1;
+    public boolean reflected;
     public double knockback = 6;
 
     public int age = 0;
@@ -100,6 +101,14 @@ public final class EnemyShot {
 
     public boolean armed() {
         return age >= delay;
+    }
+
+    public void reflectBySword() {
+        reflected = true;
+        vx = -vx;
+        vy = -vy;
+        curve = -curve;
+        damage = entity.Bullet.reflectedDamage(damage);
     }
 
     public double speed() {

@@ -124,6 +124,7 @@ public class Enemy_BYT extends Enemy {
         direction = "idle";
         setupEnemyStats("BYT", MAX_HEALTH, 1, CONTACT_DAMAGE);
         mushroomValue = 0;
+        experienceValue = 0; // This encounter cannot be won by killing BYT.
         setupDrawArea(
                 SPRITE_WIDTH,
                 SPRITE_HEIGHT,
@@ -620,12 +621,33 @@ public class Enemy_BYT extends Enemy {
     // Orbs and shards can be cut by melee; lances and grasps are area attacks and cannot.
     @Override
     public int cutProjectiles(Shape area) {
+        return interceptProjectiles(area, false);
+    }
+
+    @Override
+    public int reflectProjectiles(Shape area) {
+        return interceptProjectiles(area, true);
+    }
+
+    private int interceptProjectiles(Shape area, boolean reflect) {
         int cut = 0;
         Iterator<Orb> iterator = orbs.iterator();
         while (iterator.hasNext()) {
             Orb orb = iterator.next();
             double r = orb.radius * 0.8;
             if (area.intersects(orb.x - r, orb.y - r, r * 2, r * 2)) {
+                if (reflect) {
+                    EnemyShot returned = EnemyShot.small(this, orb.x, orb.y, Math.atan2(orb.vy, orb.vx),
+                            Math.hypot(orb.vx, orb.vy));
+                    returned.radius = orb.radius;
+                    returned.damage = SHOT_DAMAGE;
+                    returned.curve = orb.curve;
+                    returned.body = VIOLET;
+                    returned.core = PALE;
+                    returned.edge = DEEP;
+                    returned.reflectBySword();
+                    gp.enemyShots.add(returned);
+                }
                 spawnBurstParticles(orb.x, orb.y, 8, 1.8);
                 iterator.remove();
                 cut++;

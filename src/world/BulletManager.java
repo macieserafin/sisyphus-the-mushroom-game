@@ -35,6 +35,14 @@ public class BulletManager {
     }
 
     public int cutEnemyBullets(Shape area) {
+        return interceptEnemyBullets(area, false);
+    }
+
+    public int reflectEnemyBullets(Shape area) {
+        return interceptEnemyBullets(area, true);
+    }
+
+    private int interceptEnemyBullets(Shape area, boolean reflect) {
         int cut = 0;
         Iterator<Bullet> iterator = bullets.iterator();
 
@@ -43,8 +51,12 @@ public class BulletManager {
             if (bullet.alive && bullet.getFaction() == Faction.ENEMY && area.intersects(bullet.getWorldSolidArea())) {
                 Rectangle box = bullet.getWorldSolidArea();
                 gp.effects.sparks(box.getCenterX(), box.getCenterY(), -bullet.velX, -bullet.velY, 5, EffectsManager.SPARK);
-                bullet.alive = false;
-                iterator.remove();
+                if (reflect) {
+                    bullet.reflectBySword(gp.player);
+                } else {
+                    bullet.alive = false;
+                    iterator.remove();
+                }
                 cut++;
             }
         }

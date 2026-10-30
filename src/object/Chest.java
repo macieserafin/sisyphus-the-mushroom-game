@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.Random;
 
-// Bumping into a chest opens it: either a power-up with a few mushrooms, or a big handful of mushrooms.
 public class Chest extends SuperObject {
     private static final int SMALL_LOOT = 4;
     private static final int BIG_LOOT = 15;

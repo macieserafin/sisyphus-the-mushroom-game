@@ -146,7 +146,6 @@ public class EffectsManager {
         }
     }
 
-    // A word or number that pops up, rises and fades (damage numbers, DETONATE, SWAP!).
     public void text(double worldX, double worldY, String text, Color color, int scale) {
         FloatText t = new FloatText();
         t.x = worldX + (random.nextDouble() - 0.5) * 10;
@@ -159,7 +158,6 @@ public class EffectsManager {
         texts.add(t);
     }
 
-    // An expanding ring on the ground or in the air (shockwaves, detonations, cut projectiles).
     public void ring(double worldX, double worldY, double maxRadius, int ticks, Color color, boolean ground) {
         Ring r = new Ring();
         r.x = worldX;
@@ -171,7 +169,6 @@ public class EffectsManager {
         rings.add(r);
     }
 
-    // A full-screen flash, drawn over the world (phase changes, detonations).
     public void flash(int ticks, Color color, float alpha) {
         flashTicks = flashTotalTicks = ticks;
         flashColor = color;
@@ -227,7 +224,6 @@ public class EffectsManager {
         Composite oldComposite = g2.getComposite();
         for (FloatText t : texts) {
             int age = t.maxLife - t.life;
-            // pop in big, settle, fade at the end
             int scale = age < 4 ? t.scale + 1 : t.scale;
             float alpha = t.life < 12 ? t.life / 12f : 1f;
             int width = main.UiSkin.PixelFont.width(t.text, scale);

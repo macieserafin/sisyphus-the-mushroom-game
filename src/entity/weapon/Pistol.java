@@ -68,6 +68,7 @@ public class Pistol implements RangedWeapon {
                 .velocity(shotVector[0] * bulletSpeed, shotVector[1] * bulletSpeed)
                 .rangeTiles(BULLET_RANGE_TILES)
                 .damage(BULLET_DAMAGE)
+                .appearance(Bullet.Appearance.PISTOL)
                 .owner(owner)
                 .faction(Faction.PLAYER)
                 .build();

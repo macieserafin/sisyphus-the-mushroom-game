@@ -7,6 +7,7 @@ import entity.combat.HitResult;
 import entity.combat.HitType;
 import entity.CombatState;
 import main.GamePanel;
+import main.Progression;
 import main.Sound;
 import object.MushroomPickup;
 import story.QuestLog;
@@ -37,8 +38,8 @@ public class Enemy extends Entity {
     private final int contactDamageCooldownFrames = 60;
     private int damageFlashFramesLeft = 0;
     private boolean deathHandled = false;
-    // Mushrooms dropped on death during a run. Bosses are worth more, summoned minions nothing.
     protected int mushroomValue = 1;
+    protected int experienceValue = 2;
     private final Random random = new Random();
 
     // Marks: player shots stack marks (bosses), a sword hit detonates them for heavy damage.
@@ -49,7 +50,6 @@ public class Enemy extends Entity {
     private int marks = 0;
     private int markTimer = 0;
     private int markCooldown = 0;
-    // Adaptation: after a long streak of one attack mode the enemy starts shrugging it off.
     private static final int ADAPT_START_TICKS = 720;
     private static final int ADAPT_FULL_TICKS = 1080;
     private static final int ADAPT_IDLE_TICKS = 180;
@@ -67,6 +67,7 @@ public class Enemy extends Entity {
     protected void setupEnemyStats(String name, int maxHealth, int speed, int attackDamage) {
         this.name = name;
         this.maxHealth = maxHealth;
+        this.experienceValue = Math.max(1, Math.min(100, (int) Math.round(maxHealth / 6.0)));
         this.health = maxHealth;
         this.speed = speed;
         this.attackDamage = attackDamage;
@@ -221,7 +222,6 @@ public class Enemy extends Entity {
         }
     }
 
-    // For sounds an enemy makes by itself: silent when it is more than about a screen away from the player.
     protected void playNear(int sound) {
         double range = gp.tileSize * 10.0;
         if (Math.hypot(worldX - gp.player.worldX, worldY - gp.player.worldY) <= range) {
@@ -243,7 +243,6 @@ public class Enemy extends Entity {
         return HitResult.APPLIED;
     }
 
-    // After landing a jump on top of the player, push the player out of the body so they never get stuck inside it.
     protected void shovePlayerOut() {
         Rectangle body = getWorldSolidArea();
         Rectangle player = gp.player.getWorldSolidArea();
@@ -287,8 +286,6 @@ public class Enemy extends Entity {
         return new double[0];
     }
 
-    // Final damage of a hit, with the player's swap strike, resistance, adaptation and mark detonation applied.
-    // Also pops the damage numbers.
     protected int resolveDamage(Hit hit) {
         boolean fromPlayer = hit.source() == gp.player;
         if (!fromPlayer) {
@@ -424,12 +421,28 @@ public class Enemy extends Entity {
         return 0;
     }
 
+    public int reflectProjectiles(Shape area) {
+        return 0;
+    }
+
     public void handleDeathOnce() {
         if (deathHandled) {
             return;
         }
         deathHandled = true;
         Rectangle box = getWorldHitBox();
+        if (experienceValue > 0 && gp.progression.level() < Progression.MAX_LEVEL) {
+            int levels = gp.progression.gainExperience(experienceValue);
+            gp.effects.text(box.getCenterX(), box.y - 24, "+" + experienceValue + " XP", new Color(0x8FD0C8), 1);
+            if (levels > 0) {
+                gp.ui.showMessage("Level " + gp.progression.level() + "! +" + levels
+                        + (levels == 1 ? " skill point" : " skill points"));
+                Rectangle playerBox = gp.player.getWorldHitBox();
+                gp.effects.text(playerBox.getCenterX(), playerBox.y - 32, "LEVEL UP!", EffectsManager.GOLD[0], 2);
+                gp.effects.ring(playerBox.getCenterX(), playerBox.getCenterY(), 64, 24, EffectsManager.GOLD[1], false);
+                gp.playSoundEffect(Sound.SKILL_LEARN);
+            }
+        }
         gp.effects.burst(box.getCenterX(), box.getCenterY(), 14, 2.2, EffectsManager.SPORES);
         if (mushroomValue > 0 && gp.levelManager.isRunActive()) {
             MushroomPickup.scatter(gp, box.getCenterX(), box.getMaxY(), mushroomValue);
@@ -547,7 +560,6 @@ public class Enemy extends Entity {
         drawMarks((Graphics2D) g2);
     }
 
-    // Golden pips above the enemy, one per mark; they blink when about to fade.
     protected void drawMarks(Graphics2D g2) {
         if (!usesMarks || marks == 0 || !alive) {
             return;

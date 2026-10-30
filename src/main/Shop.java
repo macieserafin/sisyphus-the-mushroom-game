@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntSupplier;
 
-// What a village NPC sells: a neutral line said when the shop opens and a few offers paid with banked mushrooms.
 public class Shop {
     public static class Offer {
         public final String name;
@@ -15,7 +14,6 @@ public class Shop {
         private final int limit;
         private final Runnable purchase;
 
-        // 'bought' counts how many were already bought; the offer is sold out at 'limit'.
         public Offer(String name, String description, IntSupplier price, IntSupplier bought, int limit, Runnable purchase) {
             this.name = name;
             this.description = description;
@@ -58,7 +56,6 @@ public class Shop {
         this.offers = Arrays.asList(offers);
     }
 
-    // ---- the village shops
 
     public static Shop merchant(GamePanel gp) {
         Progression p = gp.progression;

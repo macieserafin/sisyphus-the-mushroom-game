@@ -104,7 +104,6 @@ public final class UiSkin {
     public static final int SHIELD_W = 11 * P;
     public static final int SHIELD_H = 11 * P;
 
-    // Shield point in the HUD: full (blue), empty, or the empty one partly refilled from the bottom while regenerating.
     public static void shield(Graphics2D g2, int x, int y, double fill) {
         BufferedImage full = cached("shield", 1, 0, RED, () -> sprite(SHIELD, Map.of(
                 'o', OUTLINE, 'h', 0xCFF4FF, 'r', 0x5AB4E0, 'd', 0x2A6A9A)));

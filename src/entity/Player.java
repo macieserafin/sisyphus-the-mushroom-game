@@ -53,16 +53,13 @@ public class Player extends Entity {
     private static final double FACING_HYSTERESIS_RADIANS = Math.toRadians(10);
     // The slash trail reaches past the blade tip, matching the melee hitbox reach.
     private static final int SMEAR_REACH_ART_PIXELS = 3;
-    // Roll (melee mode): slow, cannot be hurt. Dash (ranged mode): very fast, still hittable.
     private static final int ROLL_TICKS = 28;
     private static final double ROLL_START_SPEED = 6.4;
     private static final double ROLL_END_SPEED = 2.6;
     private static final int ROLL_COOLDOWN_TICKS = 180;
-    // rolling into an enemy hurts it and throws it clear of the roll; a boss throws the player back instead
     private static final int ROLL_DAMAGE = 4;
     private static final double ROLL_KNOCKBACK = 10.0;
     private static final int ROLL_BOUNCE_INVINCIBLE_TICKS = 24;
-    // Shield: absorbs hits before the hearts and regenerates one point at a time after a while without being hit.
     private static final int BASE_MAX_SHIELD = 2;
     private static final int BASE_MAX_HEALTH = 3;
     private static final int SHIELD_REGEN_DELAY = 240;
@@ -184,7 +181,6 @@ public class Player extends Entity {
     public void setDefaultValues() {
         setWorldPosition(gp.tileSize * 23, gp.tileSize * 21);
 
-        // base stats plus the permanent upgrades bought in the village
         maxSpeed = BASE_MAX_SPEED + gp.progression.bonusSpeed();
         speed = (int)Math.round(maxSpeed);
         runDamageMultiplier = 1.0;
@@ -403,7 +399,6 @@ public class Player extends Entity {
         updateAnimation();
     }
 
-    // Q toggles the mode, or (option "Q melee, E range") Q picks melee and E picks ranged.
     private void updateModeKeys() {
         boolean q = keyH.qPressed;
         boolean e = keyH.ePressed;
@@ -450,7 +445,6 @@ public class Player extends Entity {
             dirX = facing.unitX;
             dirY = facing.unitY;
         }
-        // roll and dash are learned from Master Kuro; until then SPACE does nothing
         if (combatState == CombatState.MELEE && rollCooldown == 0 && gp.progression.hasSkill(Skill.ROLL)) {
             startManeuver(dirX, dirY);
             rollHitEnemies.clear();
@@ -613,7 +607,6 @@ public class Player extends Entity {
         return SWAP_BONUS;
     }
 
-    // While boss projectiles are around, a pulsing dot shows the core that they can hit. Drawn above the shots.
     public void drawProjectileCore(Graphics2D g2) {
         if (!alive || scriptedHidden || gp.enemyShots.count() == 0) {
             return;
@@ -916,7 +909,6 @@ public class Player extends Entity {
         double speed = vectorLength(velX, velY);
         boolean hasInput = inputX != 0 || inputY != 0;
 
-        // a footstep every few tiles of walking, not while rolling or dashing
         if (hasInput && rollTicks == 0 && dashTicks == 0) {
             stepDistance += speed;
             if (stepDistance >= STEP_SOUND_DISTANCE) {
@@ -1319,7 +1311,6 @@ public class Player extends Entity {
 
     private void updateMeleeAttack() {
         if (aim == null || combatState != CombatState.MELEE) {
-            // nothing left to swing at (should not happen; kept so a stray state can never crash the game)
             stopMeleeAttack();
             return;
         }
@@ -1368,13 +1359,16 @@ public class Player extends Entity {
             }
         }
 
-        // Melee cuts enemy projectiles, so attacks that cannot be dodged can still be answered.
-        int cut = gp.bulletManager.cutEnemyBullets(attackArea) + gp.enemyShots.cut(attackArea);
-        for (Enemy enemy : gp.entities.enemies()) {
-            cut += enemy.cutProjectiles(attackArea);
-        }
-        if (cut > 0) {
-            hitSomething = true;
+        if (gp.progression.hasSkill(Skill.PROJECTILE_CUT)) {
+            boolean reflect = gp.progression.hasSkill(Skill.PROJECTILE_REFLECT);
+            int cut = reflect ? gp.bulletManager.reflectEnemyBullets(attackArea) + gp.enemyShots.reflect(attackArea)
+                    : gp.bulletManager.cutEnemyBullets(attackArea) + gp.enemyShots.cut(attackArea);
+            for (Enemy enemy : gp.entities.enemies()) {
+                cut += reflect ? enemy.reflectProjectiles(attackArea) : enemy.cutProjectiles(attackArea);
+            }
+            if (cut > 0) {
+                hitSomething = true;
+            }
         }
 
         if (hitSomething) {
@@ -1536,7 +1530,6 @@ public class Player extends Entity {
             return;
         }
 
-        // the shield takes the hit before the hearts do
         ticksSinceHit = 0;
         shieldRegenTicks = 0;
         int absorbed = Math.min(shield, damage);

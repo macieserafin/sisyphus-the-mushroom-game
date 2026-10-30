@@ -4,14 +4,13 @@ import entity.combat.Hit;
 import entity.combat.HitResult;
 import entity.combat.HitType;
 import entity.enemy.EnemyShot;
+import entity.enemy.Enemy;
 import main.GamePanel;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
-// Boss projectiles and hazards (bullet-hell patterns). Shots hit the player's small projectile hitbox; a rolling
-// player passes through them untouched; the sword cuts SMALL shots.
 public class EnemyShotManager {
     private final GamePanel gp;
     private final List<EnemyShot> shots = new ArrayList<>();
@@ -44,7 +43,6 @@ public class EnemyShotManager {
         return shots;
     }
 
-    // Removes every shot of one owner, with a pop (a boss dying or changing phase).
     public void clearOwner(Object owner, boolean pop) {
         spawned.removeIf(s -> s.owner == owner);
         for (EnemyShot s : shots) {
@@ -79,6 +77,10 @@ public class EnemyShotManager {
             if (!s.alive || !s.armed()) {
                 continue;
             }
+            if (s.reflected) {
+                hitEnemies(s);
+                continue;
+            }
             if (s.kind == EnemyShot.Kind.ZONE && s.age == s.delay) {
                 gp.effects.ring(s.x, s.y, s.radius * 1.3, 14, s.core, true);
                 gp.effects.burst(s.x, s.y, 6, 2.2, EffectsManager.GOO);
@@ -96,6 +98,19 @@ public class EnemyShotManager {
             }
         }
         shots.removeIf(s -> !s.alive);
+    }
+
+    private void hitEnemies(EnemyShot shot) {
+        for (Enemy enemy : gp.entities.enemies()) {
+            if (!enemy.alive || !touches(shot, enemy.getWorldHitBox())) continue;
+            HitResult result = enemy.receiveHit(new Hit(shot.damage, HitType.RANGED, gp.player,
+                    (int) shot.x, (int) shot.y, shot.knockback, null));
+            if (result == HitResult.APPLIED || result == HitResult.BLOCKED) {
+                shot.alive = false;
+                gp.effects.burst(shot.x, shot.y, 8, 2.0, impactColors(shot));
+                return;
+            }
+        }
     }
 
     private void moveBall(EnemyShot s) {
@@ -167,10 +182,18 @@ public class EnemyShotManager {
 
     // Sword swing: SMALL shots inside the swing are destroyed; HEAVY ones only spark. Returns how many were cut.
     public int cut(Shape area) {
+        return intercept(area, false);
+    }
+
+    public int reflect(Shape area) {
+        return intercept(area, true);
+    }
+
+    private int intercept(Shape area, boolean reflect) {
         int cut = 0;
         boolean clanged = false;
         for (EnemyShot s : shots) {
-            if (!s.alive || !s.armed()) {
+            if (!s.alive || !s.armed() || s.reflected) {
                 continue;
             }
             if (s.kind != EnemyShot.Kind.SMALL && s.kind != EnemyShot.Kind.HEAVY) {
@@ -181,7 +204,11 @@ public class EnemyShotManager {
                 continue;
             }
             if (s.kind == EnemyShot.Kind.SMALL) {
-                s.alive = false;
+                if (reflect) {
+                    s.reflectBySword();
+                } else {
+                    s.alive = false;
+                }
                 cut++;
                 gp.effects.burst(s.x, s.y, 5, 2.4, impactColors(s));
                 gp.effects.ring(s.x, s.y, 16, 8, s.core, false);
@@ -223,7 +250,6 @@ public class EnemyShotManager {
             return;
         }
         if (!s.armed()) {
-            // spawning: a growing blob with a blinking warning ring
             double t = s.age / (double) Math.max(1, s.delay);
             int r = snap(s.radius * (0.4 + 0.6 * t), scale);
             g2.setComposite(AlphaComposite.SrcOver.derive(0.5f));
@@ -232,7 +258,6 @@ public class EnemyShotManager {
             g2.setComposite(AlphaComposite.SrcOver);
             return;
         }
-        // trail for fast shots
         double speed = s.speed();
         if (speed > 3.5) {
             g2.setComposite(AlphaComposite.SrcOver.derive(0.35f));

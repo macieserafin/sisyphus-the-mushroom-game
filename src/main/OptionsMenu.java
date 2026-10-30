@@ -5,12 +5,10 @@ import main.ControlSettings.Action;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 
-// Options screen (title and pause menu). Two pages: the options themselves and the key bindings.
-// handle() returns true when the player leaves the options.
 public class OptionsMenu {
-    private static final int DISPLAY = 0, SCALING = 1, MUSIC = 2, EFFECTS = 3, MUTE = 4, CONTROLS = 5,
-            KEYS = 6, LIGHTING = 7, DETAIL = 8, MOTION = 9, SHAKE = 10, FLASH = 11, FONT = 12, RESET = 13, BACK = 14,
-            ITEM_COUNT = 15;
+    private static final int DISPLAY = 0, SCALE = 1, SCALING = 2, MUSIC = 3, EFFECTS = 4, MUTE = 5, CONTROLS = 6,
+            KEYS = 7, LIGHTING = 8, DETAIL = 9, MOTION = 10, SHAKE = 11, FLASH = 12, FONT = 13, RESET = 14, BACK = 15,
+            ITEM_COUNT = 16;
     private static final int BAR_SEGMENTS = 10;
     private static final int KEY_ROWS = Action.values().length + 2; // the actions, then "Reset keys" and "Back"
 
@@ -76,6 +74,10 @@ public class OptionsMenu {
             case DISPLAY:
                 gp.display.setMode(direction < 0 ? gp.display.mode().previous() : gp.display.mode().next());
                 break;
+            case SCALE:
+                gp.display.changeWindowScale(direction);
+                gp.playSoundEffect(Sound.UI_MOVE);
+                break;
             case SCALING:
                 gp.visuals.cycleScaling(direction);
                 gp.playSoundEffect(Sound.UI_MOVE);
@@ -127,6 +129,7 @@ public class OptionsMenu {
                 gp.playSoundEffect(Sound.UI_MOVE);
                 break;
             case RESET:
+                gp.display.setWindowScale(1);
                 gp.display.setMode(DisplayManager.Mode.WINDOWED);
                 gp.audio.reset();
                 gp.controls.resetAll();
@@ -143,7 +146,6 @@ public class OptionsMenu {
         }
     }
 
-    // ------------------------------------------------------------------ key bindings page
 
     private void handleKeys(int code) {
         if (capturing != null) {
@@ -188,7 +190,6 @@ public class OptionsMenu {
         gp.playSoundEffect(Sound.UI_BACK);
     }
 
-    // ------------------------------------------------------------------ drawing
 
     public void draw(Graphics2D g2, int y) {
         if (keysPage) {
@@ -217,6 +218,11 @@ public class OptionsMenu {
                 case DISPLAY:
                     g2.drawString("Display mode", x + 33, textY);
                     drawValue(g2, "< " + gp.display.mode().label + " >", right, textY, active);
+                    break;
+                case SCALE:
+                    g2.drawString("Window size", x + 33, textY);
+                    drawValue(g2, "< " + gp.display.windowScale() + "x   " + gp.display.windowedWidth() + " x "
+                            + gp.display.windowedHeight() + " >", right, textY, active);
                     break;
                 case SCALING:
                     g2.drawString("Scaling", x + 33, textY);

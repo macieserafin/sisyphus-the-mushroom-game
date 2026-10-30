@@ -2,7 +2,6 @@ package main;
 
 import save.Settings;
 
-// Options that make the game easier on the eyes: how hard the screen shakes and how bright the flashes are.
 public class ComfortSettings {
     public static final int[] SHAKE_LEVELS = {100, 50, 0};
 

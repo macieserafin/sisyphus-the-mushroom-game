@@ -117,13 +117,11 @@ public class NPC_Villager extends NPC {
         walkPixelsLeft = (random.nextInt(2) + 1) * gp.tileSize;
     }
 
-    // A teacher asks "Talk or Skills?" and opens the skill tree.
     public NPC_Villager teaches() {
         teacher = true;
         return this;
     }
 
-    // Shopkeepers ask "Talk or Shop?" before anything else.
     public NPC_Villager sells(Shop shop) {
         this.shop = shop;
         return this;

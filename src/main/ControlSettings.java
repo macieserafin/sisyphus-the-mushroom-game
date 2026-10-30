@@ -6,9 +6,6 @@ import java.awt.event.KeyEvent;
 import java.util.EnumMap;
 import java.util.Map;
 
-// Control options, saved in the settings file.
-// Mode keys: TOGGLE = Q switches between melee and ranged; SEPARATE = Q selects melee, E selects ranged.
-// Key bindings: the gameplay keys can be rebound; menus keep W/S/A/D, the arrows, ENTER and ESC.
 public class ControlSettings {
     public enum ModeKeys {
         TOGGLE("Q toggles"),
@@ -75,7 +72,6 @@ public class ControlSettings {
         settings.put(MODE_KEYS_KEY, modeKeys.name());
     }
 
-    // ------------------------------------------------------------------ key bindings
 
     public int key(Action action) {
         return bindings.get(action);
@@ -85,7 +81,6 @@ public class ControlSettings {
         return KeyEvent.getKeyText(key(action)).toUpperCase();
     }
 
-    // Keys with a fixed job: ESC, ENTER, TAB, M (mute), 1 and 2 (weapon slots) and the function keys.
     public static boolean isReserved(int code) {
         return code == KeyEvent.VK_ESCAPE || code == KeyEvent.VK_ENTER || code == KeyEvent.VK_TAB
                 || code == KeyEvent.VK_M || code == KeyEvent.VK_1 || code == KeyEvent.VK_2

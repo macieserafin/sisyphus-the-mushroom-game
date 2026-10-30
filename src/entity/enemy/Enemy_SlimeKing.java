@@ -21,10 +21,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
-// The Slime King: a long bullet-hell fight that forces switching between melee and ranged.
-// Phase 1: the shell alternates between CRYSTAL (bullets bounce, the blade works) and GEL (the blade sinks
-// in, bullets work); shots mark him and a sword hit detonates the marks; he adapts to a mode used for too long.
-// Phase 2: guards and a barrier. Phase 3: desperate body attacks, messy spits and exhaustion windows.
 public class Enemy_SlimeKing extends Enemy {
     private static final String SHEET_PATH = "enemy/slime_king.png";
     private static final int FRAME_W = 40;
@@ -53,14 +49,11 @@ public class Enemy_SlimeKing extends Enemy {
     private static final int SHELL_WARNING = 60;
     private static final int MAX_MINIONS = 4;
     private static final double HEART_DROP_CHANCE = 0.5;
-    // chance that a hit knocks a heart out of the King (much higher for a mark detonation)
     private static final double HEART_FROM_HIT = 0.02;
     private static final double HEART_FROM_DETONATION = 0.3;
 
-    // phase 2 starts below 65% health, phase 3 below 30%
     private static final double PHASE_2_AT = 0.65;
     private static final double PHASE_3_AT = 0.30;
-    // phase 2: once both guards are stunned the barrier is down this long
     private static final int EXPOSE_TICKS = 660;
 
     private enum Shell { GEL, CRYSTAL }
@@ -158,7 +151,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // ---------------------------------------------------------------- rules
 
     @Override
     protected double resistance(HitType type) {
@@ -213,12 +205,10 @@ public class Enemy_SlimeKing extends Enemy {
             return HitResult.REFLECTED;
         }
         if (phase == 2 && exposedTicks == 0) {
-            // the barrier: golden sparks off its surface
             gp.effects.sparks(hit.sourceWorldX(), hit.sourceWorldY(), hit.sourceWorldX() - box.getCenterX(),
                     hit.sourceWorldY() - box.getCenterY(), 4, EffectsManager.GOLD);
         } else if (hit.type() == HitType.RANGED && shell == Shell.CRYSTAL && state != State.DAZED
                 && state != State.PANIC_EXHAUSTED && phase != 2) {
-            // bullets ring off the crystal
             gp.effects.sparks(hit.sourceWorldX(), hit.sourceWorldY(), hit.sourceWorldX() - box.getCenterX(),
                     hit.sourceWorldY() - box.getCenterY(), 4, EffectsManager.SPARK);
         }
@@ -246,7 +236,6 @@ public class Enemy_SlimeKing extends Enemy {
 
     private static final Color[] CRYSTAL_SHARDS = {new Color(0xD5BFEB), new Color(0x8F55B5), new Color(0x552575)};
 
-    // ---------------------------------------------------------------- update
 
     @Override
     public void update() {
@@ -276,7 +265,6 @@ public class Enemy_SlimeKing extends Enemy {
         updateDrawArea();
     }
 
-    // ---------------------------------------------------------------- phase 2: the guards and the barrier
 
     // The barrier is down exactly while both guards are stunned; exposedTicks is how long until the first one gets up.
     private void updateGuards() {
@@ -322,7 +310,6 @@ public class Enemy_SlimeKing extends Enemy {
         return guard;
     }
 
-    // SPLIT: the King roars, jumps to the middle and two guards tear out of his body
     private void updateSplit() {
         if (t == 1) {
             gp.enemyShots.clearOwner(this, true);
@@ -347,7 +334,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // MERGE: swallowing the court fails to save him; his controlled patterns give way to panic.
     private void updateMerge() {
         if (t == 1) {
             merging = true;
@@ -478,7 +464,6 @@ public class Enemy_SlimeKing extends Enemy {
         return phase == 1 && shellTimer < SHELL_WARNING && (shellTimer / 4) % 2 == 0;
     }
 
-    // ---------------------------------------------------------------- rest and hops
 
     private void updateRest() {
         int wait = phase == 2 ? restTicks * 3 / 2 : restTicks;
@@ -487,7 +472,6 @@ public class Enemy_SlimeKing extends Enemy {
             return;
         }
         if (t == 8 && restTicks > 30 && phase != 2) {
-            // reposition with a hop: keep a fighting distance from the player
             double[] p = playerCenter();
             double angle = random.nextDouble() * Math.PI * 2;
             double distance = 170 + random.nextDouble() * 80;
@@ -545,7 +529,6 @@ public class Enemy_SlimeKing extends Enemy {
         return false;
     }
 
-    // ---------------------------------------------------------------- phase 3: losing control
 
     private double desperation() {
         return Math.max(0, Math.min(1, 1 - health / (maxHealth * PHASE_3_AT)));
@@ -553,7 +536,6 @@ public class Enemy_SlimeKing extends Enemy {
 
     private void beginPanicCombo() {
         panicActionsLeft = health <= maxHealth * 0.10 ? 3 : 2;
-        // A battered shell changes between bursts, never in the middle of a dodge.
         shell = shell == Shell.GEL ? Shell.CRYSTAL : Shell.GEL;
         shellTimer = SHELL_PERIOD;
         Rectangle box = getWorldHitBox();
@@ -587,7 +569,6 @@ public class Enemy_SlimeKing extends Enemy {
             panicTargetX = target[0];
             panicTargetY = target[1];
             panicFlightTicks = move == PanicMove.BODY_THROW ? 14 : (int) Math.round(26 - 5 * desperation());
-            // Existing jump animation includes ten crouch ticks before flight.
             gp.enemyShots.add(EnemyShot.zone(this, panicTargetX, panicTargetY - 8,
                     move == PanicMove.BODY_THROW ? 88 : 80, panicWindupTicks + 10 + panicFlightTicks));
         }
@@ -691,7 +672,6 @@ public class Enemy_SlimeKing extends Enemy {
         } else {
             panicExhaustTicks = health <= maxHealth * 0.10 ? 96 : 114;
             enter(State.PANIC_EXHAUSTED);
-            // Clear his own mess so both weapons get a real, approachable punish window.
             gp.enemyShots.clearOwner(this, true);
             Rectangle box = getWorldHitBox();
             gp.effects.text(box.getCenterX(), box.y - 25, "EXHAUSTED!", EffectsManager.GOLD[0], 2);
@@ -703,11 +683,9 @@ public class Enemy_SlimeKing extends Enemy {
         if (t >= panicExhaustTicks) beginPanicCombo();
     }
 
-    // ---------------------------------------------------------------- phase 1/2 attacks
 
     private Attack nextAttack() {
         if (phase == 2) {
-            // he stays in the middle behind his barrier: rings and spirals only
             lastAttack = lastAttack == Attack.RING ? Attack.SPIRAL : Attack.RING;
             return lastAttack;
         }
@@ -751,7 +729,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // RING: a hop on the spot, then two rings of goo balls
     private void updateRing() {
         if (t < 10) {
             shake = (t / 2) % 2 == 0 ? -1 : 1;
@@ -771,7 +748,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // FAN: three puffed-up spits aimed at the player; the last one has a heavy drop in the middle
     private void updateFan() {
         int volley = t / 36;
         int local = t % 36;
@@ -800,7 +776,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // SLAM: a high jump onto the marked spot, a shockwave and heavy drops, then he is dazed (the punish window)
     private void updateSlam() {
         if (updateJump()) {
             double[] f = footCenter();
@@ -829,7 +804,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // SPIRAL: three rotating arms of goo, reversing direction halfway
     private void updateSpiral() {
         int duration = 180;
         if (t % 7 == 0 && t < duration) {
@@ -846,7 +820,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // SUMMON: a roar, and two slimes from the court: one spiky (shoot it) and one reflecting (cut it)
     private void updateSummon() {
         if (t == 20) {
             roarEffects();
@@ -868,6 +841,7 @@ public class Enemy_SlimeKing extends Enemy {
         col = Math.max(1, Math.min(gp.tileM.getWorldCols() - 2, col));
         row = Math.max(1, Math.min(gp.tileM.getWorldRows() - 2, row));
         minion.mushroomValue = 0; // summoned without end, so they must not be farmed
+        minion.experienceValue = 0;
         gp.entities.addEnemy(minion, col, row);
         minion.alert();
         minions.add(minion);
@@ -886,7 +860,6 @@ public class Enemy_SlimeKing extends Enemy {
         gp.entities.addFreeObject(heart);
     }
 
-    // A heart knocked out of the King's jelly, landing on his side facing the player.
     private void dropHeartTowardPlayer() {
         Rectangle body = getWorldSolidArea();
         double[] p = playerFeet();
@@ -906,7 +879,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // ---------------------------------------------------------------- effects
 
     private void landEffects(boolean big) {
         double[] f = footCenter();
@@ -957,7 +929,6 @@ public class Enemy_SlimeKing extends Enemy {
         gp.levelManager.onBossDefeated();
     }
 
-    // ---------------------------------------------------------------- contact
 
     @Override
     protected void updateContactDamage() {
@@ -979,8 +950,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // After a landing on top of the player, push the player out of the body so they are never stuck inside it.
-    // ---------------------------------------------------------------- drawing
 
     private void pickFrame() {
         if (hurtTicks > 0 && (state == State.REST || state == State.DAZED || state == State.PANIC_EXHAUSTED)) {
@@ -1125,7 +1094,6 @@ public class Enemy_SlimeKing extends Enemy {
         g.setStroke(oldStroke);
     }
 
-    // Phase 2: a golden dome while the barrier holds; once broken, the core blazes and a ring counts down.
     private void drawBarrier(Graphics2D g2) {
         Rectangle box = getWorldHitBox();
         int cx = (int) Math.round(box.getCenterX()) - gp.player.worldX + gp.player.screenX;
@@ -1142,7 +1110,6 @@ public class Enemy_SlimeKing extends Enemy {
             g2.setStroke(new BasicStroke(gp.scale));
             g2.setColor(new Color(0xF7EEC7));
             g2.drawOval(cx - w / 2, cy - h / 2, w, h);
-            // little hexagon-ish glints running around the dome
             for (int i = 0; i < 6; i++) {
                 double a = animClock * 0.04 + i * Math.PI / 3;
                 int gx = cx + (int) Math.round(Math.cos(a) * w / 2.0);
@@ -1150,7 +1117,6 @@ public class Enemy_SlimeKing extends Enemy {
                 g2.fillRect(gx - gp.scale, gy - gp.scale, gp.scale * 2, gp.scale * 2);
             }
         } else {
-            // the countdown: an arc that shrinks as the window closes
             double left = exposedTicks / (double) EXPOSE_TICKS;
             g2.setComposite(AlphaComposite.SrcOver.derive(0.9f));
             g2.setStroke(new BasicStroke(gp.scale * 2));
@@ -1172,7 +1138,6 @@ public class Enemy_SlimeKing extends Enemy {
 
     @Override
     protected void drawHealthBar(Graphics g2) {
-        // the boss bar at the top of the screen replaces the small bar
     }
 
     private void drawShadow(Graphics2D g2) {
@@ -1206,7 +1171,6 @@ public class Enemy_SlimeKing extends Enemy {
         }
     }
 
-    // ---------------------------------------------------------------- geometry
 
     private double[] footCenter() {
         return new double[]{worldX + gp.tileSize / 2.0, worldY + gp.tileSize};

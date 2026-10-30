@@ -58,7 +58,6 @@ public class GameSaves {
         return "slot" + slot + ".sav";
     }
 
-    // ------------------------------------------------------------------ slots
 
     public Summary summary(int slot) {
         if (slot < 1 || slot > SLOTS) {
@@ -99,7 +98,6 @@ public class GameSaves {
         return best;
     }
 
-    // Empties the slot and makes it the active one.
     public void startNew(int slot) {
         store.delete(file(slot));
         apply(new Properties());
@@ -109,7 +107,6 @@ public class GameSaves {
         saveNow();
     }
 
-    // Puts the slot's data into the game and makes it the active one; false when the slot is empty or unreadable.
     public boolean load(int slot) {
         Properties data = store.read(file(slot));
         if (data == null) {
@@ -140,7 +137,6 @@ public class GameSaves {
         return active;
     }
 
-    // Writes the active slot and lets go of it, back to the empty state of the title screen.
     public void deactivate() {
         if (active == 0) {
             return;
@@ -166,7 +162,6 @@ public class GameSaves {
         lastWritten = content(data);
     }
 
-    // ------------------------------------------------------------------ writing
 
     private void markDirty() {
         if (active > 0) {
@@ -174,7 +169,6 @@ public class GameSaves {
         }
     }
 
-    // Called every frame.
     public void tick() {
         if (active == 0) {
             return;
@@ -241,7 +235,6 @@ public class GameSaves {
         return data;
     }
 
-    // What the player is up to, shown on the slot card.
     private String stage() {
         if (!gp.storyFlags.isPrologueBytEncounterCompleted()) {
             return "Prologue";
@@ -263,7 +256,6 @@ public class GameSaves {
         return copy;
     }
 
-    // ------------------------------------------------------------------ older saves
 
     // Earlier versions kept one global bank, upgrades and skills in the system preferences. They become slot 1, with
     // the prologue marked as done (these players had already bought things in the village).

@@ -6,8 +6,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
-// The three save slots on the title screen. CONTINUE loads a filled slot, NEW_GAME starts a game in a slot (a filled one
-// is overwritten only after a second ENTER). X deletes a filled slot in both modes.
 public class SlotMenu {
     public enum Mode { CONTINUE, NEW_GAME }
 
@@ -30,7 +28,6 @@ public class SlotMenu {
         this.gp = gp;
     }
 
-    // Continue starts on the slot played last, New Game on the first empty slot.
     public void open(Mode mode) {
         this.mode = mode;
         confirm = Confirm.NONE;

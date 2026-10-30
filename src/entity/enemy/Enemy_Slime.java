@@ -12,9 +12,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 
-// A slime moves in hops. It wanders until it notices the player, gives a startled hop, then chases in longer hops.
-// Close enough, it squashes and trembles (the telegraph), lunges at where the player stood, and is left dazed for a
-// moment, which is the window to punish it.
 public class Enemy_Slime extends Enemy {
     private static final String SHEET_PATH = "enemy/slime.png";
     private static final int FRAME_W = 20;
@@ -177,7 +174,6 @@ public class Enemy_Slime extends Enemy {
         }
         animClock++;
         if (customFrame >= 0) {
-            // a subclass is animating a move of its own (charges, leaps)
             frame = customFrame;
             lift = customLift;
             shake = customShake;
@@ -205,7 +201,6 @@ public class Enemy_Slime extends Enemy {
                 }
             }
             case ALERT -> {
-                // a startled hop on the spot
                 velX = 0;
                 velY = 0;
                 lift = Math.sin(Math.PI * Math.min(1.0, stateFrames / 16.0)) * 3;
@@ -279,7 +274,6 @@ public class Enemy_Slime extends Enemy {
         }
     }
 
-    // Hops: wait on the ground, squash, fly (the only time the slime moves), land.
     private void updateHop(boolean chasing) {
         switch (hop) {
             case GROUND -> {
@@ -348,7 +342,6 @@ public class Enemy_Slime extends Enemy {
         hopFrames = 0;
     }
 
-    // Keeps slimes from stacking on top of each other.
     private double[] separation() {
         double pushX = 0;
         double pushY = 0;
@@ -512,7 +505,6 @@ public class Enemy_Slime extends Enemy {
         return out;
     }
 
-    // Knocked out for a while: sits dazed (x x eyes) without moving or attacking, then chases again.
     protected void stun(int ticks) {
         enter(State.DAZED);
         dazedFrames = ticks;
@@ -523,7 +515,6 @@ public class Enemy_Slime extends Enemy {
         velY = 0;
     }
 
-    // Skips noticing the player: used for slimes the Slime King summons.
     public void alert() {
         enter(State.CHASE);
         groundWaitFrames = 6;
@@ -563,7 +554,6 @@ public class Enemy_Slime extends Enemy {
         if (legacySprites || (alive && health < maxHealth)) super.drawHealthBar(g);
     }
 
-    // "!" above the head while the slime is startled
     private void drawAlertMark(Graphics2D g2) {
         int s = artScale;
         int x = getDrawScreenX() + drawWidth / 2 - s;

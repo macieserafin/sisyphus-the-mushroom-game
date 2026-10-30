@@ -30,7 +30,6 @@ public final class Settings {
         return settings;
     }
 
-    // Copies the settings the previous versions saved in the system preferences (once).
     public void importLegacy(Preferences prefs) {
         if (getBoolean(LEGACY_IMPORTED_KEY, false)) {
             return;
@@ -90,7 +89,6 @@ public final class Settings {
         flush();
     }
 
-    // Every key with the given prefix, for bulk resets.
     public void removePrefix(String prefix) {
         data.stringPropertyNames().stream().filter(k -> k.startsWith(prefix)).forEach(data::remove);
         flush();

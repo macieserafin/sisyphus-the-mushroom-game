@@ -69,7 +69,6 @@ public final class SaveStore {
         return root;
     }
 
-    // Last problem met while reading or writing, empty when everything went fine.
     public synchronized String warning() {
         return warning;
     }

@@ -45,7 +45,6 @@ public class WorldEntities {
         return object;
     }
 
-    // For drops that place themselves freely in the world (not on the tile grid).
     public SuperObject addFreeObject(SuperObject object) {
         if (object == null) {
             throw new IllegalArgumentException("Cannot spawn null object");

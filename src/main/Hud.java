@@ -87,6 +87,7 @@ public class Hud {
         drawAbility(g2, heartsX, slotY, UiSkin.Icon.ROLL, gp.player.rollReadiness(), melee, gp.progression.hasSkill(Skill.ROLL));
         drawAbility(g2, heartsX + ABILITY_SIZE + 6, slotY, UiSkin.Icon.DASH, gp.player.dashReadiness(), !melee, gp.progression.hasSkill(Skill.DASH));
         drawMushrooms(g2, heartsX + 2 * ABILITY_SIZE + 16, slotY);
+        drawExperience(g2, heartsX, slotY + ABILITY_SIZE + 8);
 
         if (gp.player.hasKey > 0) {
             int keyX = heartsX + 177;
@@ -97,7 +98,20 @@ public class Hud {
         }
     }
 
-    // Mushroom counter: in a run the mushrooms carried (not safe yet) above the bank, in the hub only the bank.
+    private void drawExperience(Graphics2D g2, int x, int y) {
+        Progression progression = gp.progression;
+        boolean maxLevel = progression.level() == Progression.MAX_LEVEL;
+        String label = "LV " + progression.level() + "   |   " + progression.skillPoints() + " SP";
+        shadowText(g2, label, x, y + 12, smallFont, UiSkin.GOLD);
+        int width = 171;
+        UiSkin.inset(g2, x, y + 18, width, 10);
+        double progress = maxLevel ? 1 : (double) progression.experience() / progression.experienceToNextLevel();
+        g2.setColor(SIDE_QUEST_COLOR);
+        g2.fillRect(x + 3, y + 21, (int) ((width - 6) * progress), 4);
+        String xp = maxLevel ? "MAX LEVEL" : progression.experience() + " / " + progression.experienceToNextLevel() + " XP";
+        shadowText(g2, xp, x, y + 42, smallFont, UiSkin.TEXT_DIM);
+    }
+
     private void drawMushrooms(Graphics2D g2, int x, int y) {
         boolean inRun = gp.levelManager.isRunActive();
         UiSkin.icon(g2, UiSkin.Icon.MUSHROOM, x + 12, y + ABILITY_SIZE / 2, 2, true);
@@ -114,8 +128,6 @@ public class Hud {
         g2.drawString(text, x, y);
     }
 
-    // Ability square (roll for melee, dash for ranged): it fills from the bottom while recharging and the icon lights up
-    // once it is full and usable in the current mode. Not learned yet: dark, with a lock.
     private void drawAbility(Graphics2D g2, int x, int y, UiSkin.Icon icon, double readiness, boolean active, boolean learned) {
         if (!learned) {
             UiSkin.inset(g2, x, y, ABILITY_SIZE, ABILITY_SIZE);
@@ -250,8 +262,6 @@ public class Hud {
         return tileColors[id];
     }
 
-    // Tracker under the minimap: only the names of the active quests (story first); objectives and progress
-    // live in the journal (J).
     private void drawQuests(Graphics2D g2, int x, int y) {
         List<QuestLog.Quest> active = gp.questLog.active();
         int shown = Math.min(QUESTS_SHOWN, active.size());

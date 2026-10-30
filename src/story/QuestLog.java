@@ -116,7 +116,6 @@ public class QuestLog {
         notices.clear();
     }
 
-    // Empties the log, for modes with their own quests (the demo).
     public void clear() {
         quests.clear();
         completed.clear();
@@ -124,7 +123,6 @@ public class QuestLog {
         notices.clear();
     }
 
-    // Adds a one-step quest that is active at once; its owner finishes it with complete().
     public void add(String id, String title, String objective) {
         if (!quests.containsKey(id)) {
             Quest quest = new Quest(id, true, title, objective, objective, 1, null);
@@ -141,7 +139,6 @@ public class QuestLog {
         quests.put(id, new Quest(id, false, title, description, objective, target, null));
     }
 
-    // ------------------------------------------------------------------ progress
 
     public void start(String id) {
         Quest quest = quests.get(id);
@@ -219,7 +216,6 @@ public class QuestLog {
         setProgress(VILLAGE, visitedHouses.size());
     }
 
-    // ------------------------------------------------------------------ saving
 
     public void save(Properties out) {
         for (Quest quest : quests.values()) {
@@ -233,7 +229,6 @@ public class QuestLog {
         out.setProperty("quests.houses", String.join(",", new java.util.TreeSet<>(visitedHouses)));
     }
 
-    // Starts from the fresh log and puts back the saved states, progress and the order of completion.
     public void load(Properties in) {
         reset();
         for (Quest quest : quests.values()) {
@@ -245,7 +240,6 @@ public class QuestLog {
                 quest.state = State.valueOf(saved[0].trim());
                 quest.progress = Math.max(0, Math.min(quest.target, Integer.parseInt(saved[1].trim())));
             } catch (IllegalArgumentException e) {
-                // keep the fresh state of this quest
             }
         }
         completed.clear();
@@ -271,7 +265,6 @@ public class QuestLog {
         return out;
     }
 
-    // Story flags and saved data are read every frame.
     public void sync(GamePanel gp) {
         if (gp.storyFlags.isPrologueTutorialCompleted()) complete(WAKE_UP);
         if (gp.storyFlags.isPrologueBytEncounterCompleted()) complete(BYT);
@@ -281,7 +274,6 @@ public class QuestLog {
         setProgress(SHOPPING, bought);
     }
 
-    // ------------------------------------------------------------------ queries
 
     public Quest get(String id) {
         return quests.get(id);
@@ -292,7 +284,6 @@ public class QuestLog {
         return quest != null && quest.state == State.ACTIVE;
     }
 
-    // Active quests, the current story step first.
     public List<Quest> active() {
         List<Quest> out = new ArrayList<>();
         for (Quest quest : quests.values()) {
@@ -303,7 +294,6 @@ public class QuestLog {
         return Collections.unmodifiableList(out);
     }
 
-    // Completed quests, most recent first.
     public List<Quest> completed() {
         return Collections.unmodifiableList(completed);
     }

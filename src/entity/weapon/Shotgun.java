@@ -64,6 +64,7 @@ public class Shotgun implements RangedWeapon {
                     .velocity(vector[0] * bulletSpeed, vector[1] * bulletSpeed)
                     .rangeTiles(BULLET_RANGE_TILES)
                     .damage(BULLET_DAMAGE)
+                    .appearance(Bullet.Appearance.SHOTGUN_PELLET)
                     .owner(owner)
                     .faction(Faction.PLAYER)
                     .build();

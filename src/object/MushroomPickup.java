@@ -9,8 +9,6 @@ import world.EffectsManager;
 import java.awt.*;
 import java.util.Random;
 
-// Currency dropped by enemies and chests. It pops out with a hop, bobs, is pulled toward a nearby player
-// and goes into the run's wallet on touch. A golden one is worth five. It blinks before it fades away.
 public class MushroomPickup extends SuperObject {
     public static final int BIG_VALUE = 5;
     private static final int MAX_PIECES = 12;
@@ -42,7 +40,6 @@ public class MushroomPickup extends SuperObject {
         solidAreaDefaultY = solidArea.y;
     }
 
-    // Splits a total into golden (5) and plain (1) mushrooms and throws them around a point.
     public static void scatter(GamePanel gp, double centerX, double groundY, int total) {
         int pieces = 0;
         while (total > 0 && pieces < MAX_PIECES - 1) {

@@ -12,6 +12,8 @@ import java.awt.image.BufferedImage;
 
 public class Bullet extends Entity {
     public static final int DEFAULT_SIZE = 8;
+    public enum Appearance { PISTOL, SHOTGUN_PELLET }
+    private Appearance appearance = Appearance.PISTOL;
 
     public double worldXf;
     public double worldYf;
@@ -194,6 +196,19 @@ public class Bullet extends Entity {
         setVelocity((dx / length) * speedLength, (dy / length) * speedLength);
     }
 
+    public static int reflectedDamage(int damage) {
+        return damage / 2 + damage % 2;
+    }
+
+    public void reflectBySword(Entity player) {
+        owner = player;
+        faction = Faction.PLAYER;
+        setVelocity(-velX, -velY);
+        damage = reflectedDamage(damage);
+        distanceTraveled = 0;
+        maxDistance = Math.max(maxDistance, 5 * gp.tileSize);
+    }
+
     public void draw(Graphics2D g2, int screenX, int screenY) {
         Color oldColor = g2.getColor();
 
@@ -201,13 +216,7 @@ public class Bullet extends Entity {
             g2.drawImage(image, screenX, screenY, null);
         }
         else {
-            g2.setColor(Color.YELLOW);
-            g2.fillRect(
-                    screenX,
-                    screenY,
-                    solidArea.width,
-                    solidArea.height
-            );
+            drawProjectile(g2, screenX, screenY);
         }
 
         if (gp.debugSettings.isOverlayEnabled()) {
@@ -221,6 +230,40 @@ public class Bullet extends Entity {
         }
 
         g2.setColor(oldColor);
+    }
+
+    private void drawProjectile(Graphics2D g2, int screenX, int screenY) {
+        Graphics2D projectile = (Graphics2D) g2.create();
+        try {
+            projectile.translate(screenX + solidArea.x + solidArea.width / 2.0,
+                    screenY + solidArea.y + solidArea.height / 2.0);
+            projectile.rotate(Math.atan2(velY, velX));
+            if (appearance == Appearance.SHOTGUN_PELLET) {
+                projectile.setColor(new Color(39, 43, 49));
+                projectile.fillOval(-3, -3, 6, 6);
+                projectile.setColor(new Color(137, 146, 155));
+                projectile.fillOval(-2, -2, 4, 4);
+                projectile.setColor(new Color(225, 232, 235));
+                projectile.fillRect(-1, -2, 2, 2);
+                projectile.setColor(new Color(78, 87, 99));
+                projectile.fillRect(-1, 1, 3, 1);
+            } else {
+                projectile.setColor(new Color(57, 36, 27));
+                projectile.fillPolygon(new int[]{-7, 2, 5, 7, 7, 5, 2, -7},
+                        new int[]{-3, -3, -2, -1, 1, 2, 3, 3}, 8);
+                projectile.setColor(new Color(193, 119, 62));
+                projectile.fillRect(-6, -2, 9, 4);
+                projectile.fillRect(3, -1, 3, 2);
+                projectile.setColor(new Color(245, 199, 128));
+                projectile.fillRect(-5, -2, 7, 1);
+                projectile.fillRect(2, -1, 3, 1);
+                projectile.setColor(new Color(125, 68, 39));
+                projectile.fillRect(-6, 1, 8, 1);
+                projectile.fillRect(-5, -2, 1, 4);
+            }
+        } finally {
+            projectile.dispose();
+        }
     }
 
     private String directionFromVelocity(double velocityX, double velocityY) {
@@ -275,6 +318,11 @@ public class Bullet extends Entity {
 
         public Builder image(BufferedImage image) {
             bullet.setImage(image);
+            return this;
+        }
+
+        public Builder appearance(Appearance appearance) {
+            bullet.appearance = java.util.Objects.requireNonNull(appearance);
             return this;
         }
 

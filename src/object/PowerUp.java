@@ -8,7 +8,6 @@ import main.UiSkin;
 import java.awt.*;
 import java.util.Random;
 
-// A simple stat bonus that lasts until the run ends. It floats above the ground in a coloured glow.
 public class PowerUp extends SuperObject {
     public enum Kind {
         HEART("Max health +1", new Color(0xF08C80)),

@@ -5,8 +5,6 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-// Pause menu. With an active save slot: Resume / Options / Save / Save and quit to title / Quit without saving.
-// Without one (the demo): Resume / Options / Back to title.
 public class PauseMenu {
     private enum Item {
         RESUME("Resume"),

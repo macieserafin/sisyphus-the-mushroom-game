@@ -140,7 +140,7 @@ public class GamePanel extends JPanel implements Runnable {
     public GameState gameState;
 
     public GamePanel() {
-        this.setPreferredSize(new Dimension(screenWidth, screenHeight));
+        this.setPreferredSize(new Dimension(display.windowedWidth(), display.windowedHeight()));
         this.setBackground(Color.black);
         this.setDoubleBuffered(true);
         this.addKeyListener(keyH);
@@ -154,7 +154,6 @@ public class GamePanel extends JPanel implements Runnable {
         gameState = GameState.MENU;
         applyAudioSettings();
         titleMenu.refresh();
-        // closing the window writes the active slot once more
         Runtime.getRuntime().addShutdownHook(new Thread(() -> saves.saveNow(), "save-on-exit"));
     }
 
@@ -243,7 +242,6 @@ public class GamePanel extends JPanel implements Runnable {
             long now = System.nanoTime();
             if (now - statsStart >= 1_000_000_000L) {
                 if (debugSettings.isOverlayEnabled()) {
-//                    System.out.println("UPS: " + ticks + "  FPS: " + frames);
                 }
                 ticks = 0;
                 frames = 0;
@@ -633,7 +631,6 @@ public class GamePanel extends JPanel implements Runnable {
         se.playEffect(i);
     }
 
-    // Plays one of several variants of an effect so repeated sounds (hits, pickups) do not wear on the ear.
     public void playSoundEffectOf(int... variants) {
         playSoundEffect(variants[random.nextInt(variants.length)]);
     }

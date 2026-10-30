@@ -5,7 +5,6 @@ import main.GamePanel;
 
 import java.util.Map;
 
-// A red slime covered in bone spikes: blades barely scratch it, so it has to be shot.
 public class Enemy_SpikySlime extends Enemy_Slime {
     private static final Map<Integer, Integer> PALETTE = Map.of(
             0xFF08270A, 0xFF28090B,

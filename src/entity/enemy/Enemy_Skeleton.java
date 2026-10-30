@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
 
-// Keeps its distance and commits to an aimed, telegraphed bone throw.
 public class Enemy_Skeleton extends Enemy {
     private enum Action { IDLE, WALK, THROW, HURT, DEATH }
 
@@ -30,7 +29,6 @@ public class Enemy_Skeleton extends Enemy {
         setupEnemyStats("Skeleton", 24, 2, 1);
         mushroomValue = 2;
         setupCollisionAreas(new Rectangle(14, 36, 20, 12), new Rectangle(10, 0, 28, 48));
-        // Native 16px art uses the same integer scale as the map tiles.
         setupDrawArea(gp.tileSize, gp.tileSize, 0, 0);
         direction = "down";
     }

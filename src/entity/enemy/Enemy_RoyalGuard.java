@@ -12,11 +12,6 @@ import java.awt.*;
 import java.util.Map;
 import java.util.Random;
 
-// Phase 2 of the Slime King: two big guards split off his body. They fight with their bodies more than with goo:
-//  CRYSTAL: purple, only the blade hurts it. Charges: aims (a red line), rushes in a straight line and is stunned
-//           for a moment when it slams into a wall or the player (BONK).
-//  GEL:     green, only shots hurt it. Leaps onto the player: a marked spot, a high jump, a crash landing.
-//           Now and then spits a small fan of goo (cut it).
 // Guards do not die: their health is a stun bar. Emptied, a guard stays down (no moving, no attacking) until the King
 // raises his barrier again; while both are down the barrier is broken (see Enemy_SlimeKing).
 public class Enemy_RoyalGuard extends Enemy_Slime {
@@ -24,11 +19,8 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
 
     private enum Move { NONE, CHARGE_AIM, CHARGE, BONK, LEAP_CROUCH, LEAP_AIR, LEAP_LAND }
 
-    // stun bars: the gel one is much smaller because guns hit softer than the blade
-    // (about 12 short-sword hits for the crystal one, about 13 pistol shots or 7 shotgun blasts for the gel one)
     private static final int CRYSTAL_STUN_BAR = 90;
     private static final int GEL_STUN_BAR = 40;
-    // chance that a hit with the right weapon knocks a heart out of the guard
     private static final double HEART_FROM_HIT = 0.04;
 
     private static final int CHARGE_COOLDOWN = 300;
@@ -74,6 +66,7 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         this.kind = kind;
         setupEnemyStats(kind == Kind.CRYSTAL ? "Crystal Guard" : "Gel Guard", kind == Kind.CRYSTAL ? CRYSTAL_STUN_BAR : GEL_STUN_BAR, 1, 1);
         mushroomValue = 3;
+        experienceValue = 0; // Guards are stunned, then dissolved by the King, rather than killed.
         setupCollisionAreas(
                 new Rectangle(-6, 20, 60, 28),
                 new Rectangle(-11, -2, 70, 50)
@@ -98,7 +91,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         return stunned;
     }
 
-    // The King raised his barrier again: get up with a full bar.
     public void recover() {
         if (!stunned || !alive) {
             return;
@@ -132,7 +124,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         }
     }
 
-    // When the King dies or swallows his guards.
     public void dissolve() {
         Rectangle box = getWorldHitBox();
         gp.effects.burst(box.getCenterX(), box.getCenterY(), 24, 4.0, kind == Kind.CRYSTAL ? CRYSTAL_SHARDS : EffectsManager.GOO);
@@ -154,7 +145,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         return result;
     }
 
-    // big and heavy: hits barely push it
     @Override
     public void applyKnockbackFrom(int sourceWorldX, int sourceWorldY, double force) {
         super.applyKnockbackFrom(sourceWorldX, sourceWorldY, force * 0.35);
@@ -172,7 +162,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         super.pauseMovement(frames);
     }
 
-    // no contact damage while flying over the player
     @Override
     protected void updateContactDamage() {
         if (move == Move.LEAP_AIR) {
@@ -181,7 +170,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         super.updateContactDamage();
     }
 
-    // ---------------------------------------------------------------- behaviour
 
     @Override
     public void setAction() {
@@ -323,7 +311,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         double minY = gp.tileSize * 2.2, maxY = gp.tileSize * (gp.tileM.getWorldRows() - 1.2);
         toX = Math.max(minX, Math.min(maxX, px));
         toY = Math.max(minY, Math.min(maxY, py));
-        // the landing spot erupts exactly when the guard comes down
         EnemyShot zone = EnemyShot.zone(this, toX, toY - 8, 70, LEAP_CROUCH_TICKS + LEAP_AIR_TICKS);
         zone.body = new Color(0x24AE21);
         zone.core = new Color(0xCDEFB9);
@@ -342,7 +329,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         gp.effects.burst(cx, cy, 6, 2.0, EffectsManager.GOO);
     }
 
-    // ---------------------------------------------------------------- helpers
 
     private double[] feet() {
         return new double[]{worldX + gp.tileSize / 2.0, worldY + gp.tileSize};
@@ -370,7 +356,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         return Math.hypot(player.getCenterX() - self.getCenterX(), player.getCenterY() - self.getCenterY());
     }
 
-    // ---------------------------------------------------------------- drawing
 
     @Override
     public void draw(Graphics g) {
@@ -390,7 +375,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
             drawStars(g2, cx, top + 14);
             return;
         }
-        // which weapon hurts it, floating above its head
         int size = 30;
         UiSkin.inset(g2, cx - size / 2, top - size / 2, size, size);
         g2.setColor(kind == Kind.CRYSTAL ? new Color(0x89201E) : new Color(0x1A4559));
@@ -398,7 +382,6 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         UiSkin.icon(g2, kind == Kind.CRYSTAL ? UiSkin.Icon.SWORD : UiSkin.Icon.PISTOL, cx, top, 2, true);
     }
 
-    // the charge lane: a dashed red line that blinks faster once the direction is locked
     private void drawAimLine(Graphics2D g2) {
         Rectangle box = getWorldHitBox();
         double sx = box.getCenterX() - gp.player.worldX + gp.player.screenX;

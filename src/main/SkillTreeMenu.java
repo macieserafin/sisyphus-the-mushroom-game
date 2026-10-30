@@ -7,9 +7,6 @@ import java.awt.event.KeyEvent;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-// Master Kuro's skill tree. Drawn as a tree: the root at the top, branches growing down, each node connected to the
-// one it grows from. Only the first movement techniques can be learned for now; the sealed nodes show where the
-// tree will grow. The world stands still while it is open.
 public class SkillTreeMenu {
     private static final int WIDTH = 700;
     private static final int HEIGHT = 470;
@@ -32,17 +29,17 @@ public class SkillTreeMenu {
 
     private static final int ROOT = 0;
     private static final List<Node> NODES = List.of(
-            new Node(null, 0, 0, -1, -1),            // 0 root: Kuro's teachings
-            new Node(Skill.ROLL, -2.6, 1, ROOT, -1),  // 1 movement
-            new Node(Skill.DASH, -1.4, 1, ROOT, -1),  // 2
-            new Node(null, -2, 2, 1, 2),             // 3
-            new Node(null, -2, 3, 3, -1),            // 4
-            new Node(null, 0, 1, ROOT, -1),          // 5 blade
-            new Node(null, 0, 2, 5, -1),             // 6
-            new Node(null, 0, 3, 6, -1),             // 7
-            new Node(null, 2, 1, ROOT, -1),          // 8 gun
-            new Node(null, 2, 2, 8, -1),             // 9
-            new Node(null, 2, 3, 9, -1)              // 10
+            new Node(null, 0, 0, -1, -1),
+            new Node(Skill.ROLL, -2.6, 1, ROOT, -1),
+            new Node(Skill.DASH, -1.4, 1, ROOT, -1),
+            new Node(null, -2, 2, 1, 2),
+            new Node(null, -2, 3, 3, -1),
+            new Node(Skill.PROJECTILE_CUT, 0, 1, ROOT, -1),
+            new Node(Skill.PROJECTILE_REFLECT, 0, 2, 5, -1),
+            new Node(null, 0, 3, 6, -1),
+            new Node(null, 2, 1, ROOT, -1),
+            new Node(null, 2, 2, 8, -1),
+            new Node(null, 2, 3, 9, -1)
     );
     private static final String[][] BRANCHES = {{"MOVEMENT", "-2"}, {"BLADE", "0"}, {"GUN", "2"}};
 
@@ -98,7 +95,6 @@ public class SkillTreeMenu {
         }
     }
 
-    // Moves to the closest node in the pressed direction (the root itself is not selectable).
     private void move(int dx, int dy) {
         Node from = NODES.get(selected);
         int best = -1;
@@ -138,11 +134,10 @@ public class SkillTreeMenu {
             say("Learn " + skill.requires.title + " first.", true);
             return;
         }
-        if (!gp.wallet.spend(skill.cost)) {
-            say("Not enough mushrooms. You need " + skill.cost + ".", true);
+        if (!gp.progression.purchaseSkill(skill)) {
+            say("Not enough skill points. You need " + skill.cost + ".", true);
             return;
         }
-        gp.progression.learn(skill);
         say("Learned " + skill.title + ".", false);
         gp.playSoundEffect(Sound.SKILL_LEARN);
     }
@@ -155,7 +150,6 @@ public class SkillTreeMenu {
         feedbackBad = bad;
     }
 
-    // ---------------------------------------------------------------- drawing
 
     public void draw(Graphics2D g2) {
         Font oldFont = g2.getFont();
@@ -170,6 +164,10 @@ public class SkillTreeMenu {
         int y = (gp.screenHeight - HEIGHT) / 2 - 12;
         UiSkin.frame(g2, x, y, WIDTH, HEIGHT);
         UiSkin.header(g2, gp.screenWidth / 2, y - 14, "SKILL TREE");
+        g2.setFont(smallFont);
+        g2.setColor(UiSkin.GOLD);
+        g2.drawString("LEVEL " + gp.progression.level() + "   |   SKILL POINTS: "
+                + gp.progression.skillPoints(), x + 20, y + 24);
 
         int cx = gp.screenWidth / 2;
         int top = y + 34;
@@ -211,7 +209,6 @@ public class SkillTreeMenu {
         return top + row * ROW_H + (row > 0 ? 6 : 0);
     }
 
-    // Elbow line from the bottom of the parent to the top of the child, lit once the child is learned.
     private void drawLink(Graphics2D g2, int parent, int child, int cx, int top) {
         Node p = NODES.get(parent), c = NODES.get(child);
         int px = nodeX(p.col(), cx), py = nodeY(p.row(), top) + NODE;
@@ -249,11 +246,10 @@ public class SkillTreeMenu {
             UiSkin.icon(g2, node.skill().icon, nx + NODE / 2, ny + NODE / 2, 2, learned);
             if (!learned) {
                 g2.setFont(smallFont);
-                String cost = String.valueOf(node.skill().cost);
+                String cost = node.skill().cost + " SP";
                 int w = g2.getFontMetrics().stringWidth(cost);
-                int tx = nx + NODE / 2 - (w + 14) / 2 + 14;
-                UiSkin.icon(g2, UiSkin.Icon.MUSHROOM, tx - 8, ny + NODE + 13, 1, true);
-                g2.setColor(gp.wallet.banked() >= node.skill().cost ? UiSkin.GOLD : UiSkin.TEXT_RED);
+                int tx = nx + NODE / 2 - w / 2;
+                g2.setColor(gp.progression.skillPoints() >= node.skill().cost ? UiSkin.GOLD : UiSkin.TEXT_RED);
                 g2.drawString(cost, tx, ny + NODE + 18);
             }
         }
@@ -275,7 +271,7 @@ public class SkillTreeMenu {
             g2.setFont(titleFont);
             g2.setColor(UiSkin.TEXT);
             g2.drawString(skill.title, tx, y + 28);
-            String status = learned ? "LEARNED" : gp.progression.canLearn(skill) ? "Cost: " + skill.cost + " mushrooms" : "Needs " + skill.requires.title;
+            String status = learned ? "LEARNED" : gp.progression.canLearn(skill) ? "Cost: " + skill.cost + " SP" : "Needs " + skill.requires.title;
             g2.setFont(smallFont);
             g2.setColor(learned ? BORDER_LEARNED : UiSkin.GOLD);
             int sw = g2.getFontMetrics().stringWidth(status);
@@ -290,7 +286,7 @@ public class SkillTreeMenu {
             g2.drawString(feedback, tx, y + 84);
         } else {
             g2.setColor(UiSkin.GOLD);
-            g2.drawString(gp.wallet.banked() + " mushrooms banked", tx, y + 84);
+            g2.drawString("Defeat enemies to level up. Each level grants 1 skill point.", tx, y + 84);
         }
     }
 

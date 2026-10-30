@@ -9,8 +9,6 @@ import world.EffectsManager;
 import java.awt.*;
 import java.util.Random;
 
-// A heart dropped by an enemy: it pops out with a little hop, bobs and glows, is pulled toward a nearby player and
-// heals one heart. It blinks before it fades away. At full health it stays on the ground for later.
 public class HeartPickup extends SuperObject {
     private static final int LIFETIME = 900;
     private static final int BLINK_FROM = 180;
@@ -50,7 +48,6 @@ public class HeartPickup extends SuperObject {
             gp.entities.removeObject(this);
             return;
         }
-        // pop-out hop
         if (height > 0 || vHeight > 0) {
             height = Math.max(0, height + vHeight);
             vHeight -= 0.45;
@@ -61,7 +58,6 @@ public class HeartPickup extends SuperObject {
                 gp.effects.dust(x, y, 0, 0, 3);
             }
         }
-        // drawn toward the player when close and not at full health
         Player p = gp.player;
         double px = p.worldX + gp.tileSize / 2.0, py = p.worldY + gp.tileSize * 0.8;
         double d = Math.hypot(px - x, py - y);
@@ -101,19 +97,16 @@ public class HeartPickup extends SuperObject {
         }
         int s = UiSkin.P;
         double bob = height > 0 ? height : Math.sin(age * 0.09) * 3 + 3;
-        // shadow
         Composite old = g2.getComposite();
         g2.setComposite(AlphaComposite.SrcOver.derive(0.3f));
         g2.setColor(Color.BLACK);
         g2.fillOval(sx - 5 * s, sy - s, 10 * s, 3 * s);
-        // soft glow
         float glow = 0.18f + 0.1f * (float) Math.sin(age * 0.15);
         g2.setComposite(AlphaComposite.SrcOver.derive(glow));
         g2.setColor(new Color(0xF08C80));
         int gy = sy - (int) Math.round(bob) - 7 * s;
         g2.fillOval(sx - 9 * s, gy - 8 * s, 18 * s, 16 * s);
         g2.setComposite(old);
-        // the heart itself, snapped to art pixels
         int hx = (sx - UiSkin.HEART_W / 2) / s * s;
         int hy = (gy - UiSkin.HEART_H / 2) / s * s;
         UiSkin.heart(g2, hx, hy, true);
