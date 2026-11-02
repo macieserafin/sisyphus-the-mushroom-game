@@ -1,7 +1,7 @@
 package entity.npc;
 
 import main.GamePanel;
-import main.Shop;
+import progression.Shop;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -129,6 +129,10 @@ public class NPC_Villager extends NPC {
 
     @Override
     public void speak() {
+        if(gp.narrative.enabled() && !silent) { gp.narrative.menu(this,this::talk,shop!=null||teacher?this::openService:null); return; }
+        openService();
+    }
+    protected void openService() {
         if (silent) {
             return;
         }
@@ -162,9 +166,11 @@ public class NPC_Villager extends NPC {
         if (conversations.isEmpty()) {
             return;
         }
-        String[] lines = conversations.get(conversationIndex);
+        String copy = gp.narrative.get("npc."+gp.narrative.npcId(this)+".talk");
+        String[] lines = gp.narrative.enabled() && !copy.isBlank() ? copy.split("\\|") : conversations.get(conversationIndex);
         conversationIndex = (conversationIndex + 1) % conversations.size();
         walkPixelsLeft = 0;
         gp.dialogueManager.startBlocking(dialogueSpeaker(), Arrays.asList(lines));
+        if(gp.narrative.enabled())gp.narrative.trackTalk(this);
     }
 }

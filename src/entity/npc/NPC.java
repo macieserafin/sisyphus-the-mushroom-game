@@ -12,6 +12,7 @@ import java.util.List;
 
 public class NPC extends Entity {
     public String name;
+    public String storyId = "";
     private final List<String> dialogueLines = new ArrayList<>();
     private BufferedImage portrait;
     private Color dialogueAccentColor = Color.WHITE;
@@ -99,6 +100,12 @@ public class NPC extends Entity {
         return new DialogueSpeaker(name, portrait, dialogueAccentColor);
     }
 
+    @Override public void draw(Graphics graphics) {
+        super.draw(graphics);
+        if(gp.narrative==null)return;
+        int marker=gp.narrative.marker(this);
+        if(marker>0)ui.UiSkin.PixelFont.draw((Graphics2D)graphics,marker==1?"!":"?",worldX-gp.player.worldX+gp.player.screenX+18,worldY-gp.player.worldY+gp.player.screenY-20,2,ui.UiSkin.GOLD);
+    }
     @Override
     public void speak() {
         talk();

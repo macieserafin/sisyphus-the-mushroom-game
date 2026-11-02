@@ -26,9 +26,12 @@ public final class StoryScriptLoader {
 
     public static StorySequence load(String id, Map<String, Runnable> actions) {
         List<String> lines = readLines(SCRIPT_DIR + id + SCRIPT_EXTENSION);
-        return new Parser(id, lines, actions).parse();
+        return new Parser(id, lines, actions, Map.of()).parse();
     }
 
+    public static StorySequence load(String id, Map<String, Runnable> actions, Map<String, java.util.function.BooleanSupplier> waits) {
+        return new Parser(id, readLines(SCRIPT_DIR + id + SCRIPT_EXTENSION), actions, waits).parse();
+    }
     private static List<String> readLines(String path) {
         try (InputStream stream = StoryScriptLoader.class.getClassLoader().getResourceAsStream(path)) {
             if (stream != null) {
@@ -83,6 +86,7 @@ public final class StoryScriptLoader {
         private final String id;
         private final List<String> source;
         private final Map<String, Runnable> actions;
+        private final Map<String, java.util.function.BooleanSupplier> waits;
         private final Map<String, DialogueSpeaker> speakers = new LinkedHashMap<>();
         private final List<StorySequenceStep> steps = new ArrayList<>();
 
@@ -94,7 +98,8 @@ public final class StoryScriptLoader {
         private final List<String> currentLines = new ArrayList<>();
         private int lineNumber;
 
-        Parser(String id, List<String> source, Map<String, Runnable> actions) {
+        Parser(String id, List<String> source, Map<String, Runnable> actions, Map<String, java.util.function.BooleanSupplier> waits) {
+            this.waits = waits;
             this.id = id;
             this.source = source;
             this.actions = actions;
@@ -112,6 +117,11 @@ public final class StoryScriptLoader {
                 } else if (line.startsWith("!action ")) {
                     flush();
                     steps.add(StorySequenceStep.action(resolveAction(line.substring("!action ".length()).trim())));
+                } else if (line.startsWith("!await ")) {
+                    flush();
+                    var condition = waits.get(line.substring(7).trim());
+                    if (condition == null) throw error("Unknown wait condition");
+                    steps.add(StorySequenceStep.until(condition));
                 } else if (line.startsWith("!wait ")) {
                     flush();
                     steps.add(StorySequenceStep.waitFrames(parseInt(line.substring("!wait ".length()).trim())));

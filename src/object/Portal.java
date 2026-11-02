@@ -28,14 +28,14 @@ public class Portal extends SuperObject {
     }
 
     @Override
-    public void addLights(world.Lighting lighting) {
-        lighting.add(worldX + 24, worldY + 24, 150, world.Palette.VOID, 0.9f, 0.1f);
+    public void addLights(world.render.Lighting lighting) {
+        lighting.add(worldX + 24, worldY + 24, 150, world.render.Palette.VOID, 0.9f, 0.1f);
     }
 
     @Override
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
         if (gp.campaign.inCombat()) { gp.ui.showMessage("In combat: portal locked"); return; }
-        gp.playSoundEffect(main.Sound.PORTAL);
+        gp.playSoundEffect(audio.Sound.PORTAL);
         gp.blinkTransition(() -> gp.levelManager.transitionTo(target));
     }
 }

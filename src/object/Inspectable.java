@@ -23,6 +23,7 @@ public class Inspectable extends SuperObject {
 
     @Override
     public boolean onPlayerInteract(GamePanel gp, Player player) {
+        gp.playSoundEffect(audio.Sound.PAPER);
         gp.dialogueManager.startBlocking(NARRATION, Arrays.asList(lines));
         return true;
     }

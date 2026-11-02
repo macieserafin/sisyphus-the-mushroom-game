@@ -15,13 +15,22 @@ import java.util.Set;
 // reaches the village. Progress comes from game events (kills, chests, doors) or is read from the game state
 // every frame (story flags, banked mushrooms, purchases), so debug teleports and saved data stay in sync.
 public class QuestLog {
+    private Runnable onChange;
+    public void setOnChange(Runnable listener){onChange=listener;}
+    private void changed(){if(onChange!=null)onChange.run();}
+    private record Stage(String id, String objective, String when) {}
+    private Properties definitions;
     public enum State { HIDDEN, ACTIVE, DONE }
 
     public static final class Quest {
         public final String id;
         public final String title;
         public final String description;
-        public final String objective;
+        public String objective;
+        private List<Stage> stages = List.of();
+        private int stage;
+        public int stageIndex() { return stage; }
+        public boolean staged() { return !stages.isEmpty(); }
         public final boolean main;
         public final int target;
         private final String next;
@@ -62,6 +71,7 @@ public class QuestLog {
     public static final String GROTTO = "grotto";
     public static final String PESTS = "pests";
     public static final String CHESTS = "chests";
+    public static final String ELLIS = "ellis_notes";
 
     private static final int HOUSES = 5;
 
@@ -75,6 +85,7 @@ public class QuestLog {
     }
 
     public void reset() {
+        definitions = null;
         quests.clear();
         completed.clear();
         visitedHouses.clear();
@@ -97,6 +108,10 @@ public class QuestLog {
                 ChapterText.get("quest.sign.objective"), 1, null);
         side("wanderer", ChapterText.get("quest.wanderer.title"), ChapterText.get("quest.wanderer.description"),
                 ChapterText.get("quest.wanderer.objective"), 1);
+        side(ELLIS, ChapterText.get("quest.ellis.title"), ChapterText.get("quest.ellis.description"),
+                ChapterText.get("quest.ellis.objective"), 1);
+        for(String id:List.of("forest_smith","forest_witch","forest_dojo","core_research"))
+            side(id,ChapterText.get("quest."+id+".title"),ChapterText.get("quest."+id+".description"),ChapterText.get("quest."+id+".objective"),1);
         side(HOARD, "Mushroom Hoard",
                 "The shops take mushrooms and nothing else.",
                 "Carry 100 mushrooms.", 100);
@@ -127,6 +142,7 @@ public class QuestLog {
         if (!quests.containsKey(id)) {
             Quest quest = new Quest(id, true, title, objective, objective, 1, null);
             quest.state = State.ACTIVE;
+            changed();
             quests.put(id, quest);
         }
     }
@@ -144,6 +160,7 @@ public class QuestLog {
         Quest quest = quests.get(id);
         if (quest != null && quest.state == State.HIDDEN) {
             quest.state = State.ACTIVE;
+            changed();
             notices.add("New quest: " + quest.title);
             if (quest.progress >= quest.target) {
                 finish(quest);
@@ -154,10 +171,11 @@ public class QuestLog {
     // Sets progress; completes the quest when it reaches the target. Hidden quests remember progress for later.
     public void setProgress(String id, int value) {
         Quest quest = quests.get(id);
-        if (quest == null || quest.state == State.DONE) {
+        if (quest == null || quest.state == State.DONE || quest.staged()) {
             return;
         }
-        quest.progress = Math.max(0, Math.min(quest.target, value));
+        int next=Math.max(0,Math.min(quest.target,value));
+        if(next!=quest.progress){quest.progress=next;changed();}
         if (quest.progress >= quest.target && quest.state == State.ACTIVE) {
             finish(quest);
         }
@@ -175,17 +193,7 @@ public class QuestLog {
         if (quest == null || quest.state == State.DONE) {
             return;
         }
-        // finishing a later story step also closes the steps before it (e.g. after a debug teleport)
-        for (Quest earlier : quests.values()) {
-            if (earlier == quest) {
-                break;
-            }
-            if (earlier.main && quest.main && earlier.state != State.DONE) {
-                earlier.state = State.ACTIVE;
-                earlier.progress = earlier.target;
-                finish(earlier);
-            }
-        }
+        if (quest.staged()) return;
         quest.state = State.ACTIVE;
         quest.progress = quest.target;
         finish(quest);
@@ -193,15 +201,16 @@ public class QuestLog {
 
     private void finish(Quest quest) {
         quest.state = State.DONE;
+        changed();
         completed.add(0, quest);
         notices.add("Quest complete: " + quest.title);
         if (quest.next != null) {
             start(quest.next);
         }
-        if (quest.id.equals(BYT)) {
+        if (definitions == null && quest.id.equals(BYT)) {
             notices.add("New side quests in the journal [J]");
             for (Quest side : quests.values()) {
-                if (!side.main && !side.id.equals("wanderer")) {
+                if (!side.main && !side.id.equals("wanderer") && !side.id.equals(ELLIS)&&!side.id.startsWith("forest_")&&!side.id.equals("core_research")) {
                     side.state = State.ACTIVE;
                     if (side.progress >= side.target) {
                         finish(side);
@@ -212,7 +221,7 @@ public class QuestLog {
     }
 
     public void visitHouse(String house) {
-        visitedHouses.add(house);
+        if(visitedHouses.add(house))changed();
 
     }
 
@@ -266,7 +275,7 @@ public class QuestLog {
     }
 
     public void sync(GamePanel gp) {
-        if (gp.storyFlags.isPrologueTutorialCompleted()) complete(WAKE_UP);
+        if (gp.storyFlags.isPrologueTutorialCompleted() || gp.storyFlags.isPrologueBytEncounterCompleted()) complete(WAKE_UP);
         if (gp.storyFlags.isPrologueBytEncounterCompleted()) complete(BYT);
         setProgress(HOARD, gp.wallet.banked());
         int bought = gp.progression.healthUpgrades() + gp.progression.shieldUpgrades() + gp.progression.speedElixirs()
@@ -277,6 +286,56 @@ public class QuestLog {
 
     public Quest get(String id) {
         return quests.get(id);
+    }
+
+    public void configureStages(Properties data) {
+        definitions = data;
+        for (String id : data.getProperty("retiredQuests", "").split(",")) {
+            Quest removed = quests.remove(id.trim()); if (removed != null) completed.remove(removed);
+        }
+        for (String id : data.getProperty("quests", "").split(",")) {
+            id = id.trim(); if (id.isEmpty()) continue;
+            String prefix = "quest." + id + ".";
+            Quest old = quests.get(id);
+            if (old != null && old.staged()) continue;
+            Quest q = new Quest(id, Boolean.parseBoolean(data.getProperty(prefix+"main", "false")),
+                    data.getProperty(prefix+"title", id), data.getProperty(prefix+"description", ""), "", 1, null);
+            List<Stage> stages = new ArrayList<>();
+            for (String stage : data.getProperty(prefix+"stages", "").split(",")) {
+                if (stage.isBlank()) continue;
+                String key = prefix + stage.trim() + ".";
+                stages.add(new Stage(stage.trim(), data.getProperty(key+"objective", ""), data.getProperty(key+"when", "")));
+            }
+            q.stages = List.copyOf(stages); quests.put(id, q); if (old != null) completed.remove(old);
+        }
+    }
+    public void syncStages(NarrativeState facts) {
+        if (definitions == null) return;
+        for (Quest q : quests.values()) {
+            if (!q.staged() || q.state == State.DONE) continue;
+            if (q.state == State.HIDDEN && facts.matches(definitions.getProperty("quest."+q.id+".start", ""))) {
+                q.state=State.ACTIVE; notices.add("New quest: "+q.title);
+                changed();
+            }
+            if (q.state != State.ACTIVE) continue;
+            int previousStage=q.stage;
+            while (q.stage < q.stages.size() && !q.stages.get(q.stage).when().isBlank() && facts.matches(q.stages.get(q.stage).when())) q.stage++;
+            if(previousStage!=q.stage)changed();
+            if (q.stage == q.stages.size()) { q.progress=1; finish(q); }
+            else q.objective=q.stages.get(q.stage).objective();
+        }
+    }
+    public List<String> checklist(String id, NarrativeState facts) {
+        if(definitions==null)return List.of();
+        List<String> result=new ArrayList<>();
+        for(String entry:definitions.getProperty("quest."+id+".checklist", "").split(";")) {
+            String[] parts=entry.split("=",2);if(parts.length==2)result.add((facts.has(parts[0])?"[x] ":"[ ] ")+parts[1]);
+        }
+        return result;
+    }
+    public String stageId(String id) {
+        Quest q=get(id);
+        return q==null || !q.staged() || q.stage>=q.stages.size() ? "" : q.stages.get(q.stage).id();
     }
 
     public boolean has(String id) {

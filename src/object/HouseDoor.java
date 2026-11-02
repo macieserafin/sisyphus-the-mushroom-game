@@ -3,7 +3,7 @@ package object;
 import entity.Player;
 import level.TransitionTarget;
 import main.GamePanel;
-import main.Sound;
+import audio.Sound;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;

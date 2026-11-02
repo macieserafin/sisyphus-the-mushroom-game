@@ -156,6 +156,16 @@ public class Entity {
     }
 
     protected String idleFacing = "down";
+    public void scriptedStep(int x,int y) {
+        int dx=x-worldX,dy=y-worldY;
+        if(dx!=0||dy!=0)idleFacing=Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up");
+        direction=idleFacing;worldX=x;worldY=y;spriteNum=(++spriteCounter/12)%2+1;
+    }
+    public void scriptedFace(int x,int y) {
+        int dx=x-worldX,dy=y-worldY;
+        if(dx!=0||dy!=0)idleFacing=Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up");
+        direction="idle";spriteNum=1;
+    }
 
     protected BufferedImage currentImage() {
         if (direction == null) {

@@ -79,6 +79,7 @@ public final class PlayerAnimator {
     public boolean hasDeathAnimation() {
         return SpriteSheet.loadOptional(DEATH) != null;
     }
+    public static SpriteSheet deathSheet() { return SpriteSheet.loadOptional(DEATH); }
 
     public void die() {
         SpriteSheet deathSheet = SpriteSheet.loadOptional(DEATH);

@@ -304,6 +304,17 @@ public final class TileSet {
         object("fairy_ring", "Fairy ring", false, "fairy_ring");
         ground("grass_lush_4", "Lush grass (blue flowers)", false, GRASS, lush, "grass_lush_4");
         ground("grass_lush_5", "Lush grass (violet flowers)", false, GRASS, lush, "grass_lush_5");
+        grid("care_home", "Care home", 7, 5, "XXXXXXX", "XXXXXXX", "XXXXXXX", "XXXXXXX", "XXXXXXX");
+        grid("ellis_tent", "Canvas tent", 4, 3, "XXXX", "XXXX", "X..X");
+        object("grave_stone_worn", "Weathered gravestone", true, "grave_stone_worn");
+        object("grave_marker_wood", "Wooden memorial", true, "grave_marker_wood");
+        object("grave_plot", "Grave", false, "grave_plot");
+        object("wash_basin", "Wash basin", false, "wash_basin");
+        object("folded_linen", "Folded linen", false, "folded_linen");
+        grid("ellis_workbench", "Repair bench", 2, 1, "XX");
+        grid("wood_stack", "Stacked timber", 2, 1, "XX");
+        grid("research_shelter", "Research shelter", 4, 3, "XXXX", "X..X", "X..X");
+        grid("research_table", "Research table", 2, 1, "XX");
     }
 
     private TileSet() {

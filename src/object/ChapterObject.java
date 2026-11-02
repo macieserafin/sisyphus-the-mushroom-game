@@ -24,14 +24,14 @@ public final class ChapterObject extends SuperObject {
     @Override public boolean isInteractable() { return true; }
     public String interactionLabel(GamePanel gp) {
         if (kind == Kind.ANCHOR) return gp.campaign.inCombat() ? "Anchor locked during combat" :
-                gp.campaign.requiredRemaining() > 0 ? "Main encounters remaining: " + gp.campaign.requiredRemaining() : "ENTER: Bind pattern / Save";
+                gp.campaign.requiredRemaining() > 0 ? "Main encounters remaining: " + gp.campaign.requiredRemaining() : "ENTER: Bind return point / Save";
         return "ENTER: " + name;
     }
     @Override public boolean onPlayerInteract(GamePanel gp, Player player) {
         if (gp.campaign.inCombat()) { gp.ui.showMessage("In combat: interaction locked"); return true; }
         switch (kind) {
             case ANCHOR -> gp.campaign.bindAnchor();
-            case REST -> { player.debugRestoreVitals(); gp.ui.showMessage("Rested. Health and shield restored. Bind at the anchor to save"); }
+            case REST -> { player.debugRestoreVitals();gp.saves.requestProgressSave();gp.playSoundEffect(audio.Sound.REST);gp.ui.showMessage("Rested. Health and shield restored"); }
             case NOTE -> gp.campaign.say(gp.campaign.floor() == 2 ? "floor2.arrival" : "note.forest", "");
             case SIGN -> gp.campaign.foundSign();
             case DESCENT -> gp.campaign.requestDescent();
@@ -50,7 +50,7 @@ public final class ChapterObject extends SuperObject {
         g.setColor(gp.campaign.anchorOpen() ? new Color(0x91C6AD) : new Color(0x736D7D));
         if (!gp.visuals.reduceMotion() && tick/25%2==0 || gp.visuals.reduceMotion()) g.fillRect(x+21,y+15,6,9);
     }
-    @Override public void addLights(world.Lighting lighting) {
+    @Override public void addLights(world.render.Lighting lighting) {
         if (kind==Kind.ANCHOR) lighting.add(worldX+24,worldY+24,90,new Color(0x91C6AD),0.65f,0.04f);
     }
 }

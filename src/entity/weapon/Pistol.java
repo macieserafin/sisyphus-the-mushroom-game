@@ -6,7 +6,7 @@ import entity.Entity;
 import entity.MovementImpulse;
 import entity.anim.WeaponSprite;
 import entity.combat.Faction;
-import world.BulletManager;
+import world.combat.BulletManager;
 
 public class Pistol implements RangedWeapon {
     private static final double MOVEMENT_MULTIPLIER = 0.9;

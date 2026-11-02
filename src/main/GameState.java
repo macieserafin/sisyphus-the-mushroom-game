@@ -2,6 +2,7 @@ package main;
 
 public enum GameState {
     PLAYING,
+    MAP,
     PAUSED,
     DIALOGUE,
     CUTSCENE,

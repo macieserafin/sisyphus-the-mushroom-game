@@ -13,7 +13,8 @@ import java.util.Map;
 public final class PlayerAnimationGallery {
     private static final String[] STATES = {"idle", "walk", "sprint", "attack", "shoot", "hurt", "death", "roll", "dash"};
     private static final String[] NPCS = {"wanderer_mara", "guard", "blacksmith", "merchant", "karate_master", "mycologist",
-            "sage", "oldman", "villager_bram", "villager_fern", "villager_moss", "villager_pip"};
+            "sage", "oldman", "villager_bram", "villager_fern", "villager_moss", "villager_pip",
+            "ellis", "caregiver", "care_elder_a", "care_elder_b"};
     private static final String[] NPC_DIRECTIONS = {"down", "right", "up", "left"};
     private static final Map<String, BufferedImage> NPC_CACHE = new HashMap<>();
     private static final Direction8[] ORDER = {Direction8.S, Direction8.SE, Direction8.E, Direction8.NE,

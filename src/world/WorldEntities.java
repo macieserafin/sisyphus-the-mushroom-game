@@ -60,6 +60,7 @@ public class WorldEntities {
         }
         npc.worldX = col * gp.tileSize;
         npc.worldY = row * gp.tileSize;
+        npc.storyId=gp.narrative.npcId(npc);
         npcs.add(npc);
         return npc;
     }
@@ -70,12 +71,14 @@ public class WorldEntities {
         }
         enemy.worldX = col * gp.tileSize;
         enemy.worldY = row * gp.tileSize;
+        enemy.spawnWorldX=enemy.worldX;enemy.spawnWorldY=enemy.worldY;
         enemy.persistenceId = enemy.getClass().getSimpleName() + ":" + col + ":" + row;
         enemies.add(enemy);
         return enemy;
     }
 
     public void removeObject(SuperObject object) {
+        if(gp.saves!=null&&gp.campaign.started()&&!gp.campaign.restoring())gp.saves.requestProgressSave();
         if (!objects.remove(object)) {
             System.err.println("Object removal requested for object not in level: " + object);
         }

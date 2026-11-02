@@ -1,7 +1,8 @@
 package entity.enemy;
 
 import main.GamePanel;
-import main.Sound;
+import audio.Sound;
+import object.HeartPickup;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -72,6 +73,7 @@ public class Enemy_Slime extends Enemy {
     private BufferedImage[] variantFrames;
 
     private final Random random = new Random();
+    protected double heartDropChance = 0.20;
     // screen pixels per art pixel; bigger slimes (the Slime King) draw the same frames larger
     protected int artScale = 3;
 
@@ -106,9 +108,9 @@ public class Enemy_Slime extends Enemy {
     }
 
     @Override
-    public void addLights(world.Lighting lighting) {
+    public void addLights(world.render.Lighting lighting) {
         Rectangle box = getWorldHitBox();
-        lighting.add(box.getCenterX(), box.getCenterY(), 80, world.Palette.GOO_LIGHT, 0.45f, 0.06f);
+        lighting.add(box.getCenterX(), box.getCenterY(), 80, world.render.Palette.GOO_LIGHT, 0.45f, 0.06f);
     }
 
     protected Enemy_Slime(GamePanel gp, boolean legacySprites) {
@@ -574,6 +576,10 @@ public class Enemy_Slime extends Enemy {
         super.onDeath();
         Rectangle box = getWorldHitBox();
         gp.effects.burst(box.getCenterX(), box.getCenterY(), 10, 2.6, GOO);
+        if (gp.levelManager.isRunActive() && heartDropChance > 0
+                && (gp.debugSettings.areSlimeHeartsGuaranteed() || random.nextDouble() < heartDropChance)) {
+            gp.entities.addFreeObject(new HeartPickup(box.getCenterX(), box.getMaxY()));
+        }
         gp.playSoundEffect(Sound.SLIME_DEATH);
     }
 }

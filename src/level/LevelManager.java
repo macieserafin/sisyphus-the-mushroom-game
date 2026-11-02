@@ -13,8 +13,8 @@ public class LevelManager {
     private static final String BYT_ARENA_MAP_PATH = "maps/byt_arena.txt";
     private static final int PROLOGUE_PLAYER_SPAWN_COL = 12;
     private static final int PROLOGUE_PLAYER_SPAWN_ROW = 13;
-    private static final int RUN_PLAYER_SPAWN_COL = 22;
-    private static final int RUN_PLAYER_SPAWN_ROW = 108;
+    public static final int RUN_PLAYER_SPAWN_COL = 22;
+    public static final int RUN_PLAYER_SPAWN_ROW = 108;
     private static final int BOSS_ARENA_PLAYER_SPAWN_COL = 17;
     private static final int BOSS_ARENA_PLAYER_SPAWN_ROW = 22;
     private static final int BYT_ARENA_PLAYER_SPAWN_COL = 12;
@@ -65,7 +65,9 @@ public class LevelManager {
         activeBoss = null;
         gp.keyH.clearGameplayInput();
         gp.tileM.loadMap(HUB_MAP_PATH);
+        VillageScenes.applyLobby(gp.tileM,gp.village.ellisSettled());
         gp.player.setWorldPosition(col * gp.tileSize, row * gp.tileSize);
+        VillageScenes.ensureSafePlayerPosition(gp);
         gp.progression.applyWeapons(gp.player);
         gp.aSetter.setVillageObjects();
         gp.aSetter.setVillageNPCs();
@@ -83,6 +85,7 @@ public class LevelManager {
         gp.player.setWorldPosition(interior.spawnCol() * gp.tileSize, interior.spawnRow() * gp.tileSize - 4);
         gp.aSetter.setInterior(interior);
         gp.questLog.visitHouse(interior.name());
+        gp.narrative.visit(interior.name());
     }
 
     public void loadStoryLobby() {
@@ -100,6 +103,7 @@ public class LevelManager {
                 VillageLayout.SPAWN_COL * gp.tileSize,
                 VillageLayout.SPAWN_ROW * gp.tileSize
         );
+        VillageScenes.applyLobby(gp.tileM,gp.village.ellisSettled());
         gp.aSetter.setVillageObjects();
         gp.aSetter.setVillageNPCs();
         gp.ui.showMessage("You wake up somewhere almost safe.");
@@ -118,15 +122,17 @@ public class LevelManager {
     public void startRun() {
         if (gp.campaign.inCombat()) { gp.ui.showMessage("In combat: portals locked"); return; }
         if (gp.campaign.started()) {
-            if (!gp.campaign.anchorOpen()) { gp.ui.showMessage("No village connection on this floor"); return; }
+            if(gp.campaign.anchorOpen()&&!gp.forest.anchorTalk()){gp.campaign.say("forest.anchor.pending","");return;}
             runActive = true;
             loadManualRunFloor(false);
-            gp.player.setWorldPosition(146 * gp.tileSize, 8 * gp.tileSize);
+            if(gp.campaign.anchorOpen())gp.player.setWorldPosition(146 * gp.tileSize, 8 * gp.tileSize);
             return;
         }
+        java.util.Properties previous=gp.saves.snapshot();
         if (!gp.campaign.beginFloor()) return;
         runActive = true; floorNumber = 1;
         loadManualRunFloor();
+        if(!gp.saves.saveProgress())gp.saves.restoreSnapshot(previous);
     }
 
     public boolean isRunActive() {
@@ -149,6 +155,8 @@ public class LevelManager {
         gp.aSetter.setRunFloorObject();
         gp.aSetter.setRunFloorEnemy();
         gp.campaign.restoreMap();
+        VillageScenes.addForest(gp);
+        ForestScenes.objects(gp);
         gp.campaign.ensureReturnPortal();
         if (showMessage) {
             gp.ui.showMessage("Floor 1 - The Forest. Reach the anchor before the King");
@@ -156,10 +164,13 @@ public class LevelManager {
     }
 
     public void enterBossArena() {
+        if(gp.narrative.enabled() && !gp.campaign.anchorOpen()){gp.narrative.play(gp.narrative.get("anchorScene"));return;}
+        if(gp.campaign.started()&&(!gp.forest.documents()||!gp.forest.anchorTalk())){gp.campaign.say("forest.boss.locked","");return;}
         if (gp.campaign.started() && (!gp.campaign.anchorOpen() || gp.campaign.inCombat())) {
             gp.ui.showMessage("Bind at the anchor outside combat before entering"); return;
         }
         if (gp.campaign.started() && gp.campaign.bossCleared()) {
+            if(!gp.campaign.rewardClaimed()){gp.campaign.resumeReward();return;}
             gp.campaign.requestDescent(); return;
         }
         gp.player.setWeaponsLockedByArea(false);
@@ -193,7 +204,7 @@ public class LevelManager {
                 BOSS_ARENA_PLAYER_SPAWN_COL * gp.tileSize,
                 BOSS_ARENA_PLAYER_SPAWN_ROW * gp.tileSize
         );
-        activeBoss = gp.aSetter.setBossArenaEnemy();
+        activeBoss = gp.campaign.started()&&gp.campaign.bossCleared()?null:gp.aSetter.setBossArenaEnemy();
         gp.campaign.clearCombat();
         gp.ui.showMessage("Boss arena");
         gp.playAreaMusic();
@@ -268,6 +279,7 @@ public class LevelManager {
         gp.player.setWeaponsLockedByArea(false);
         gp.player.setWorldPosition(12 * gp.tileSize, 13 * gp.tileSize);
         gp.entities.addObject(new object.ChapterObject(object.ChapterObject.Kind.NOTE), 12, 10);
+        gp.entities.addObject(new object.Portal(TransitionTarget.hub()),12,15);
         gp.campaign.restoreMap();
     }
 
@@ -329,6 +341,8 @@ public class LevelManager {
     }
 
     public void clearLevel() {
+        if(gp.narrative!=null)gp.narrative.clearPendingTalk();
+        if(gp.sceneCamera!=null)gp.sceneCamera.reset();
         gp.campaign.captureCurrent();
         clearObjects();
         clearNPCs();

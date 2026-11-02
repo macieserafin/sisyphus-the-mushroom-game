@@ -2,9 +2,9 @@ package object;
 
 import entity.Player;
 import main.GamePanel;
-import main.Sound;
-import main.UiSkin;
-import world.EffectsManager;
+import audio.Sound;
+import ui.UiSkin;
+import world.render.EffectsManager;
 
 import java.awt.*;
 import java.util.Random;
@@ -116,6 +116,7 @@ public class MushroomPickup extends SuperObject {
             return;
         }
         gp.wallet.collect(value);
+        gp.saves.requestProgressSave();
         gp.effects.text(x, y - 46, "+" + value, GLOW, value >= BIG_VALUE ? 2 : 1);
         gp.effects.sparks(x, y - 20, 0, -1, value >= BIG_VALUE ? 8 : 4, EffectsManager.GOLD);
         gp.playSoundEffectOf(Sound.MUSHROOM_1, Sound.MUSHROOM_2, Sound.MUSHROOM_3);

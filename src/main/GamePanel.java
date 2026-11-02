@@ -1,5 +1,28 @@
 package main;
 
+import audio.AudioDirector;
+import audio.Sound;
+import debug.DebugSettings;
+import debug.ModMenu;
+import input.KeyHandler;
+import progression.MushroomWallet;
+import progression.Progression;
+import progression.Relics;
+import save.GameSaves;
+import settings.AudioSettings;
+import settings.ComfortSettings;
+import settings.ControlSettings;
+import settings.VisualSettings;
+import ui.ChoiceMenu;
+import ui.DisplayManager;
+import ui.OptionsMenu;
+import ui.PauseMenu;
+import ui.QuestMenu;
+import ui.ShopMenu;
+import ui.SkillTreeMenu;
+import ui.TitleMenu;
+import ui.UI;
+
 import dialogue.DialogueLine;
 import dialogue.DialogueManager;
 import dialogue.DialogueSpeaker;
@@ -22,13 +45,13 @@ import story.StoryFlags;
 import story.StorySequenceManager;
 import story.StorySequences;
 import tile.TileManager;
-import world.BulletManager;
-import world.Ambience;
-import world.ScreenFx;
+import world.combat.BulletManager;
+import world.render.Ambience;
+import world.render.ScreenFx;
 import world.CollisionChecker;
-import world.EffectsManager;
-import world.EnemyShotManager;
-import world.Lighting;
+import world.render.EffectsManager;
+import world.combat.EnemyShotManager;
+import world.render.Lighting;
 import world.WorldEntities;
 
 import javax.swing.*;
@@ -138,9 +161,19 @@ public class GamePanel extends JPanel implements Runnable {
     public Player player = new Player(this, keyH);
 
     public final level.Campaign campaign = new level.Campaign(this);
+    public final level.VillageProgress village = new level.VillageProgress(this);
+    public final level.ForestProgress forest = new level.ForestProgress(this);
     public final Relics relics = new Relics(this);
     public final ChoiceMenu choiceMenu = new ChoiceMenu(this);
 
+    public final ui.MinimapView minimapView = new ui.MinimapView(settings);
+    public final level.Exploration exploration = new level.Exploration();
+    public final world.render.SceneCamera sceneCamera = new world.render.SceneCamera(this);
+    public final ui.NarrativeView narrativeView = new ui.NarrativeView(this);
+    public final story.NarrativeDirector narrative = new story.NarrativeDirector(this);
+    public final ui.WorldMapMenu worldMap = new ui.WorldMapMenu(this);
+
+    public final AudioDirector audioDirector = new AudioDirector(this);
     public GameState gameState;
 
     public GamePanel() {
@@ -152,8 +185,12 @@ public class GamePanel extends JPanel implements Runnable {
         // Let TAB reach the key handler instead of moving keyboard focus.
         this.setFocusTraversalKeysEnabled(false);
         saves = new GameSaves(this);
+        wallet.setOnChange(saves::requestProgressSave);
+        progression.setOnChange(saves::requestProgressSave);
+        questLog.setOnChange(saves::requestProgressSave);
     }
 
+    public void clearQuestNotices() { questNotices.clear();questLog.drainNotices();ui.messageOn=false; }
     public void setupGame(){
         gameState = GameState.MENU;
         applyAudioSettings();
@@ -184,6 +221,7 @@ public class GamePanel extends JPanel implements Runnable {
         if (resume && storyFlags.isPrologueBytEncounterCompleted()) {
             gameState = GameState.PLAYING;
             saves.resumeWorld();
+            narrative.resume();
             playAreaMusic();
             ui.showMessage("Welcome back");
         } else {
@@ -273,6 +311,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void blinkTransition(Runnable destination) {
         if (blinkTravel != null) return;
+        audioDirector.dialogueEffect(Sound.TRANSITION);
         blinkTravel = destination;
         blinkTravelTick = 0;
         keyH.clearGameplayInput();
@@ -281,6 +320,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        audioDirector.update();
         saves.tick();
         if (blinkTravel != null) {
             ui.update(); effects.update();
@@ -290,11 +330,14 @@ public class GamePanel extends JPanel implements Runnable {
             }
             if (blinkTravelTick >= 48) {
                 blinkTravel = null;
-                player.endScriptedHold();
+                if(!campaign.rebirthing())player.endScriptedHold();
                 keyH.clearGameplayInput();
             }
             return;
         }
+        if (gameState == GameState.MOD_MENU) return;
+        if (narrativeView.modal()) { ui.update();narrativeView.tick(); return; }
+        if (gameState == GameState.MAP) return;
         if (gameState == GameState.CHOICE) { choiceMenu.update(); return; }
         if (gameState == GameState.MOD_MENU) return;
         if (gameState == GameState.MENU) {
@@ -336,7 +379,7 @@ public class GamePanel extends JPanel implements Runnable {
         }
         if (villageAwakeningPending && !storySequenceManager.isActive()) {
             villageAwakeningPending = false;
-            storySequenceManager.start(StorySequences.villageAwakening(this));
+            narrative.begin();
         }
         if (restartAfterDeathPending) {
             restartAfterDeathPending = false;
@@ -351,8 +394,11 @@ public class GamePanel extends JPanel implements Runnable {
         ui.update();
         dialogueManager.update();
         storySequenceManager.update();
+        sceneCamera.tick();
+        narrative.tick();
+        if (narrativeView.modal()) return;
 
-        if (storySequenceManager.isActive()) {
+        if (storySequenceManager.isActive() || narrative.busy()) {
             return;
         }
 
@@ -371,6 +417,12 @@ public class GamePanel extends JPanel implements Runnable {
                 return;
             }
             player.update();
+            if(campaign.started()&&!player.alive) {
+                for(Enemy enemy:new ArrayList<>(entities.enemies()))if(!enemy.alive)enemy.handleDeathOnce();
+                effects.update();return;
+            }
+            narrative.tickClock();
+            narrative.discoverViewport();
             if (storySequenceManager.isActive()) {
                 return;
             }
@@ -409,6 +461,7 @@ public class GamePanel extends JPanel implements Runnable {
             }
             entities.cleanupDeadEnemies();
             campaign.tick();
+            level.ForestScenes.tick(this);
         }
     }
 
@@ -521,6 +574,7 @@ public class GamePanel extends JPanel implements Runnable {
         player.drawProjectileCore(g2);
         ambience.drawLow(g2);
         lighting.draw(g2);
+        level.ForestScenes.drawTargets(g2,this);
         ambience.drawGlow(g2);
 
         for(Enemy enemy : entities.enemies()) {
@@ -593,9 +647,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void playMusic(int i) {
-        music.setFile(i);
-        music.play();
-        music.loop();
+        // The live scene chooses the track; legacy callers remain valid.
         currentMusic = i;
     }
 
@@ -612,13 +664,15 @@ public class GamePanel extends JPanel implements Runnable {
         playAreaMusic();
     }
 
-    // Pause menu "Quit without saving": the slot goes back to its last manual save (or to how it was loaded).
+    // Kept as the pause-menu entry point; active expeditions preserve their world.
     public void quitWithoutSaving() {
+        if(campaign.started()&&saves.isActive()&&!forest.isPreview()&&!saves.saveProgress())return;
         saves.abandon();
         returnToTitle();
     }
 
     public void returnToTitle() {
+        if(campaign.started()&&saves.isActive()&&!forest.isPreview()&&!saves.saveProgress())return;
         saves.deactivate();
         storySequenceManager.cancel();
         dialogueManager.clear();
@@ -661,6 +715,10 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
+    public Sound soundEffects() {
+        return se;
+    }
+
     public void playSoundEffect(int i) {
         if (gameState == GameState.CUTSCENE) {
             return;
@@ -680,11 +738,7 @@ public class GamePanel extends JPanel implements Runnable {
         se.stopAllEffects();
         gameState = GameState.CUTSCENE;
 
-        if (cutsceneMusic.hasResource(Sound.CUTSCENE_MUSIC)) {
-            cutsceneMusic.setFile(Sound.CUTSCENE_MUSIC);
-            cutsceneMusic.play();
-            cutsceneMusic.loop();
-        }
+
     }
 
     public void exitCutsceneMode(GameState nextState) {
@@ -743,8 +797,9 @@ public class GamePanel extends JPanel implements Runnable {
             tutorialRespawnPending = true;
             return;
         }
+        deathChoice=0;
+        if(campaign.started()){restartAfterDeathPending=true;return;}
         bossRetryAvailable = true;
-        deathChoice = 0;
         gameState = GameState.DEAD;
     }
 
@@ -785,7 +840,16 @@ public class GamePanel extends JPanel implements Runnable {
         }
         storySequenceManager.cancel(); dialogueManager.clear(); ui.clearBlink();
         bossRetryAvailable = false;
-        if (saves.respawn()) { gameState = GameState.PLAYING; playAreaMusic(); }
+        if(campaign.started()) {
+            if(!forest.isPreview()&&!saves.saveProgress()) {
+                bossRetryAvailable=true;gameState=GameState.DEAD;return;
+            }
+            gameState=GameState.PLAYING;
+            blinkTransition(()->{
+                if(saves.respawn()){gameState=GameState.PLAYING;playAreaMusic();}
+                else {bossRetryAvailable=true;gameState=GameState.DEAD;}
+            });
+        } else if(saves.respawn()){gameState=GameState.PLAYING;playAreaMusic();}
     }
 
     public void debugDamageActiveBoss(int damage) {

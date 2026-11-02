@@ -12,9 +12,11 @@ public final class MapMemory {
     public static Properties capture(GamePanel gp) {
         Properties p = new Properties();
         p.setProperty("captured", "true");
+        p.setProperty("version", "2");
         for (Enemy e : gp.entities.enemies()) if (!e.persistenceId.isEmpty() && e.alive) {
             String key = "enemy." + e.persistenceId;
             p.setProperty(key, e.health + "," + e.worldX + "," + e.worldY);
+            p.setProperty("maximum."+e.persistenceId,Integer.toString(e.maxHealth));
         }
         int dynamic = 0;
         for (SuperObject o : gp.entities.objects()) {
@@ -32,12 +34,23 @@ public final class MapMemory {
     }
 
     public static void restore(GamePanel gp, Properties p) {
+        restore(gp,p,false);
+    }
+    public static void restore(GamePanel gp, Properties p, boolean returned) {
         if (p == null || !Values.bool(p, "captured")) return;
         for (Enemy e : new ArrayList<>(gp.entities.enemies())) {
             String saved = p.getProperty("enemy." + e.persistenceId);
-            if (saved == null) { gp.entities.removeEnemy(e); continue; }
+            if (saved == null) {
+                if(e.newInWorldVersion&&Values.integer(p,"version",1)<2)continue;
+                gp.entities.removeEnemy(e); continue;
+            }
             String[] fields = saved.split(",");
-            try { e.restoreSnapshot(Integer.parseInt(fields[0]), Integer.parseInt(fields[1]), Integer.parseInt(fields[2])); }
+            try {
+                int x=Integer.parseInt(fields[1]),y=Integer.parseInt(fields[2]);
+                if(Values.integer(p,"version",1)<2&&e.relocatedSnapshot){x=e.worldX;y=e.worldY;}
+                e.restoreSnapshot(returned||Values.bool(p,"regenerate")?e.maxHealth:Integer.parseInt(fields[0]),x,y);
+                if(gp.cChecker.checkTileAt(e,e.worldX,e.worldY))e.restoreSnapshot(e.health,e.spawnWorldX,e.spawnWorldY);
+            }
             catch (RuntimeException ex) { throw new IllegalStateException("Invalid enemy snapshot", ex); }
         }
         for (SuperObject o : new ArrayList<>(gp.entities.objects())) {
@@ -55,6 +68,21 @@ public final class MapMemory {
                 default -> null;
             };
             if (o != null) { o.restoreSnapshot(state); gp.entities.addFreeObject(o); }
+        }
+    }
+
+    /** Only survivors have enemy entries. Missing entries remain permanently dead. */
+    public static void regenerateSurvivors(Properties world) {
+        for(String key:new ArrayList<>(world.stringPropertyNames())) {
+            if(!key.startsWith("world."))continue;
+            int split=key.indexOf('#');if(split<0)continue;
+            String prefix=key.substring(0,split+1),local=key.substring(split+1);
+            if(local.equals("captured"))world.setProperty(prefix+"regenerate","true");
+            if(local.startsWith("enemy.")) {
+                String max=world.getProperty(prefix+"maximum."+local.substring(6));
+                String[] fields=world.getProperty(key).split(",");
+                if(max!=null&&fields.length==3)world.setProperty(key,max+","+fields[1]+","+fields[2]);
+            }
         }
     }
 }

@@ -2,9 +2,9 @@ package object;
 
 import entity.Player;
 import main.GamePanel;
-import main.Sound;
-import main.UiSkin;
-import world.EffectsManager;
+import audio.Sound;
+import ui.UiSkin;
+import world.render.EffectsManager;
 
 import java.awt.*;
 import java.util.Random;
@@ -66,6 +66,7 @@ public class HeartPickup extends SuperObject {
         if (age > LIFETIME) {
             gp.effects.burst(x, y - 20, 6, 1.2, PINK);
             gp.entities.removeObject(this);
+        gp.saves.requestProgressSave();
             return;
         }
         if (height > 0 || vHeight > 0) {

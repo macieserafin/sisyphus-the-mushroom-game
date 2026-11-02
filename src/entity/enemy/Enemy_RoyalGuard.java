@@ -4,9 +4,9 @@ import entity.combat.Hit;
 import entity.combat.HitResult;
 import entity.combat.HitType;
 import main.GamePanel;
-import main.UiSkin;
+import ui.UiSkin;
 import object.HeartPickup;
-import world.EffectsManager;
+import world.render.EffectsManager;
 
 import java.awt.*;
 import java.util.Map;
@@ -113,6 +113,7 @@ public class Enemy_RoyalGuard extends Enemy_Slime {
         }
         super.takeDamage(Math.min(damage, health - 1));
         if (health <= 1) {
+            gp.playSoundEffect(audio.Sound.GUARD_STUN);
             stunned = true;
             endMove();
             stun(Integer.MAX_VALUE / 4);

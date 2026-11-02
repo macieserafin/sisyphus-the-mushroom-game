@@ -3,7 +3,7 @@ package object;
 import dialogue.DialogueSpeaker;
 import entity.Player;
 import main.GamePanel;
-import main.Sound;
+import audio.Sound;
 
 import java.awt.*;
 

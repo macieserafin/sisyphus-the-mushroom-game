@@ -6,7 +6,7 @@ import entity.combat.Hit;
 import entity.combat.HitResult;
 import entity.combat.HitType;
 import main.GamePanel;
-import main.Sound;
+import audio.Sound;
 import story.StorySequences;
 
 import javax.imageio.ImageIO;
@@ -911,9 +911,9 @@ public class Enemy_BYT extends Enemy {
     }
 
     @Override
-    public void addLights(world.Lighting lighting) {
+    public void addLights(world.render.Lighting lighting) {
         Rectangle box = getWorldHitBox();
-        lighting.addShadowed(box.getCenterX(), box.getCenterY(), 250, world.Palette.PALE, 0.8f, 0.1f);
+        lighting.addShadowed(box.getCenterX(), box.getCenterY(), 250, world.render.Palette.PALE, 0.8f, 0.1f);
     }
 
     @Override

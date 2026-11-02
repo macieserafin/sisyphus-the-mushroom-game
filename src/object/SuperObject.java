@@ -11,6 +11,8 @@ public class SuperObject {
     public java.util.Properties snapshot() { return null; }
     public void restoreSnapshot(java.util.Properties state) {}
     public boolean isInteractable() { return false; }
+    public String interactionLabel(GamePanel gp){return "ENTER: "+name;}
+    public double interactionDistance(double x,double y,int tileSize){return Math.hypot(worldX+tileSize/2.0-x,worldY+tileSize/2.0-y);}
     public BufferedImage image;
     public String name;
     public boolean collision = false;
@@ -40,7 +42,7 @@ public class SuperObject {
     public void update(GamePanel gp) {
     }
 
-    public void addLights(world.Lighting lighting) {
+    public void addLights(world.render.Lighting lighting) {
     }
 
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {

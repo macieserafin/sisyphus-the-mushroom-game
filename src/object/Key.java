@@ -2,7 +2,7 @@ package object;
 
 import entity.Player;
 import main.GamePanel;
-import main.Sound;
+import audio.Sound;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;
@@ -25,6 +25,7 @@ public class Key extends SuperObject {
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
         player.hasKey++;
         gp.entities.removeObject(this);
+        gp.saves.requestProgressSave();
         gp.playSoundEffect(Sound.POWERUP_KEY);
         gp.ui.showMessage("You picked up key");
     }

@@ -153,13 +153,16 @@ public class DialogueManager {
             return;
         }
 
+        gp.audioDirector.dialogueEffect(audio.Sound.DIALOGUE_NEXT);
         DialogueLine nextLine = queue.poll();
         if (nextLine != null) {
             beginLine(nextLine);
             return;
         }
 
+        gp.audioDirector.dialogueEffect(audio.Sound.DIALOGUE_CLOSE);
         currentLine = null;
+        gp.narrative.dialogueEnded();
         visibleCharacters = 0;
         typewriterFrameCounter = 0;
 
@@ -206,6 +209,7 @@ public class DialogueManager {
     }
 
     private void beginLine(DialogueLine line) {
+        gp.audioDirector.dialogueEffect(audio.Sound.DIALOGUE_OPEN);
         currentLine = line;
         ambientFramesLeft = line == null ? 0 : line.durationFrames();
         visibleCharacters = line == null || line.text().isEmpty() ? 0 : 1;
@@ -243,6 +247,7 @@ public class DialogueManager {
 
         typewriterFrameCounter++;
         if (typewriterFrameCounter >= speed) {
+            gp.audioDirector.text(currentLine.text().charAt(visibleCharacters), currentLine.speaker().name());
             visibleCharacters++;
             typewriterFrameCounter = 0;
         }

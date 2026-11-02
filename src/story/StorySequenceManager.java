@@ -31,6 +31,7 @@ public class StorySequenceManager {
             return;
         }
 
+        if (activeSequence != null) cancel();
         activeSequence = sequence;
         currentStep = null;
         currentStepIndex = 0;
@@ -68,6 +69,9 @@ public class StorySequenceManager {
             case DIALOGUE:
                 updateDialogueStep();
                 break;
+            case UNTIL:
+                if (currentStep.ready()) advanceStep();
+                break;
             case WAIT_FRAMES:
                 updateWaitStep();
                 break;
@@ -83,6 +87,8 @@ public class StorySequenceManager {
     public boolean isActive() {
         return activeSequence != null;
     }
+
+    public String visualNovelBackground() { return visualNovelBackgroundPath; }
 
     public boolean isVisualNovelSequenceActive() {
         return activeSequence != null && cutsceneModeEntered && gp.gameState == GameState.CUTSCENE;
@@ -113,6 +119,7 @@ public class StorySequenceManager {
         }
         gp.dialogueManager.clear();
         finishSequence();
+        if(gp.narrative!=null)gp.narrative.onCancelled();
     }
 
     public void completeDialogueStep() {
@@ -147,6 +154,8 @@ public class StorySequenceManager {
                 } else {
                     gp.dialogueManager.startBlocking(currentStep.speaker(), currentStep.dialogueLines());
                 }
+                break;
+            case UNTIL:
                 break;
             case WAIT_FRAMES:
                 waitFramesLeft = currentStep.frames();

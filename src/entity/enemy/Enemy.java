@@ -7,11 +7,11 @@ import entity.combat.HitResult;
 import entity.combat.HitType;
 import entity.CombatState;
 import main.GamePanel;
-import main.Progression;
-import main.Sound;
+import progression.Progression;
+import audio.Sound;
 import object.MushroomPickup;
 import story.QuestLog;
-import world.EffectsManager;
+import world.render.EffectsManager;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -19,6 +19,10 @@ import java.util.Random;
 
 public class Enemy extends Entity {
     public String persistenceId = "";
+    public boolean newInWorldVersion;
+    public boolean relocatedSnapshot;
+    public int spawnWorldX,spawnWorldY;
+    public int territoryRadius;
     public boolean isEngaged() { return alive && gp.levelManager.getActiveBoss() == this; }
     public void restoreSnapshot(int hp, int x, int y) {
         health = Math.max(1, Math.min(maxHealth, hp)); alive = true;
@@ -318,9 +322,10 @@ public class Enemy extends Entity {
         }
 
         int detonation = 0;
-        if (usesMarks || gp.relics.active(main.Relics.Item.CROWN)) {
+        if (usesMarks || gp.relics.active(progression.Relics.Item.CROWN)) {
             if (hit.type() == HitType.RANGED) {
                 if (markCooldown == 0 && marks < gp.relics.markLimit()) {
+                    gp.playSoundEffect(Sound.MARK);
                     marks++;
                     markCooldown = 4;
                     gp.effects.ring(box.getCenterX(), box.getCenterY(), 22 + marks * 4, 10, new Color(0xF2C46A), false);
@@ -345,8 +350,9 @@ public class Enemy extends Entity {
     }
 
     private void detonate(Rectangle box, int count, int damage) {
+        gp.playSoundEffect(Sound.DETONATE);
         double cx = box.getCenterX(), cy = box.getCenterY();
-        gp.lighting.pulse(cx, cy, 190, world.Palette.GOLD[1], 1f, 14);
+        gp.lighting.pulse(cx, cy, 190, world.render.Palette.GOLD[1], 1f, 14);
         gp.screenFx.shockwave(cx, cy);
         gp.screenFx.aberration(8);
         gp.effects.ring(cx, cy, 90, 18, new Color(0xF2C46A), false);
@@ -439,6 +445,7 @@ public class Enemy extends Entity {
             return;
         }
         deathHandled = true;
+        gp.forest.enemyKilled(this);
         Rectangle box = getWorldHitBox();
         if (experienceValue > 0 && gp.levelManager.isRunActive() && gp.progression.level() < Progression.MAX_LEVEL) {
             int levels = gp.progression.gainExperience(experienceValue);
@@ -460,6 +467,7 @@ public class Enemy extends Entity {
             gp.questLog.advance(QuestLog.PESTS, 1);
         }
         onDeath();
+        gp.saves.requestProgressSave();
     }
 
     protected void spawnHitSparks(Hit hit) {
@@ -499,6 +507,10 @@ public class Enemy extends Entity {
 
     private void applySmoothMovement() {
         collisionOn = false;
+        if(territoryRadius>0&&Math.hypot(worldX-spawnWorldX,worldY-spawnWorldY)>territoryRadius-48){
+            double dx=spawnWorldX-worldX,dy=spawnWorldY-worldY,length=Math.max(1,Math.hypot(dx,dy));
+            if(velX*dx+velY*dy<0){velX=dx/length*Math.max(1,speed);velY=dy/length*Math.max(1,speed);}
+        }
 
         int nextWorldX = (int)Math.round(worldXf + velX);
         if (!isEnemyPositionBlocked(nextWorldX, worldY)) {
@@ -524,6 +536,7 @@ public class Enemy extends Entity {
     }
 
     private boolean isEnemyPositionBlocked(int nextWorldX, int nextWorldY) {
+        if(territoryRadius>0&&Math.hypot(nextWorldX-spawnWorldX,nextWorldY-spawnWorldY)>territoryRadius)return true;
         if (gp.cChecker.checkPlayerAt(this, nextWorldX, nextWorldY)) {
             touchedPlayerThisFrame = true;
             return true;
@@ -570,7 +583,7 @@ public class Enemy extends Entity {
     }
 
     protected void drawMarks(Graphics2D g2) {
-        if ((!usesMarks && !gp.relics.active(main.Relics.Item.CROWN)) || marks == 0 || !alive) {
+        if ((!usesMarks && !gp.relics.active(progression.Relics.Item.CROWN)) || marks == 0 || !alive) {
             return;
         }
         if (markExpiring() && (markTimer / 6) % 2 == 0) {
@@ -601,7 +614,7 @@ public class Enemy extends Entity {
     public void drawOverlay(Graphics2D g2) {
     }
 
-    public void addLights(world.Lighting lighting) {
+    public void addLights(world.render.Lighting lighting) {
     }
 
     private void drawDamageFlash(Graphics g2) {

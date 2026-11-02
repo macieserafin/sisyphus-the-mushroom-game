@@ -2,9 +2,9 @@ package object;
 
 import entity.Player;
 import main.GamePanel;
-import main.Sound;
+import audio.Sound;
 import story.QuestLog;
-import world.EffectsManager;
+import world.render.EffectsManager;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;
@@ -34,6 +34,7 @@ public class Chest extends SuperObject {
         double groundY = worldY + gp.tileSize;
         gp.questLog.advance(QuestLog.CHESTS, 1);
         gp.entities.removeObject(this);
+        gp.saves.requestProgressSave();
         gp.effects.burst(cx, groundY - 20, 20, 3, EffectsManager.GOLD);
         gp.effects.ring(cx, groundY - 10, 50, 14, EffectsManager.GOLD[1], true);
         gp.playSoundEffect(Sound.CHEST);

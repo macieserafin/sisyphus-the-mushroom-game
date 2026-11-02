@@ -2,8 +2,8 @@ package object;
 
 import entity.Player;
 import main.GamePanel;
-import main.Sound;
-import main.UiSkin;
+import audio.Sound;
+import ui.UiSkin;
 
 import java.awt.*;
 import java.util.Random;
@@ -75,7 +75,7 @@ public class PowerUp extends SuperObject {
     }
 
     @Override
-    public void addLights(world.Lighting lighting) {
+    public void addLights(world.render.Lighting lighting) {
         lighting.add(x, y - 24, 80, kind.glow, 0.8f, 0.08f);
     }
 
@@ -94,6 +94,7 @@ public class PowerUp extends SuperObject {
         gp.effects.burst(x, y - 20, 18, 3, new Color[]{Color.WHITE, kind.glow, kind.glow.darker()});
         gp.playSoundEffect(Sound.POWERUP);
         gp.entities.removeObject(this);
+        gp.saves.requestProgressSave();
     }
 
     @Override

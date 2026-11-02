@@ -10,7 +10,7 @@ import entity.enemy.Enemy_SpikySlime;
 import entity.npc.NPC;
 import entity.npc.NPC_Villager;
 import main.GamePanel;
-import main.Shop;
+import progression.Shop;
 import object.Boots;
 import object.Chest;
 import object.Door;
@@ -45,6 +45,7 @@ public class AssetSetter {
         spawnDoor(VillageLayout.SHOP, Interior.SHOP, "wood");
         spawnDoor(VillageLayout.SMITHY, Interior.SMITHY, "wood");
         spawnDoor(VillageLayout.SAGE, Interior.SAGE, "wood");
+        spawnDoor(VillageLayout.CARE_HOME, Interior.CARE_HOME, "wood");
         for (int i = 0; i < VillageLayout.HOMES.length; i++) {
             VillageLayout.Building home = VillageLayout.HOMES[i];
             spawnObject(new HouseDoor("wood", LOCKED_HOME_MESSAGES[i % LOCKED_HOME_MESSAGES.length]), home.doorCol(), home.doorRow());
@@ -53,12 +54,16 @@ public class AssetSetter {
         spawnObject(new object.ChapterObject(object.ChapterObject.Kind.REST), 31, 21);
         if (gp.campaign.anchorOpen()) spawnObject(new Portal(TransitionTarget.runFloor()), 31, 25);
         if (gp.campaign.recruited() && gp.campaign.anchorOpen()) {
-            spawnNPC(new entity.npc.NPC_Wanderer(gp), 12, 14);
-            if (gp.campaign.built()) spawnObject(new object.ChapterObject(object.ChapterObject.Kind.WORKSHOP), Campaign.WORKSHOP_COL, Campaign.WORKSHOP_ROW);
+            spawnNPC(new entity.npc.NPC_Wanderer(gp), 43, 37);
+            if (gp.campaign.built()) {
+                VillageScenes.prepareLegacyWorkshop(gp);
+                spawnObject(new object.ChapterObject(object.ChapterObject.Kind.WORKSHOP), Campaign.WORKSHOP_COL, Campaign.WORKSHOP_ROW);
+            }
         }
         for (VillageLayout.Readable readable : VillageLayout.READABLES) {
             spawnObject(new Inspectable(readable.tile, readable.lines), readable.col, readable.row);
         }
+        VillageScenes.addLobby(gp);
 
         spawnObject(new Portal(TransitionTarget.runFloor()), VillageLayout.GATE_OPENING_COL, VillageLayout.PORTAL_ROW);
         spawnObject(new Portal(TransitionTarget.runFloor()), VillageLayout.GATE_OPENING_COL + 1, VillageLayout.PORTAL_ROW);
@@ -112,7 +117,7 @@ public class AssetSetter {
 
         switch (interior) {
             case SMITHY:
-                NPC smith = new NPC_Villager(gp, "Blacksmith", "blacksmith", new Color(230, 140, 90), true)
+                NPC smith = new entity.npc.NPC_ForestService(gp, "Blacksmith", "blacksmith", new Color(230, 140, 90), "smith")
                         .sells(Shop.smith(gp))
                         .conversation("Another one woke up, huh? Mind the sparks.",
                                 "Bring me what the forest leaves behind and I'll make your blade remember it.")
@@ -132,7 +137,7 @@ public class AssetSetter {
                 spawnNPC(merchant, 7, 3);
                 break;
             case DOJO:
-                NPC master = new NPC_Villager(gp, "Master Kuro", "karate_master", new Color(240, 80, 70), false)
+                NPC master = new entity.npc.NPC_ForestService(gp, "Master Kuro", "karate_master", new Color(240, 80, 70), "dojo")
                         .teaches()
                         .facing("down")
                         .conversation("You fight like someone who has died before. Good. Fear is a poor teacher, death is a patient one.",
@@ -144,7 +149,7 @@ public class AssetSetter {
                 spawnObject(new LoadoutRack(false), Interior.DOJO_GUN_CABINET_COL, Interior.DOJO_GUN_CABINET_ROW);
                 break;
             case MYCOLOGIST:
-                NPC mycologist = new NPC_Villager(gp, "Ilse the Witch", "mycologist", new Color(150, 200, 130), true)
+                NPC mycologist = new entity.npc.NPC_ForestService(gp, "Ilse the Witch", "mycologist", new Color(150, 200, 130), "witch")
                         .sells(Shop.witch(gp))
                         .conversation("Ah, the newest sprout. Sit. Don't touch the pot. You died, you woke up on the plaza. That's the rule here.",
                                 "Go through the gate, fight what you find, and the forest pays you in mushrooms. Bring them back. The village grows with you.")
@@ -157,7 +162,7 @@ public class AssetSetter {
                 break;
             case SAGE:
                 NPC sage = new NPC_Villager(gp, "Old Aldous", "sage", new Color(200, 205, 220), true) {
-                    @Override public void talk() { gp.campaign.talkSage(); }
+                    @Override public void talk() { if(gp.narrative.enabled())super.talk(); else gp.campaign.talkSage(); }
                 }
                         .sells(Shop.sage(gp))
                         .conversation("Hm? Another one. Come in, mind the hole in the roof. The rain only falls on the books.",
@@ -170,9 +175,14 @@ public class AssetSetter {
                         .conversation("The first one who woke on the plaza... I buried him under the old mushroom. Or he buried me. I forget.");
                 sage.setHomeArea(3, 4, 11, 8);
                 spawnNPC(sage, 7, 4);
-                for (VillageLayout.Readable note : Interior.SAGE_NOTES) {
+                if(gp.narrative.enabled()) {
+                    spawnObject(new Inspectable("papers_floor",story.ChapterText.lines("sage.new.notes").toArray(String[]::new)),8,4);
+                } else for (VillageLayout.Readable note : Interior.SAGE_NOTES) {
                     spawnObject(new Inspectable(note.tile, note.lines), note.col, note.row);
                 }
+                break;
+            case CARE_HOME:
+                VillageScenes.addCareHome(gp);
                 break;
             default:
                 break;
@@ -185,9 +195,9 @@ public class AssetSetter {
 
     public void setRunFloorObject() {
         spawnObject(new object.ChapterObject(object.ChapterObject.Kind.ANCHOR), Campaign.ANCHOR_COL, Campaign.ANCHOR_ROW);
-        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.NOTE), 23, 106);
-        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.SIGN), 143, 7);
-        if (!gp.campaign.recruited()) spawnNPC(new entity.npc.NPC_Wanderer(gp), 107, 30);
+
+
+        if (!gp.narrative.enabled() && !gp.campaign.recruited()) spawnNPC(new entity.npc.NPC_Wanderer(gp), 107, 30);
         spawnObject(new Boots(), 96, 77);
         spawnObject(new Key(), 104, 46);
         spawnObject(new Door(), 90, 28);
@@ -212,46 +222,7 @@ public class AssetSetter {
 
     // Grouped by area in route order: start glade, ravine, first valley, forest maze, mushroom pocket,
     // second valley, grotto, lake, quarry, rocky pass, cave clearing. Packed groups are the ambushes.
-    public void setRunFloorEnemy() {
-        int[][] slimes = {
-                {22, 99}, {27, 101}, {20, 91}, {21, 93}, {24, 81}, {25, 83},
-                {24, 85}, {25, 74}, {24, 76}, {37, 64}, {35, 62}, {39, 62},
-                {50, 57}, {48, 55}, {52, 55}, {57, 66}, {57, 64}, {59, 64},
-                {44, 69}, {42, 67}, {44, 67}, {60, 59}, {70, 52}, {77, 48},
-                {75, 48}, {70, 68}, {70, 70}, {84, 64}, {84, 62}, {88, 56},
-                {90, 56}, {92, 48}, {94, 47}, {100, 45}, {96, 64}, {98, 64},
-                {100, 56}, {100, 72}, {100, 70}, {82, 42}, {80, 40}, {76, 77},
-                {121, 58}, {119, 56}, {123, 56}, {119, 58}, {119, 60}, {123, 60},
-                {117, 54}, {119, 54}, {123, 54}, {125, 54}, {110, 40}, {108, 39},
-                {106, 39}, {129, 34}, {133, 34}, {106, 30}, {106, 28}, {108, 28},
-                {119, 28}, {117, 26}, {121, 26}, {132, 29}, {136, 29}, {81, 28},
-                {81, 26}, {69, 36}, {45, 28}, {44, 30}, {47, 26}, {58, 33},
-                {60, 31}, {50, 36}, {48, 36}, {87, 88}, {83, 86}, {76, 79},
-                {139, 18}, {144, 9}, {148, 9}
-        };
-        int[][] spikySlimes = {
-                {37, 62}, {48, 57}, {86, 64}, {94, 64}, {76, 75}, {121, 56},
-                {121, 60}, {121, 54}, {131, 34}, {134, 29}, {79, 26}, {45, 26},
-                {85, 90}, {141, 21}, {144, 11}
-        };
-        int[][] reflectors = {
-                {55, 64}, {70, 66}, {84, 66}, {100, 58}, {123, 58}, {117, 56},
-                {119, 26}, {58, 31}, {87, 92}
-        };
-        int[][] skeletons = {
-                {23, 83}, {22, 81}, {21, 83}, {22, 85}, {50, 55}, {58, 57},
-                {70, 50}, {79, 72}, {77, 72}, {86, 56}, {98, 45}, {96, 46},
-                {100, 74}, {112, 39}, {104, 28}, {117, 28}, {134, 31}, {72, 37},
-                {87, 90}, {85, 88}, {89, 88}, {89, 90}, {85, 92}, {89, 92},
-                {78, 82}, {137, 24}, {135, 26}, {141, 19}, {141, 17}, {143, 17},
-                {143, 19}, {139, 20}, {144, 15}, {146, 11}, {146, 9}
-        };
-
-        for (int[] p : slimes) spawnEnemy(new Enemy_Slime(gp), p[0], p[1]);
-        for (int[] p : spikySlimes) spawnEnemy(new Enemy_SpikySlime(gp), p[0], p[1]);
-        for (int[] p : reflectors) spawnEnemy(new Enemy_Reflector(gp), p[0], p[1]);
-        for (int[] p : skeletons) spawnEnemy(new Enemy_Skeleton(gp), p[0], p[1]);
-    }
+    public void setRunFloorEnemy() { ForestScenes.enemies(gp); }
 
     private SuperObject spawnObject(SuperObject object, int col, int row) {
         return gp.entities.addObject(object, col, row);

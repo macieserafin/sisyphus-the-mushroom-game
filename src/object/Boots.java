@@ -2,7 +2,7 @@ package object;
 
 import entity.Player;
 import main.GamePanel;
-import main.Sound;
+import audio.Sound;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;
@@ -24,6 +24,7 @@ public class Boots extends SuperObject {
     public void onPlayerTouch(GamePanel gp, Player player, int objectIndex) {
         player.addMaxSpeed(3);
         gp.entities.removeObject(this);
+        gp.saves.requestProgressSave();
         gp.playSoundEffect(Sound.POWERUP_BOOTS);
     }
 

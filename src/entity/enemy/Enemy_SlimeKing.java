@@ -7,7 +7,7 @@ import entity.combat.HitResult;
 import entity.combat.HitType;
 import main.GamePanel;
 import object.HeartPickup;
-import world.EffectsManager;
+import world.render.EffectsManager;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -89,6 +89,7 @@ public class Enemy_SlimeKing extends Enemy {
     private boolean crystalHintShown = false;
     private boolean gelHintShown = false;
 
+    public int audioPhase() { return phase; }
     private int phase = 1;
     private boolean phaseChangePending = false;
     private Enemy_RoyalGuard crystalGuard;
@@ -279,10 +280,12 @@ public class Enemy_SlimeKing extends Enemy {
                 gp.effects.ring(box.getCenterX(), box.getCenterY(), 140, 20, new Color(0xDEAE4C), false);
                 gp.effects.text(box.getCenterX(), box.y - 30, "BARRIER UP", new Color(0xDEAE4C), 2);
                 gp.effects.shake(8, 5);
+                gp.playSoundEffect(audio.Sound.BARRIER_UP);
                 crystalGuard.recover();
                 gelGuard.recover();
             }
         } else if (crystalGuard.isStunned() && gelGuard.isStunned()) {
+            gp.playSoundEffect(audio.Sound.BARRIER_BREAK);
             exposedTicks = EXPOSE_TICKS;
             Rectangle box = getWorldHitBox();
             double cx = box.getCenterX(), cy = box.getCenterY();
@@ -321,6 +324,7 @@ public class Enemy_SlimeKing extends Enemy {
         }
         updateJump();
         if (t == 50) {
+            gp.playSoundEffect(audio.Sound.PHASE_CHANGE);
             phase = 2;
             shell = Shell.GEL;
             adaptSpeed = 1.5;
@@ -361,6 +365,7 @@ public class Enemy_SlimeKing extends Enemy {
         }
         shake = (t / 2) % 2 == 0 ? -1 : 1;
         if (t >= 90) {
+            gp.playSoundEffect(audio.Sound.PHASE_CHANGE);
             phase = 3;
             merging = false;
             adapts = false;
@@ -438,6 +443,7 @@ public class Enemy_SlimeKing extends Enemy {
             gp.effects.ring(box.getCenterX(), box.getCenterY(), 110, 30, nextShellColor(), false);
         }
         if (shellTimer <= 0) {
+            gp.playSoundEffect(audio.Sound.SHELL_CHANGE);
             shell = shell == Shell.GEL ? Shell.CRYSTAL : Shell.GEL;
             shellTimer = SHELL_PERIOD;
             Rectangle box = getWorldHitBox();
@@ -545,6 +551,7 @@ public class Enemy_SlimeKing extends Enemy {
     }
 
     private void beginPanicMove(PanicMove move) {
+        gp.playSoundEffect(audio.Sound.CHARGE_WARNING);
         panicMove = move;
         double[] here = footCenter(), player = playerFeet();
         double dx = player[0] - here[0], dy = player[1] - here[1];
@@ -653,6 +660,7 @@ public class Enemy_SlimeKing extends Enemy {
         lift = 0;
         panicCrashTicks = wall ? 34 : 18 + random.nextInt(9);
         enter(State.PANIC_CRASH);
+        gp.playSoundEffect(audio.Sound.WALL_CRASH);
         landEffects(wall || panicMove != PanicMove.CHARGE);
         scatterPanicGoo(true);
         Rectangle box = getWorldHitBox();
@@ -842,6 +850,7 @@ public class Enemy_SlimeKing extends Enemy {
         row = Math.max(1, Math.min(gp.tileM.getWorldRows() - 2, row));
         minion.mushroomValue = 0; // summoned without end, so they must not be farmed
         minion.experienceValue = 0;
+        minion.heartDropChance = 0; // the boss manages healing drops from its summons
         gp.entities.addEnemy(minion, col, row);
         minion.alert();
         minions.add(minion);
@@ -882,11 +891,11 @@ public class Enemy_SlimeKing extends Enemy {
 
     private void landEffects(boolean big) {
         double[] f = footCenter();
-        gp.lighting.pulse(f[0], f[1], big ? 260 : 150, world.Palette.GOO_LIGHT, 0.9f, big ? 16 : 10);
+        gp.lighting.pulse(f[0], f[1], big ? 260 : 150, world.render.Palette.GOO_LIGHT, 0.9f, big ? 16 : 10);
         if (big) {
             gp.screenFx.shockwave(f[0], f[1]);
         }
-        gp.playSoundEffect(big ? main.Sound.BOSS_SLAM : main.Sound.KING_LAND);
+        gp.playSoundEffect(big ? audio.Sound.BOSS_SLAM : audio.Sound.KING_LAND);
         gp.effects.dust(f[0] - 50, f[1], -1, 0, big ? 8 : 4);
         gp.effects.dust(f[0] + 50, f[1], 1, 0, big ? 8 : 4);
         gp.effects.ring(f[0], f[1], big ? 160 : 90, big ? 20 : 14, new Color(0xC1AF91), true);
@@ -895,7 +904,7 @@ public class Enemy_SlimeKing extends Enemy {
 
     private void roarEffects() {
         Rectangle box = getWorldHitBox();
-        gp.playSoundEffect(main.Sound.BOSS_ROAR);
+        gp.playSoundEffect(audio.Sound.BOSS_ROAR);
         gp.effects.ring(box.getCenterX(), box.getCenterY(), 180, 26, new Color(0xDED5AF), false);
         gp.effects.ring(box.getCenterX(), box.getCenterY(), 120, 20, new Color(0xC23228), false);
         gp.effects.shake(24, 8);
@@ -924,8 +933,8 @@ public class Enemy_SlimeKing extends Enemy {
         gp.effects.burst(cx, cy, 60, 6.0, EffectsManager.GOO);
         gp.effects.burst(cx, cy - 40, 24, 4.0, EffectsManager.GOLD);
         gp.effects.text(cx, box.y - 20, "THE KING FALLS", new Color(0xDEAE4C), 3);
-        gp.playSoundEffect(main.Sound.SLIME_DEATH);
-        gp.playSoundEffect(main.Sound.BOSS_DEATH);
+        gp.playSoundEffect(audio.Sound.SLIME_DEATH);
+        gp.playSoundEffect(audio.Sound.BOSS_DEATH);
         gp.levelManager.onBossDefeated();
     }
 
@@ -1128,12 +1137,12 @@ public class Enemy_SlimeKing extends Enemy {
     }
 
     @Override
-    public void addLights(world.Lighting lighting) {
+    public void addLights(world.render.Lighting lighting) {
         Rectangle box = getWorldHitBox();
         double cx = box.getCenterX();
         double cy = box.getCenterY() - lift * ART_SCALE;
-        lighting.addShadowed(cx, cy, 240, shell == Shell.GEL ? world.Palette.GOO_LIGHT : world.Palette.PURPLE_CAP, 0.85f, 0.04f);
-        lighting.add(cx, cy - 66, 90, world.Palette.FIRE, 0.7f, 0.12f);
+        lighting.addShadowed(cx, cy, 240, shell == Shell.GEL ? world.render.Palette.GOO_LIGHT : world.render.Palette.PURPLE_CAP, 0.85f, 0.04f);
+        lighting.add(cx, cy - 66, 90, world.render.Palette.FIRE, 0.7f, 0.12f);
     }
 
     @Override

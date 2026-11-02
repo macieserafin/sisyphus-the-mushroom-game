@@ -5,7 +5,8 @@ public enum Interior {
     SHOP("maps/interior_shop.txt", VillageLayout.SHOP),
     DOJO("maps/interior_dojo.txt", VillageLayout.DOJO),
     MYCOLOGIST("maps/interior_mycologist.txt", VillageLayout.MYCOLOGIST),
-    SAGE("maps/interior_sage.txt", VillageLayout.SAGE);
+    SAGE("maps/interior_sage.txt", VillageLayout.SAGE),
+    CARE_HOME("maps/interior_care_home.txt", VillageLayout.CARE_HOME);
 
     public static final int COLS = 15;
     public static final int ROWS = 11;

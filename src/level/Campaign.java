@@ -1,8 +1,13 @@
 package level;
 
+import audio.Sound;
+import main.GamePanel;
+import main.GameState;
+import progression.Relics;
+import ui.ChoiceMenu;
+
 import dialogue.DialogueSpeaker;
 import entity.enemy.Enemy;
-import main.*;
 import object.Portal;
 import object.ChapterObject;
 import save.Values;
@@ -16,7 +21,7 @@ public final class Campaign {
     public static final String ARENA = "maps/boss_slime_arena.txt";
     public static final String SECOND = "maps/floor2_entrance.txt";
     public static final int ANCHOR_COL = 147, ANCHOR_ROW = 7;
-    public static final int WORKSHOP_COL = 9, WORKSHOP_ROW = 11;
+    public static final int WORKSHOP_COL = VillageLayout.LEGACY_WORKSHOP_COL, WORKSHOP_ROW = VillageLayout.LEGACY_WORKSHOP_ROW;
     private final GamePanel gp;
     private final Map<String, Properties> maps = new LinkedHashMap<>();
     private boolean started, bound, anchorOpen, bossCleared, rewardClaimed, sageMet;
@@ -25,12 +30,31 @@ public final class Campaign {
     private boolean restoring;
     private int rewardStage, rewardTicks;
     private boolean rewardSaved;
+    private static final int REBIRTH_TICKS=60;
+    public record ReturnPoint(String map,int x,int y) {}
+    private ReturnPoint lastReturnPoint;
+    public ReturnPoint returnPoint() {
+        if(SECOND.equals(gp.tileM.currentMapPath()))return new ReturnPoint(SECOND,12*gp.tileSize,13*gp.tileSize);
+        if(inForest()||inArena()||lastReturnPoint==null) {
+            return new ReturnPoint(FOREST,(anchorOpen?146:LevelManager.RUN_PLAYER_SPAWN_COL)*gp.tileSize,
+                    (anchorOpen?8:LevelManager.RUN_PLAYER_SPAWN_ROW)*gp.tileSize);
+        }
+        return lastReturnPoint;
+    }
+    public void debugLifeCycle(boolean atAnchor) {
+        gp.narrative.cancel();gp.storyFlags.completePrologueBytEncounter();
+        started=sageMet=true;anchorOpen=atAnchor;floor=1;rebirthTicks=rewardStage=rewardTicks=0;
+        gp.forest.debugPrepareChapter(false);gp.player.debugRestoreVitals();clearCombat();
+        gp.levelManager.loadManualRunFloor();
+        ReturnPoint point=returnPoint();gp.player.setWorldPosition(point.x(),point.y());
+    }
 
     public boolean victoryInProgress() { return rewardStage > 0; }
     public String victoryBanner() { return rewardStage == 2 ? ChapterText.get("boss.victory") : ""; }
 
     public Campaign(GamePanel gp) { this.gp = gp; }
     public void debugPrepareChapter(boolean afterBoss) {
+        gp.forest.debugPrepareChapter(afterBoss);
         started = bound = sageMet = anchorOpen = true;
         floor = 1;
         bossCleared = rewardClaimed = signFound = signExplained = afterBoss;
@@ -49,8 +73,8 @@ public final class Campaign {
     }
     public boolean started() { return started; }
     public int floor() { return floor; }
-    public boolean anchorOpen() { return anchorOpen && floor == 1; }
-    public boolean bossCleared() { return floor == 1 && bossCleared; }
+    public boolean anchorOpen() { return anchorOpen; }
+    public boolean bossCleared() { return bossCleared; }
     public boolean rewardClaimed() { return rewardClaimed; }
     public boolean recruited() { return recruited; }
     public boolean built() { return built; }
@@ -66,8 +90,10 @@ public final class Campaign {
     public void clearCombat() { combatTicks = 0; }
 
     public void tick() {
+        gp.forest.flushPending();
         if (rebirthTicks > 0) {
-            if (--rebirthTicks == 0) gp.player.endScriptedHold();
+            gp.player.updateRebirth(1-(--rebirthTicks/(double)REBIRTH_TICKS));
+            if (rebirthTicks == 0) { gp.player.endScriptedHold();gp.saves.requestProgressSave(); }
             return;
         }
         if (gp.entities.enemies().stream().anyMatch(e -> e.alive && e.isEngaged()) || gp.enemyShots.count() > 0) combatTicks = 300;
@@ -100,7 +126,10 @@ public final class Campaign {
         }
     }
 
+    public void prepareDeparture() { sageMet=true; }
     public boolean beginFloor() {
+        if(gp.forest.isPreview()) { gp.ui.showMessage("Developer preview active: end preview in F1 before entering the forest"); return false; }
+        if(gp.narrative.enabled() && !gp.narrative.state.has("departure.ready")) { say("sage.gate", "Old Aldous"); return false; }
         if (started) return false;
         if (!sageMet) { say("sage.gate", "Old Aldous"); return false; }
         int departureX = gp.player.worldX, departureY = gp.player.worldY;
@@ -113,47 +142,36 @@ public final class Campaign {
     }
 
     public void captureCurrent() {
-        if (restoring || !started) return;
+        if (restoring || !started || gp.forest.isPreview()) return;
         String map = gp.tileM.currentMapPath();
         if (map.equals(FOREST) || map.equals(ARENA) || map.equals(SECOND)) maps.put(map, MapMemory.capture(gp));
     }
 
     public void restoreMap() {
-        MapMemory.restore(gp, maps.get(gp.tileM.currentMapPath()));
+        if(!gp.forest.isPreview()||restoring)MapMemory.restore(gp, maps.get(gp.tileM.currentMapPath()),!restoring);
         clearCombat();
     }
 
-    public int requiredRemaining() {
-        if (!inForest()) return 0;
-        return (int) gp.entities.enemies().stream().filter(e -> e.alive && required(e.persistenceId)).count();
-    }
-
-    private boolean required(String id) {
-        String[] parts = id.split(":");
-        if (parts.length != 3) return false;
-        int x = Integer.parseInt(parts[1]), y = Integer.parseInt(parts[2]);
-        return x >= 20 && x <= 25 && y >= 81 && y <= 93
-                || x >= 117 && x <= 125 && y >= 54 && y <= 60
-                || x >= 135 && x <= 143 && y >= 15 && y <= 26
-                || x >= 144 && x <= 148 && y >= 9 && y <= 15;
-    }
+    public int requiredRemaining() { return 0; }
 
     public boolean bindAnchor() {
+        if(gp.forest.isPreview()){gp.ui.showMessage(ChapterText.get("forest.preview"));return false;}
         if (inCombat()) { gp.ui.showMessage("In combat: anchor and portals locked"); return false; }
-        int remaining = requiredRemaining();
-        if (remaining > 0) { gp.ui.showMessage("Clear the main encounters: " + remaining + " enemies remain"); return false; }
+        boolean first=!anchorOpen;
         Properties previous = gp.saves.snapshot();
         anchorOpen = true;
         ensureReturnPortal();
         gp.questLog.complete(QuestLog.FOREST);
-        if (!gp.saves.checkpoint()) {
+        boolean saved=first&&gp.narrative.enabled() ? gp.saves.checkpointAt("maps/village.txt",VillageLayout.SPAWN_COL,VillageLayout.SPAWN_ROW) : gp.saves.checkpoint();
+        if (!saved) {
             gp.saves.restoreSnapshot(previous);
             gp.ui.showMessage("Pattern could not be updated. Your previous checkpoint is safe");
             return false;
         }
-        gp.playSoundEffect(Sound.BANK);
+        gp.playSoundEffect(Sound.ANCHOR_BIND);
         gp.effects.ring(gp.player.worldX + 24, gp.player.worldY + 36, 75, 25, new Color(0x91C6AD), false);
-        gp.ui.showMessage("Pattern bound. Progress saved. Village connection open");
+        gp.ui.showMessage("Return point bound. Progress saved. Village connection open");
+        if(first&&started)gp.blinkTransition(()->{gp.levelManager.loadHub();say("forest.anchor.arrival","");});
         return true;
     }
 
@@ -164,6 +182,7 @@ public final class Campaign {
 
     public void bossDefeated() {
         bossCleared = true; clearCombat(); gp.enemyShots.clear(); gp.bulletManager.clearBullets();
+        gp.forest.bossSample();
         if (started) {
             rewardStage = 1; rewardTicks = 120;
             gp.keyH.clearGameplayInput(); gp.player.beginScriptedHold();
@@ -171,7 +190,10 @@ public final class Campaign {
         for (var object : new ArrayList<>(gp.entities.objects())) if (object instanceof object.MushroomPickup pickup) {
             gp.wallet.collect(pickup.value()); gp.entities.removeObject(object);
         }
+        if(started)gp.saves.checkpointAt(FOREST,146,8);
     }
+
+    public void resumeReward(){rewardStage=3;gp.relics.grant(Relics.Item.CROWN);openReward();}
 
     public void openReward() {
         if (rewardStage != 3 || rewardClaimed) return;
@@ -186,6 +208,7 @@ public final class Campaign {
     public void claimReward(Relics.Item selected) {
         if (rewardClaimed || rewardStage != 4 || !bossCleared || selected == Relics.Item.CROWN) return;
         gp.relics.grant(Relics.Item.CROWN); gp.relics.grant(selected);
+        gp.playSoundEffect(Sound.REWARD);
         rewardClaimed = true;
         rewardStage = 5; rewardTicks = 60;
         rewardSaved = gp.saves.checkpointAt(FOREST, 146, 8);
@@ -193,9 +216,10 @@ public final class Campaign {
     }
 
     public void requestDescent() {
-        if (!rewardClaimed || !signExplained) { say("descent.locked", ""); return; }
+        if(gp.forest.isPreview()){gp.ui.showMessage(ChapterText.get("forest.preview"));return;}
+        if (!rewardClaimed || !gp.forest.reported()) { say("forest.report.required", ""); return; }
         if (inCombat()) { gp.ui.showMessage("In combat: passage locked"); return; }
-        gp.choiceMenu.open("Leave floor 1 permanently?", List.of(
+        gp.choiceMenu.open(ChapterText.get("forest.descent.title"), List.of(
                 new ChoiceMenu.Option("Stay on floor 1", ChapterText.get("descent.warning"), () -> {}),
                 new ChoiceMenu.Option("Descend to floor 2", ChapterText.get("descent.warning"), this::descend)), true);
     }
@@ -206,10 +230,8 @@ public final class Campaign {
 
     private void performDescent() {
         Properties previous = gp.saves.snapshot();
-        floor = 2; anchorOpen = false; maps.clear();
+        floor = 2;
         int hp = gp.player.health, shield = gp.player.shield();
-        gp.player.setDefaultValues();
-        gp.player.restoreVitals(hp, shield);
         restoring = true;
         try { gp.levelManager.loadSecondFloor(); } finally { restoring = false; }
         if (!gp.saves.checkpoint()) { gp.saves.restoreSnapshot(previous); return; }
@@ -218,6 +240,12 @@ public final class Campaign {
 
     public void talkSage() {
         sageMet = true;
+        if(bossCleared&&gp.forest.sample()&&!gp.forest.reported()){
+            if(gp.forest.report()){signExplained=true;gp.questLog.complete(QuestLog.HOME);say("forest.research.report","Old Aldous");gp.saves.saveProgress();}return;
+        }
+        if(anchorOpen&&!gp.forest.anchorTalk()){
+            if(gp.forest.talkAnchor())say("forest.anchor.explain","Old Aldous");return;
+        }
         if (signFound) { signExplained = true; gp.questLog.complete(QuestLog.HOME); }
         gp.questLog.complete(QuestLog.VILLAGE);
         say(signFound ? "sage.sign" : "sage.mission", "Old Aldous");
@@ -226,13 +254,14 @@ public final class Campaign {
     public void talkWarrior() {
         if (!warriorMet) {
             warriorMet = true; gp.questLog.start("wanderer"); say("warrior.meet", ChapterText.get("warrior.name"));
-        } else if (!recruited && gp.questLog.get(QuestLog.GROTTO).state() == QuestLog.State.DONE) {
+        } else if (!recruited && gp.questLog.get(QuestLog.GROTTO)!=null && gp.questLog.get(QuestLog.GROTTO).state() == QuestLog.State.DONE) {
             recruited = true; gp.questLog.complete("wanderer"); say("warrior.join", ChapterText.get("warrior.name"));
         } else if (recruited && anchorOpen() && "maps/village.txt".equals(gp.tileM.currentMapPath())) {
             if (!built) gp.choiceMenu.open("A place in the village", List.of(
                     new ChoiceMenu.Option("Help build the workshop - 30 mushrooms", ChapterText.get("warrior.build"), () -> {
                         if (gp.wallet.spend(30)) {
                             built = true;
+                            VillageScenes.prepareLegacyWorkshop(gp);
                             gp.entities.addObject(new ChapterObject(ChapterObject.Kind.WORKSHOP),WORKSHOP_COL,WORKSHOP_ROW);
                             say("warrior.built", ChapterText.get("warrior.name"));
                         }
@@ -254,6 +283,11 @@ public final class Campaign {
 
     public void save(Properties out) {
         captureCurrent();
+        if(inForest()||inArena()||SECOND.equals(gp.tileM.currentMapPath()))lastReturnPoint=returnPoint();
+        ReturnPoint point=returnPoint();
+        out.setProperty("campaign.returnMap",point.map());
+        out.setProperty("campaign.returnX",Integer.toString(point.x()));
+        out.setProperty("campaign.returnY",Integer.toString(point.y()));
         out.setProperty("campaign.version", "1");
         out.setProperty("campaign.map", gp.tileM.currentMapPath());
         out.setProperty("campaign.floor", "" + floor);
@@ -262,6 +296,11 @@ public final class Campaign {
         for (int i = 0; i < keys.length; i++) out.setProperty("campaign." + keys[i], "" + flags[i]);
         out.setProperty("campaign.signExplained", "" + signExplained);
         for (var entry : maps.entrySet()) entry.getValue().forEach((k,v) -> out.setProperty("world." + entry.getKey() + "#" + k, v.toString()));
+        if(gp.forest.isPreview()&&started&&(inForest()||inArena()||SECOND.equals(gp.tileM.currentMapPath()))) {
+            String prefix="world."+gp.tileM.currentMapPath()+"#";
+            out.stringPropertyNames().stream().filter(k->k.startsWith(prefix)).toList().forEach(out::remove);
+            MapMemory.capture(gp).forEach((k,v)->out.setProperty(prefix+k,v.toString()));
+        }
     }
 
     public void load(Properties in) {
@@ -272,6 +311,11 @@ public final class Campaign {
         built=Values.bool(in,"campaign.built"); signFound=Values.bool(in,"campaign.sign");
         signExplained=Values.bool(in,"campaign.signExplained");
         floor=Math.max(1,Math.min(2,Values.integer(in,"campaign.floor",1)));
+        String returnMap=in.getProperty("campaign.returnMap",floor==2?SECOND:FOREST);
+        if(!returnMap.equals(FOREST)&&!returnMap.equals(SECOND))returnMap=FOREST;
+        int fallbackX=(returnMap.equals(SECOND)?12:anchorOpen?146:LevelManager.RUN_PLAYER_SPAWN_COL)*gp.tileSize;
+        int fallbackY=(returnMap.equals(SECOND)?13:anchorOpen?8:LevelManager.RUN_PLAYER_SPAWN_ROW)*gp.tileSize;
+        lastReturnPoint=new ReturnPoint(returnMap,Values.integer(in,"campaign.returnX",fallbackX),Values.integer(in,"campaign.returnY",fallbackY));
         combatTicks=0; rebirthTicks=0; rewardStage=0; rewardTicks=0; maps.clear();
         for (String key : in.stringPropertyNames()) if (key.startsWith("world.")) {
             int split=key.indexOf('#');
@@ -284,13 +328,17 @@ public final class Campaign {
         try {
             gp.levelManager.restoreCampaignMap(in.getProperty("campaign.map", "maps/village.txt"));
             gp.player.loadCheckpoint(in);
+            if ("maps/village.txt".equals(gp.tileM.currentMapPath())) VillageScenes.ensureSafePlayerPosition(gp);
+            ForestScenes.safePosition(gp);
             gp.gameState = GameState.PLAYING;
             gp.keyH.clearGameplayInput();
             if (rebirth) {
-                rebirthTicks = 75;
-                gp.player.beginScriptedHold(); gp.ui.blink(0, 25, 50);
-                gp.effects.burst(gp.player.worldX + 24,gp.player.worldY + 36,36,2,world.EffectsManager.SPORES);
-                gp.ui.showMessage("The mycelium gives you shape again");
+                rebirthTicks = REBIRTH_TICKS;
+                gp.playSoundEffect(Sound.AWAKEN);
+                gp.player.beginRebirth();
+                if(!gp.isBlinkTransition())gp.ui.blink(0, 12, 24);
+                gp.effects.burst(gp.player.worldX + 24,gp.player.worldY + 36,36,2,world.render.EffectsManager.SPORES);
+                gp.ui.showMessage(ChapterText.get("rebirth.arrival"));
             }
         } finally { restoring = false; }
     }

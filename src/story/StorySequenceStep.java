@@ -12,9 +12,16 @@ public class StorySequenceStep {
     public enum Type {
         DIALOGUE,
         WAIT_FRAMES,
+        UNTIL,
         ACTION
     }
 
+    private java.util.function.BooleanSupplier condition;
+    public boolean ready() { return condition == null || condition.getAsBoolean(); }
+    public static StorySequenceStep until(java.util.function.BooleanSupplier condition) {
+        StorySequenceStep step = new StorySequenceStep(Type.UNTIL, null, null, null, null, null, 0, null);
+        step.condition = condition; return step;
+    }
     private final Type type;
     private final DialogueSpeaker speaker;
     private final List<DialogueSpeaker> sceneSpeakers;

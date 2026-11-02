@@ -1,9 +1,9 @@
 package entity;
 
 import main.GamePanel;
-import main.KeyHandler;
-import main.Skill;
-import main.Sound;
+import input.KeyHandler;
+import progression.Skill;
+import audio.Sound;
 import entity.combat.Hit;
 import entity.combat.HitResult;
 import entity.combat.HitType;
@@ -12,7 +12,7 @@ import entity.npc.NPC;
 import object.SuperObject;
 import entity.anim.PlayerAnimator;
 import entity.anim.WeaponRenderer;
-import world.EffectsManager;
+import world.render.EffectsManager;
 import entity.anim.SpriteSheet;
 import entity.weapon.CombatLoadout;
 import entity.weapon.MeleeWeapon;
@@ -279,6 +279,7 @@ public class Player extends Entity {
         int cameraY = cameraOrigin(followY, gp.tileM.getWorldRows() * gp.tileSize, visibleHeight);
         screenX = worldX - cameraX;
         screenY = worldY - cameraY;
+        if (gp.sceneCamera != null) gp.sceneCamera.apply();
     }
 
     private static int follow(int current, int wanted, int slack) {
@@ -317,6 +318,21 @@ public class Player extends Entity {
         return combatLoadout.rangedWeaponName(startingRangedSlot);
     }
 
+    public void scriptedStep(int x, int y) {
+        double dx=x-worldX, dy=y-worldY;
+        setWorldPosition(x,y);
+        facing=Direction8.fromVector(dx,dy,facing,0);
+        animator.locomote(dx!=0||dy!=0,false,Math.hypot(dx,dy)/gp.scale,facing);
+    }
+    @Override public void scriptedFace(int x,int y) {
+        facing=Direction8.fromVector(x-worldX,y-worldY,facing,0);
+        animator.locomote(true,false,0,facing);
+        animator.locomote(false,false,0,facing);
+        animator.holdPose(PlayerAnimator.State.IDLE,SpriteSheet.loadOptional("player/anim/player_idle"),0,facing);
+    }
+    public void scriptedPose(String sheet,int frame) {
+        animator.holdPose(PlayerAnimator.State.IDLE,SpriteSheet.loadOptional(sheet),frame,facing);
+    }
     public void beginScriptedHold() {
         scriptedHold = true;
         velX = 0;
@@ -329,6 +345,17 @@ public class Player extends Entity {
         direction = "idle";
         resetFacingAndAim();
     }
+    public void beginRebirth() {
+        beginScriptedHold();animator.reset();deathTicks=0;hurtFlashTicks=0;
+        hurtInvincibleCounter=60;updateRebirth(0);
+    }
+    public void updateRebirth(double progress) {
+        SpriteSheet sheet=PlayerAnimator.deathSheet();
+        if(sheet!=null)animator.holdPose(PlayerAnimator.State.IDLE,sheet,
+                (int)Math.round((sheet.frameCount-1)*(1-Math.max(0,Math.min(1,progress)))),Direction8.S);
+        else setScriptedDrawOffset(0,(int)Math.round(12*(1-progress)));
+    }
+    public void debugDefeat() { if(alive)die(); }
 
     private void resetFacingAndAim() {
         facing = Direction8.S;
@@ -347,6 +374,8 @@ public class Player extends Entity {
     }
 
     public void endScriptedHold() {
+        animator.clearPose();
+        animator.locomote(false,false,0,facing);
         scriptedHold = false;
         scriptedHidden = false;
         scriptedDrawOffsetX = 0;
@@ -696,6 +725,7 @@ public class Player extends Entity {
         ticksSinceHit++;
         if (shield < maxShield && ticksSinceHit > SHIELD_REGEN_DELAY && ++shieldRegenTicks >= SHIELD_REGEN_TICKS) {
             shield++;
+            gp.playSoundEffect(audio.Sound.SHIELD_RESTORE);
             shieldRegenTicks = 0;
             double cx = worldX + gp.tileSize / 2.0, cy = worldY + gp.tileSize / 2.0;
             gp.effects.ring(cx, cy, 40, 14, new Color(0x9AD8F0), false);
@@ -1089,7 +1119,7 @@ public class Player extends Entity {
     private void fireBullet(Direction8 shootDirection) {
         muzzleFlashTicks = MUZZLE_FLASH_TICKS;
         recoilKickTicks = RECOIL_KICK_TICKS;
-        gp.lighting.pulse(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 120, world.Palette.FIRE, 0.9f, 5);
+        gp.lighting.pulse(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 120, world.render.Palette.FIRE, 0.9f, 5);
         addMovementImpulse(rangedWeapon.fire(
                 gp.tileSize,
                 gp.bulletManager,
@@ -1167,7 +1197,7 @@ public class Player extends Entity {
         double closestObjectDistance = INTERACT_RANGE_TILES * gp.tileSize;
         for (SuperObject object : gp.entities.objects()) {
             if (!object.isInteractable()) continue;
-            double distance = Math.hypot(object.worldX + gp.tileSize / 2.0 - playerCenterX, object.worldY + gp.tileSize / 2.0 - playerCenterY);
+            double distance = object.interactionDistance(playerCenterX,playerCenterY,gp.tileSize);
             if (distance <= closestObjectDistance) {
                 closestObject = object;
                 closestObjectDistance = distance;
@@ -1226,7 +1256,7 @@ public class Player extends Entity {
         if (alpha < 1f) {
             g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
         }
-        boolean weaponVisible = alive && isWeaponDrawn(frame);
+        boolean weaponVisible = alive && !gp.campaign.rebirthing() && isWeaponDrawn(frame);
         boolean weaponBehind = weaponVisible && aim.dy < 0;
         if (weaponBehind) {
             drawWeapon(g2, frame, footX, footY, extraWidth, extraHeight);

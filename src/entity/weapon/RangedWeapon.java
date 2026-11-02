@@ -4,7 +4,7 @@ import entity.Direction8;
 import entity.Entity;
 import entity.MovementImpulse;
 import entity.anim.WeaponSprite;
-import world.BulletManager;
+import world.combat.BulletManager;
 
 public interface RangedWeapon {
     String displayName();

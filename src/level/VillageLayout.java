@@ -26,6 +26,11 @@ public final class VillageLayout {
     public static final Building SHOP = new Building("shop", 10, 19, 5, 4, 2, 3);
     public static final Building SMITHY = new Building("smithy", 45, 19, 5, 4, 2, 3);
     public static final Building SAGE = new Building("house_ruined", 9, 39, 4, 4, 1, 3);
+    public static final Building CARE_HOME = new Building("care_home", 5, 6, 7, 5, 4, 4);
+    public static final int ELLIS_COL = 62;
+    public static final int ELLIS_ROW = 23;
+    public static final int LEGACY_WORKSHOP_COL = 40;
+    public static final int LEGACY_WORKSHOP_ROW = 35;
     public static final Building[] HOMES = {
             new Building("house_wood", 39, 8, 4, 4, 1, 3),
             new Building("house_brick", 44, 9, 4, 4, 2, 3),
@@ -56,9 +61,7 @@ public final class VillageLayout {
     public static final int BRIDGE_ROW = 23;
 
     public static final Plot[] PLOTS = {
-            new Plot(6, 8, 6, 6, false),
             new Plot(37, 33, 6, 6, true),
-            new Plot(59, 19, 6, 8, true),
     };
 
     public static final Readable[] READABLES = {
@@ -73,10 +76,8 @@ public final class VillageLayout {
             new Readable("sneaker", 48, 30, "One sneaker, laces still tied. Your size."),
             new Readable("phone", 36, 29, "A cracked phone. 3% battery. 47 missed calls from \"Mom\".", "It dies while you're holding it."),
             new Readable("bicycle", 43, 11, "A rusty city bike. Grass has grown through the spokes.", "There is a sticker from a pizza place you used to order from."),
-            new Readable("plot_sign", 9, 13, "RESERVED.", "For whoever comes back from the deep part of the forest."),
             new Readable("plot_sign", 40, 38, "RESERVED.", "The ruins are older than the village. Something will move in."),
             new Readable("weird_sign", 14, 40, "HE REMEMBERS THE FIRST ONE OF US.", "Under it, smaller: \"knock loud, he is deaf in the left ear\"."),
-            new Readable("plot_sign", 61, 26, "RESERVED.", "A note is pinned to the post: \"not yet\"."),
     };
 
     private VillageLayout() {
