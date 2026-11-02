@@ -122,10 +122,14 @@ public class LevelManager {
     public void startRun() {
         if (gp.campaign.inCombat()) { gp.ui.showMessage("In combat: portals locked"); return; }
         if (gp.campaign.started()) {
-            if(gp.campaign.anchorOpen()&&!gp.forest.anchorTalk()){gp.campaign.say("forest.anchor.pending","");return;}
+            if(gp.campaign.anchorOpen()&&!gp.forest.anchorTalk()){
+                if(gp.narrative.enabled()){boolean warned=gp.narrative.state.has("gate.anchorWarned");gp.narrative.event("gate.anchorWarned");gp.campaign.say(warned?"forest.anchor.short":"forest.anchor.pending","You");}
+                else gp.campaign.say("forest.anchor.pending","");
+                return;
+            }
             runActive = true;
             loadManualRunFloor(false);
-            if(gp.campaign.anchorOpen())gp.player.setWorldPosition(146 * gp.tileSize, 8 * gp.tileSize);
+            if(gp.campaign.anchorOpen()&&!gp.narrative.enabled())gp.player.setWorldPosition(146 * gp.tileSize, 8 * gp.tileSize);
             return;
         }
         java.util.Properties previous=gp.saves.snapshot();
@@ -133,6 +137,13 @@ public class LevelManager {
         runActive = true; floorNumber = 1;
         loadManualRunFloor();
         if(!gp.saves.saveProgress())gp.saves.restoreSnapshot(previous);
+    }
+
+    public void travelToForestAnchor() {
+        runActive = true;
+        loadManualRunFloor(false);
+        gp.player.setWorldPosition(146 * gp.tileSize, 8 * gp.tileSize);
+        gp.player.updateCamera();
     }
 
     public boolean isRunActive() {
@@ -158,14 +169,14 @@ public class LevelManager {
         VillageScenes.addForest(gp);
         ForestScenes.objects(gp);
         gp.campaign.ensureReturnPortal();
-        if (showMessage) {
+        if (showMessage && !gp.narrative.enabled()) {
             gp.ui.showMessage("Floor 1 - The Forest. Reach the anchor before the King");
         }
     }
 
     public void enterBossArena() {
         if(gp.narrative.enabled() && !gp.campaign.anchorOpen()){gp.narrative.play(gp.narrative.get("anchorScene"));return;}
-        if(gp.campaign.started()&&(!gp.forest.documents()||!gp.forest.anchorTalk())){gp.campaign.say("forest.boss.locked","");return;}
+        if(gp.campaign.started()&&(!gp.forest.documents()||!gp.forest.anchorTalk())){gp.campaign.say(!gp.forest.documents()?"forest.boss.locked":"forest.boss.explain",gp.narrative.enabled()?"You":"");return;}
         if (gp.campaign.started() && (!gp.campaign.anchorOpen() || gp.campaign.inCombat())) {
             gp.ui.showMessage("Bind at the anchor outside combat before entering"); return;
         }

@@ -19,6 +19,8 @@ public class NPC extends Entity {
 
     public double talkRangeTiles = 1.2;
     private Rectangle homeArea;
+    private BufferedImage poseImage;
+    private static final java.util.Map<String, BufferedImage> POSES = new java.util.HashMap<>();
 
     public NPC(GamePanel gp) {
         super(gp);
@@ -50,6 +52,24 @@ public class NPC extends Entity {
         Rectangle body = new Rectangle(nextX + solidArea.x, nextY + solidArea.y, solidArea.width, solidArea.height);
         return homeArea.contains(body);
     }
+
+    public String facing() { return "idle".equals(direction) ? idleFacing : direction; }
+
+    public void poseFrame(String sheet, int frame) {
+        String side = facing().equals("up") ? "down" : facing();
+        sheet = sheet.replace("{dir}", side);
+        String path = "npc/" + sheet + "_" + frame + ".png";
+        poseImage = POSES.computeIfAbsent(path, key -> {
+            try (var in = getClass().getClassLoader().getResourceAsStream(key)) {
+                if (in == null) throw new IllegalStateException("Missing NPC pose " + key);
+                return javax.imageio.ImageIO.read(in);
+            } catch (java.io.IOException e) { throw new IllegalStateException(e); }
+        });
+    }
+
+    public void clearPoseFrame() { poseImage = null; }
+
+    @Override protected BufferedImage currentImage() { return poseImage != null ? poseImage : super.currentImage(); }
 
     protected void setupNPCStats(String name, int speed, String direction) {
         this.name = name;
@@ -103,8 +123,8 @@ public class NPC extends Entity {
     @Override public void draw(Graphics graphics) {
         super.draw(graphics);
         if(gp.narrative==null)return;
-        int marker=gp.narrative.marker(this);
-        if(marker>0)ui.UiSkin.PixelFont.draw((Graphics2D)graphics,marker==1?"!":"?",worldX-gp.player.worldX+gp.player.screenX+18,worldY-gp.player.worldY+gp.player.screenY-20,2,ui.UiSkin.GOLD);
+        int marker=gp.narrative.busy()?0:gp.narrative.marker(this);
+        if(marker>0)ui.UiSkin.PixelFont.draw((Graphics2D)graphics,marker==1?"!":"?",worldX-gp.player.worldX+gp.player.screenX+18,worldY-gp.player.worldY+gp.player.screenY-20,2,marker==3?ui.UiSkin.TEXT_DIM:ui.UiSkin.GOLD);
     }
     @Override
     public void speak() {

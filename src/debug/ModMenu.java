@@ -29,10 +29,11 @@ import java.util.function.IntConsumer;
 import java.util.function.Supplier;
 
 public class ModMenu {
-    private enum Page { MAIN, TELEPORT, COMBAT, EQUIPMENT, PROGRESS, QUESTS, CHAPTER, LOBBY, FOREST, FOREST_TOOLS, RELICS, TOOLS, AUDIO, NARRATIVE, LIFE }
+    private enum Page { MAIN, TELEPORT, COMBAT, EQUIPMENT, PROGRESS, QUESTS, CHAPTER, LOBBY, FOREST, FOREST_TOOLS, RELICS, TOOLS, AUDIO, NARRATIVE, LIFE, REWORK }
     private int forestArea;
     private int narrativeScene;
     private int narrativeFact;
+    private int reworkDocument;
     private static final int[][] FOREST_POINTS={{22,108},{38,104},{11,81},{46,92},{59,68},{21,54},{31,41},{45,18},{97,13},{84,64},{109,100},{136,97},{142,69},{121,58},{118,31},{146,8}};
     private static final String[] FOREST_NAMES={"A — Start","B — Południowe pętle","C — Dojo","D — Dolinka","E — Stanowisko","F — Ellis nad strumieniem","G — Torba i korzenie","H — Północne dolinki","I — Grzbiet","J — Główny labirynt","K — Kamieniołom","L — Jeziora","M — Wschodni labirynt","N — Grzybnia","O — Druga dolina","P — Kotwica"};
     private record Item(Supplier<String> label, Runnable action, IntConsumer adjust) {
@@ -46,6 +47,9 @@ public class ModMenu {
     private int selected;
     private int rootSelection;
     private String feedback = "";
+    private Runnable worldEditor=()->feedback="Uruchom prywatny launcher z narzędziami deweloperskimi";
+    private Runnable storyEditor=()->feedback="Uruchom prywatny launcher z narzędziami deweloperskimi";
+    public void authoringTools(Runnable world,Runnable story){worldEditor=world;storyEditor=story;}
     private final Font itemFont = UiFonts.of(Font.BOLD, 16);
     private final Font hintFont = UiFonts.of(Font.PLAIN, 12);
 
@@ -64,6 +68,7 @@ public class ModMenu {
                 item("Dźwięk i muzyka  >", () -> enter(Page.AUDIO)),
                 item("Życie, śmierć i zegar  >", () -> enter(Page.LIFE)),
                 item("Fabuła, mapa i kamera  >", () -> enter(Page.NARRATIVE)),
+                item("Rozdział 1 — sceny, sen, wprowadzenia  >", () -> enter(Page.REWORK)),
                 item("Narzędzia  >", () -> enter(Page.TOOLS)),
                 item("Zamknij", this::close)));
         pages.put(Page.LIFE,List.of(
@@ -84,6 +89,33 @@ public class ModMenu {
             item("Dodaj godzinę",()->narrativePreview(()->gp.narrative.state.advanceHour())),
             item("Zakończ podgląd — odtwórz stan",()->{gp.narrative.cancel();gp.forest.endPreview();returnState=GameState.PLAYING;close();}),
             item("Wstecz",this::back)));
+        pages.put(Page.REWORK, List.of(
+            new Item(()->"Etap: "+gp.chapterOne.stage(),()->feedback=gp.narrative.status()),
+            item("Przebudzenie od początku (podgląd)",()->narrativePreview(()->gp.narrative.debug("begin"))),
+            item("Wioska — cztery wizyty zaliczone",()->narrativePreview(()->gp.chapterOne.debug("visits"))),
+            item("Dom Aldousa — przygotowanie wyprawy",()->narrativePreview(()->gp.chapterOne.debug("prepare"))),
+            item("Wprowadzenia zadań — wyzeruj (kowal, Ilse, Kuro)",()->narrativePreview(()->gp.chapterOne.debug("intros"))),
+            item("Wprowadzenia — uzbrój ponownie bez odchodzenia",()->narrativePreview(()->gp.chapterOne.debug("rearm"))),
+            item("Sen — dom Aldousa i łóżko",()->narrativePreview(()->gp.chapterOne.debug("bed"))),
+            item("Sen — dodaj 8 h bez prezentacji",()->narrativePreview(()->gp.chapterOne.debug("sleep"))),
+            item("Sen — do następnego wschodu słońca",()->narrativePreview(()->gp.chapterOne.debug("dawn"))),
+            item("Las — próg i popup odkrywania",()->narrativePreview(()->gp.chapterOne.debug("threshold"))),
+            item("Stanowisko — lektura i pokaz regeneracji",()->narrativePreview(()->gp.chapterOne.debug("station"))),
+            item("Ruda — kilof przyznany, przy złożu",()->narrativePreview(()->gp.chapterOne.debug("ore"))),
+            item("Teren Kuro — scena wąwozu",()->narrativePreview(()->gp.chapterOne.debug("dojo"))),
+            item("Kamień — scena odkrycia",()->narrativePreview(()->gp.chapterOne.debug("stone"))),
+            item("Powrót na plac i rozmowa o kotwicach",()->narrativePreview(()->gp.chapterOne.debug("arrival"))),
+            item("Kotwica — menu podróży",()->narrativePreview(()->gp.chapterOne.debug("travel"))),
+            item("Ellis — obóz, zadanie przed spotkaniem",()->narrativePreview(()->gp.chapterOne.debug("ellis"))),
+            item("Ellis — notatnik znaleziony",()->narrativePreview(()->gp.chapterOne.debug("ellisNotebook"))),
+            item("Ellis — scena ławki na placu",()->narrativePreview(()->gp.chapterOne.debug("bench"))),
+            item("Król — scena wejścia na arenę",()->narrativePreview(()->gp.chapterOne.debug("king"))),
+            item("Raport u Aldousa",()->narrativePreview(()->gp.chapterOne.debug("report"))),
+            item("Napisy końca rozdziału",()->narrativePreview(()->gp.chapterOne.debug("titles"))),
+            item("Pierwsza porażka — reakcja",()->narrativePreview(()->gp.chapterOne.debug("defeat"))),
+            new Item(()->"Dokument: "+reworkDocumentId()+" (A/D, Enter: czytaj)",()->narrativePreview(()->gp.narrative.reread(reworkDocumentId())),d->reworkDocument+=d),
+            item("Zakończ podgląd — odtwórz zapis",()->{gp.narrative.cancel();gp.titleCard.clear();gp.chapterOne.resetPresentation();gp.worldMap.resetPreview();gp.forest.endPreview();returnState=GameState.PLAYING;close();}),
+            item("Wstecz",this::back)));
         pages.put(Page.NARRATIVE, List.of(
             new Item(()->"Stan: "+gp.narrative.state.time()+" / "+gp.narrative.state.facts().size()+" faktów",()->feedback=gp.narrative.status()),
             new Item(()->"Fakt: "+narrativeFactId(),()->feedback=gp.narrative.status(),d->narrativeFact+=d),
@@ -93,12 +125,13 @@ public class ModMenu {
             item("Rozpocznij nowy przebieg (podgląd)",()->narrativePreview(()->gp.narrative.debug("begin"))),
             item("Zalicz cztery wizyty (podgląd)",()->narrativePreview(()->gp.narrative.debug("visits"))),
             new Item(()->"Scena: "+narrativeSceneId(),()->narrativePreview(()->gp.narrative.debug("scene:"+narrativeSceneId())),d->narrativeScene+=d),
+            item("Test notatki w scenie — Esc: zamknij",()->narrativePreview(()->gp.narrative.showDocument("friendPage"))),
             item("Pomiń scenę — zatwierdź zakończenie",()->narrativePreview(()->gp.narrative.debug("skip"))),
             item("Przerwij scenę / przywróć kamerę",()->narrativePreview(()->gp.narrative.debug("cancel"))),
             new Item(()->"Minimapa: "+gp.minimapView.label()+" (A/D: zoom)",
                     ()->narrativePreview(()->gp.minimapView.preview(1)),d->{gp.forest.beginPreview();gp.minimapView.preview(d);}),
             item("Minimapa — cała mapa",()->narrativePreview(()->gp.minimapView.preview(-ui.MinimapView.MAX_LEVEL))),
-            item("Mapa — aktualne odkrycie",()->narrativePreview(()->gp.worldMap.open())),
+            item("Mapa (M) — zoom, Spacja: gracz, Home: całość",()->narrativePreview(()->gp.worldMap.open())),
             item("Mapa — wszystkie znaczniki",()->narrativePreview(()->gp.worldMap.debugAll())),
             item("Wyzeruj mgłę mapy i minimapy (poza lobby)",()->narrativePreview(()->gp.exploration.clear(gp.tileM.currentMapPath()))),
             item("Test popupu",()->narrativePreview(()->gp.narrative.debug("popup"))),
@@ -108,6 +141,9 @@ public class ModMenu {
             item("Wstecz",this::back)));
         List<Item> audioItems = new ArrayList<>();
         audioItems.add(new Item(() -> "Bieżąca muzyka: " + gp.audioDirector.status(), () -> {}));
+        audioItems.add(new Item(() -> gp.audioDirector.diagnostics(), () -> {}));
+        audioItems.add(new Item(() -> gp.audioDirector.device(), () -> {}));
+        audioItems.add(new Item(() -> "Wyciszenie (F8): " + on(gp.audio.isMuted()), () -> gp.audio.toggleMute()));
         for(int i=0;i<AudioDirector.TRACKS.length;i++) {
             if (AudioDirector.isChapterZeroTrack(i)) continue;
             final int track=i;
@@ -137,6 +173,14 @@ public class ModMenu {
                         ? "WYŁ. (nieśmiertelność)" : on(!gp.debugSettings.isBytExecutionDisabled())),
                         this::toggleExecution),
                 item("HP i osłona do pełna / ożyw", this::heal),
+                item("Usuń skrzynie i power-upy z bieżącej mapy", ()->{
+                    for(var item:new java.util.ArrayList<>(gp.entities.objects()))
+                        if(item instanceof object.Chest || item instanceof object.PowerUp || item instanceof object.Boots)
+                            gp.entities.removeObject(item);
+                    feedback="Skrzynie i power-upy usunięte";
+                }),
+                new Item(()->String.format(java.util.Locale.ROOT,"Bonus obrażeń po zmianie: %.1f s — wyzeruj cooldown",gp.player.swapCooldownSeconds()),
+                        ()->gp.player.debugResetSwapCooldown()),
                 item("Zadaj bossowi 25% maks. HP", this::damageBoss),
                 item("Restartuj walkę z bossem", this::restartBoss),
                 item("Przywróć domyślne ustawienia walki", () -> {
@@ -191,6 +235,9 @@ public class ModMenu {
                 item("Wstecz", this::back)));
         pages.put(Page.PROGRESS, List.copyOf(progress));
         pages.put(Page.QUESTS, List.of(
+                item("Otwórz dziennik (J)", () -> playAction(() -> gp.questMenu.open())),
+                item("Otwórz notatki (N)", () -> playAction(() -> gp.questMenu.openNotes())),
+                item("Otwórz ekwipunek (I)", () -> playAction(() -> gp.relics.open())),
                 new Item(() -> "Ukończ bieżący quest fabularny" + currentMainLabel(), this::completeMainQuest),
                 item("Ukończ wszystkie questy poboczne", this::completeSideQuests),
                 item("Zresetuj dziennik questów", () -> {
@@ -199,6 +246,8 @@ public class ModMenu {
                 }),
                 item("Wstecz", this::back)));
         pages.put(Page.TOOLS, List.of(
+                item("World Editor — mapa i rozmieszczanie obiektów", () -> worldEditor.run()),
+                item("Story Editor — sceny i podgląd historii", () -> storyEditor.run()),
                 item("Dodaj slime obok gracza", this::spawnSlime),
                 new Item(() -> "Serduszka ze slime w runie: "
                         + (gp.debugSettings.areSlimeHeartsGuaranteed() ? "100% (test)" : "20%"),
@@ -250,6 +299,10 @@ public class ModMenu {
                 item("Zakończ podgląd — odtwórz świat",()->playAction(()->gp.forest.endPreview())),
                 item("Wstecz",this::back)));
         pages.put(Page.FOREST_TOOLS,List.of(
+                new Item(()->"Żelazo w ekwipunku: "+gp.forest.iron()+" — dodaj 4 (podgląd)",()->{gp.forest.beginPreview();gp.forest.debugAddIron(4);}),
+                item("Wiedźma — zabij 30 slime: 0/30 (podgląd)",()->gp.forest.debugState("witch")),
+                item("Wiedźma — zabij 30 slime: 29/30 (podgląd)",()->gp.forest.debugState("witchAlmost")),
+                item("Wiedźma — zabij 30 slime: 30/30 (podgląd)",()->gp.forest.debugState("witchReady")),
                 item("Przełącz znajomość dokumentów",()->gp.forest.debugState("documents")),
                 item("Przełącz wykorzystanie zapasów",()->gp.forest.debugState("supplies")),
                 item("Przełącz pień skrótu",()->{gp.forest.debugState("shortcut");forestPreview(103,26);}),
@@ -344,6 +397,9 @@ public class ModMenu {
 
     private String narrativeFactId() {
         String[] ids=gp.narrative.state.facts().toArray(String[]::new);return ids.length==0?"brak":ids[Math.floorMod(narrativeFact,ids.length)];
+    }
+    private String reworkDocumentId() {
+        String[] ids=gp.narrative.list("documents");return ids.length==0?"":ids[Math.floorMod(reworkDocument,ids.length)];
     }
     private String narrativeSceneId() {
         String[] ids=gp.narrative.list("debugScenes");return ids.length==0?"":ids[Math.floorMod(narrativeScene,ids.length)];
@@ -510,6 +566,7 @@ public class ModMenu {
         String title = switch(page) {
             case LIFE -> "Cykl życia i śmierci — testy i zegar";
             case NARRATIVE -> "Fabuła — podgląd bez zapisu";
+            case REWORK -> "Rozdział 1 — sceny i stany, podgląd bez zapisu";
             case MAIN -> "Menu deweloperskie";
             case TELEPORT -> "Przenieś / wybór sceny";
             case COMBAT -> "Walka i obrażenia";

@@ -16,6 +16,8 @@ public class StorySequenceManager {
     private int currentStepIndex = 0;
     private int waitFramesLeft = 0;
     private boolean stepStarted = false;
+    private java.util.function.IntPredicate stepGate;
+    public void stepGate(java.util.function.IntPredicate gate){stepGate=gate;}
     private boolean visualNovelSequence = false;
     private boolean cutsceneModeEntered = false;
     private GameState returnState = GameState.PLAYING;
@@ -58,6 +60,7 @@ public class StorySequenceManager {
             if (activeSequence == null) {
                 return;
             }
+            if (!stepStarted) return;
         }
 
         if (currentStep == null) {
@@ -87,6 +90,9 @@ public class StorySequenceManager {
     public boolean isActive() {
         return activeSequence != null;
     }
+    public int currentStepIndex(){return currentStepIndex;}
+    public int stepCount(){return activeSequence==null?0:activeSequence.stepCount();}
+    public String currentStepType(){return currentStep==null?"Ready":currentStep.type().name();}
 
     public String visualNovelBackground() { return visualNovelBackgroundPath; }
 
@@ -130,6 +136,7 @@ public class StorySequenceManager {
     }
 
     private void startCurrentStep() {
+        if(stepGate!=null&&!stepGate.test(currentStepIndex))return;
         currentStep = activeSequence.stepAt(currentStepIndex);
         stepStarted = true;
 

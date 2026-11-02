@@ -129,7 +129,10 @@ public class NPC_Villager extends NPC {
 
     @Override
     public void speak() {
-        if(gp.narrative.enabled() && !silent) { gp.narrative.menu(this,this::talk,shop!=null||teacher?this::openService:null); return; }
+        if(gp.narrative.enabled() && (!silent || !gp.narrative.conversations(gp.narrative.npcId(this),"talk").isEmpty())) {
+            walkPixelsLeft = 0;
+            gp.narrative.interact(this,this::talk,shop!=null||teacher?this::openService:null); return;
+        }
         openService();
     }
     protected void openService() {
@@ -143,9 +146,11 @@ public class NPC_Villager extends NPC {
         stopToFacePlayer();
         walkPixelsLeft = 0;
         if (teacher) {
-            gp.shopMenu.openTrainer(this, false);
+            if (gp.narrative.enabled()) gp.skillTreeMenu.open(this);
+            else gp.shopMenu.openTrainer(this, false);
         } else {
-            gp.shopMenu.open(this, shop);
+            if (gp.narrative.enabled()) gp.shopMenu.openBrowsing(this, shop);
+            else gp.shopMenu.open(this, shop);
         }
     }
 

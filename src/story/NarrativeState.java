@@ -25,6 +25,10 @@ public final class NarrativeState {
     public void tick() { ticks++; }
     public long ticks() { return ticks; }
     public void advanceHour() { ticks += 3600; }
+    public void advanceToSunrise() {
+        long next=ticks/86400*86400+world.DayCycle.SUNRISE_SECONDS;
+        ticks=next>ticks?next:next+86400;
+    }
     public void shiftMinutes(int minutes) {
         long next=ticks+minutes*60L;
         ticks=next<0?Math.floorMod(next,86400):next;
@@ -35,7 +39,7 @@ public final class NarrativeState {
         return world.DayCycle.at(ticks).night();
     }
     public void save(Properties p) {
-        p.setProperty("narrative.version", "1");
+        p.setProperty("narrative.version", "2");
         p.setProperty("narrative.facts", String.join(",", facts));
         p.setProperty("narrative.ticks", Long.toString(ticks));
     }

@@ -15,6 +15,8 @@ public class KeyHandler implements KeyListener {
     public boolean qPressed, ePressed, onePressed, twoPressed;
 
     private boolean confirmHeld;
+    private boolean muteHeld;
+    private boolean documentEscapeHeld;
     GamePanel gp;
 
     public KeyHandler(GamePanel gp) {
@@ -33,6 +35,14 @@ public class KeyHandler implements KeyListener {
     }
 
     private void handleKeyPressed(int code) {
+        if (code == KeyEvent.VK_ESCAPE && documentEscapeHeld) return;
+        if (code == ControlSettings.MUTE_KEY) {
+            if (muteHeld) return;
+            muteHeld = true;
+            gp.audio.toggleMute();
+            gp.ui.showMessage(gp.audio.isMuted() ? "Sound muted" : "Sound on");
+            return;
+        }
         if (gp.isBlinkTransition() || gp.campaign.victoryInProgress() && gp.gameState == GameState.PLAYING) return;
         if (gp.gameState == GameState.MENU) {
             gp.titleMenu.keyPressed(code);
@@ -52,7 +62,19 @@ public class KeyHandler implements KeyListener {
             if(confirmHeld && (gp.narrativeView.modal() || gp.gameState==GameState.DIALOGUE || gp.gameState==GameState.CUTSCENE || gp.gameState==GameState.CHOICE))return;
             confirmHeld=true;
         }
+        if (code == KeyEvent.VK_ESCAPE && gp.narrativeView.documentVisible()
+                && gp.gameState != GameState.MOD_MENU && gp.gameState != GameState.CHOICE) {
+            documentEscapeHeld = true;
+            gp.narrativeView.closeDocument();
+            return;
+        }
         if (gp.narrativeView.modal() && gp.gameState != GameState.MOD_MENU) { if (code == KeyEvent.VK_ENTER) gp.narrativeView.confirm(); return; }
+        if (gp.narrativeView.documentVisible() && gp.gameState != GameState.MOD_MENU && gp.gameState != GameState.CHOICE) {
+            boolean up = code == KeyEvent.VK_UP || code == gp.controls.key(ControlSettings.Action.MOVE_UP);
+            boolean down = code == KeyEvent.VK_DOWN || code == gp.controls.key(ControlSettings.Action.MOVE_DOWN);
+            if (up || down) { gp.narrativeView.page(up ? -1 : 1); return; }
+            if (gp.narrativeView.reading()) { if (code == KeyEvent.VK_ENTER || code == KeyEvent.VK_SPACE || code == KeyEvent.VK_ESCAPE) gp.narrativeView.readConfirm(code == KeyEvent.VK_ESCAPE); return; }
+        }
         if (gp.gameState == GameState.MAP) { gp.worldMap.key(code); return; }
         if (gp.gameState == GameState.CHOICE) { gp.choiceMenu.handle(code); return; }
         if(code==KeyEvent.VK_ESCAPE && gp.narrative.busy()){gp.narrative.requestSkip();return;}
@@ -124,10 +146,6 @@ public class KeyHandler implements KeyListener {
             if (code == KeyEvent.VK_2) {
                 twoPressed = true;
             }
-            if (code == KeyEvent.VK_M) {
-                gp.audio.toggleMute();
-                gp.ui.showMessage(gp.audio.isMuted() ? "Sound muted" : "Sound on");
-            }
             if (code == KeyEvent.VK_F3) {
                 gp.debugSettings.toggleOverlay();
             }
@@ -144,7 +162,8 @@ public class KeyHandler implements KeyListener {
                 gp.debugReloadArt();
             }
 
-            if (code == KeyEvent.VK_I) { gp.relics.open(); return; }
+            if (code == gp.controls.key(ControlSettings.Action.INVENTORY)) { gp.relics.open(); return; }
+            if (code == gp.controls.key(ControlSettings.Action.NOTES)) { gp.questMenu.openNotes(); return; }
             if (code == KeyEvent.VK_ESCAPE) {
                 gp.pauseGame();
                 return;
@@ -199,6 +218,8 @@ public class KeyHandler implements KeyListener {
     @Override
     public void keyReleased(KeyEvent e) {
         if(e.getKeyCode()==KeyEvent.VK_ENTER)confirmHeld=false;
+        if(e.getKeyCode()==ControlSettings.MUTE_KEY)muteHeld=false;
+        if(e.getKeyCode()==KeyEvent.VK_ESCAPE)documentEscapeHeld=false;
         int code = e.getKeyCode();
 
         if (code == gp.controls.key(ControlSettings.Action.MOVE_UP)) {

@@ -168,6 +168,15 @@ public class QuestLog {
         }
     }
 
+    public void debugRestart(String id) {
+        Quest quest = quests.get(id);
+        if (quest == null) return;
+        completed.remove(quest);
+        quest.state = State.ACTIVE; quest.progress = 0; quest.stage = 0;
+        if (quest.staged()) quest.objective = quest.stages.getFirst().objective();
+        changed();
+    }
+
     // Sets progress; completes the quest when it reaches the target. Hidden quests remember progress for later.
     public void setProgress(String id, int value) {
         Quest quest = quests.get(id);

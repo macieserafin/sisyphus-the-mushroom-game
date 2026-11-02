@@ -60,6 +60,8 @@ public class UI {
         keyImage = key.image;
     }
 
+    private double hudFade = 1;
+
     public void showMessage(String s) {
         if (!s.equals(message) || !messageOn) gp.audioDirector.dialogueEffect(Sound.NOTICE);
         message = s;
@@ -81,7 +83,14 @@ public class UI {
         if (hud == null) {
             hud = new Hud(gp);
         }
-        hud.draw(this.g2);
+        hudFade += ((gp.narrative.busy() || gp.titleCard.active() || gp.dialogueManager.hasActiveLine()
+                || gp.narrativeView.documentVisible() ? 0 : 1) - hudFade) * (gp.visuals.reduceMotion() ? 1 : 0.12);
+        if (hudFade > 0.02) {
+            Composite before = this.g2.getComposite();
+            if (hudFade < 0.98) this.g2.setComposite(AlphaComposite.SrcOver.derive((float) hudFade));
+            hud.draw(this.g2);
+            this.g2.setComposite(before);
+        }
         g2.setFont(consolas_18);
         g2.setColor(Color.WHITE);
         if (gp.debugSettings.isOverlayEnabled()) {
@@ -94,7 +103,7 @@ public class UI {
         uiTick++;
         drawBossHealthBar();
 
-        if (messageOn) {
+        if (messageOn && !gp.narrative.busy() && !gp.dialogueManager.hasActiveLine() && !gp.narrativeView.documentVisible()) {
             drawMessageToast();
 
             messageCounter++;
@@ -121,6 +130,7 @@ public class UI {
 
         drawDialogueOverlay();
         if (gp.gameState == GameState.MAP) gp.worldMap.draw(this.g2);
+        if (gp.gameState != GameState.MOD_MENU) gp.titleCard.draw(this.g2);
         gp.narrativeView.draw(this.g2);
         if (gp.gameState == GameState.MOD_MENU) {
             gp.modMenu.draw(this.g2);
@@ -347,9 +357,11 @@ public class UI {
         g2.drawString(prompt, getXForCenteredText(prompt), y + 105);
     }
 
+    public int dialogueReserve() { return DIALOGUE_HEIGHT + DIALOGUE_BOTTOM_MARGIN + 12; }
+
     public int dialogueOverlayHeight() {
         DialogueLine line = gp.dialogueManager.currentLine();
-        if (line == null || line.presentation() == DialogueLine.Presentation.VISUAL_NOVEL) {
+        if (line == null && !gp.narrative.busy() || line != null && line.presentation() == DialogueLine.Presentation.VISUAL_NOVEL) {
             return 0;
         }
         return DIALOGUE_HEIGHT + DIALOGUE_BOTTOM_MARGIN + 12;

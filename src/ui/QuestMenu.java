@@ -3,6 +3,7 @@ package ui;
 import audio.Sound;
 import main.GamePanel;
 import main.GameState;
+import settings.ControlSettings.Action;
 
 import story.QuestLog;
 
@@ -28,7 +29,7 @@ public class QuestMenu {
     private final Font textFont = UiFonts.of(Font.PLAIN, 14);
     private final Font smallFont = UiFonts.of(Font.PLAIN, 12);
 
-    private boolean completedTab = false;
+    private int tab;
     private int selected = 0;
     private int scroll = 0;
 
@@ -38,7 +39,7 @@ public class QuestMenu {
 
     public void open() {
         pressedKeys.clear();
-        completedTab = false;
+        tab = 0;
         selected = 0;
         scroll = 0;
         gp.keyH.clearGameplayInput();
@@ -46,8 +47,12 @@ public class QuestMenu {
     }
 
     public boolean isCompletedTab() {
-        return completedTab;
+        return tab == 1;
     }
+
+    public boolean isNotesTab() { return tab == 2; }
+
+    public void openNotes() { open(); tab = 2; }
 
     public void keyPressed(int code) {
         pressedKeys.add(code);
@@ -55,24 +60,47 @@ public class QuestMenu {
 
     public void update() {
         Integer code;
-        while (gp.gameState == GameState.QUESTS && (code = pressedKeys.poll()) != null) {
+        while (gp.gameState == GameState.QUESTS && !gp.narrativeView.reading() && (code = pressedKeys.poll()) != null) {
             handle(code);
         }
     }
 
     private List<QuestLog.Quest> shown() {
-        return completedTab ? gp.questLog.completed() : gp.questLog.active();
+        return tab == 1 ? gp.questLog.completed() : gp.questLog.active();
+    }
+
+    private List<String> documents() {
+        return gp.narrative.enabled() ? gp.narrative.knownDocuments() : List.of();
+    }
+
+    private void selectTab(int next) {
+        tab = next;
+        selected = scroll = 0;
+        gp.playSoundEffect(Sound.UI_MOVE);
     }
 
     private void handle(int code) {
-        int count = shown().size();
+        if (code == gp.controls.key(Action.NOTES)) {
+            if (isNotesTab()) close(); else selectTab(2);
+            return;
+        }
+        if (code == gp.controls.key(Action.JOURNAL)) {
+            if (isNotesTab()) selectTab(0); else close();
+            return;
+        }
+        if (code == gp.controls.key(Action.MAP)) { close(); gp.worldMap.open(); return; }
+        if (code == gp.controls.key(Action.INVENTORY)) { close(); gp.relics.open(); return; }
+        int count = isNotesTab() ? documents().size() : shown().size();
         switch (code) {
-            case KeyEvent.VK_ESCAPE, KeyEvent.VK_J -> close();
-            case KeyEvent.VK_A, KeyEvent.VK_D, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT -> {
-                completedTab = !completedTab;
-                selected = 0;
-                scroll = 0;
-                gp.playSoundEffect(Sound.UI_MOVE);
+            case KeyEvent.VK_ESCAPE -> close();
+            case KeyEvent.VK_A, KeyEvent.VK_LEFT -> selectTab(Math.floorMod(tab - 1, 3));
+            case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> selectTab((tab + 1) % 3);
+            case KeyEvent.VK_ENTER, KeyEvent.VK_SPACE -> {
+                if (!isNotesTab()) selectTab(2);
+                else if (count > 0) {
+                    pressedKeys.clear();
+                    gp.narrative.reread(documents().get(selected));
+                }
             }
             case KeyEvent.VK_W, KeyEvent.VK_UP -> move(-1, count);
             case KeyEvent.VK_S, KeyEvent.VK_DOWN -> move(1, count);
@@ -99,6 +127,7 @@ public class QuestMenu {
 
 
     public void draw(Graphics2D g2) {
+        if (gp.narrativeView.reading()) return;
         Font oldFont = g2.getFont();
         Color oldColor = g2.getColor();
         Object oldAa = g2.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);
@@ -113,33 +142,43 @@ public class QuestMenu {
 
         int activeCount = gp.questLog.active().size();
         int doneCount = gp.questLog.completed().size();
-        UiSkin.plaque(g2, x + 20, y + 18, 150, 27, "ACTIVE " + activeCount, completedTab ? UiSkin.DIM : UiSkin.GLOW);
-        UiSkin.plaque(g2, x + 176, y + 18, 174, 27, "COMPLETED " + doneCount, completedTab ? UiSkin.GLOW : UiSkin.DIM);
+        UiSkin.plaque(g2, x + 20, y + 18, 150, 27, "ACTIVE " + activeCount, tab == 0 ? UiSkin.GLOW : UiSkin.DIM);
+        UiSkin.plaque(g2, x + 176, y + 18, 174, 27, "COMPLETED " + doneCount, tab == 1 ? UiSkin.GLOW : UiSkin.DIM);
+        UiSkin.plaque(g2, x + 356, y + 18, 284, 27, gp.controls.keyName(Action.NOTES) + "  NOTES " + documents().size(), isNotesTab() ? UiSkin.GLOW : UiSkin.DIM);
 
         List<QuestLog.Quest> quests = shown();
-        if (selected >= quests.size()) {
-            selected = Math.max(0, quests.size() - 1);
+        int count = isNotesTab() ? documents().size() : quests.size();
+        if (selected >= count) {
+            selected = Math.max(0, count - 1);
         }
         int listX = x + 20;
         int listY = y + 58;
         UiSkin.inset(g2, listX, listY, LIST_W, HEIGHT - 78);
-        if (quests.isEmpty()) {
+        if (count == 0) {
             g2.setFont(textFont);
             g2.setColor(UiSkin.TEXT_DIM);
-            g2.drawString(completedTab ? "Nothing finished yet." : "No active quests.", listX + 16, listY + 28);
+            g2.drawString(isNotesTab() ? "No notes collected yet." : tab == 1 ? "Nothing finished yet." : "No active quests.", listX + 16, listY + 28);
         }
-        for (int i = scroll; i < quests.size() && i < scroll + VISIBLE_ROWS; i++) {
-            drawRow(g2, quests.get(i), listX + 6, listY + 6 + (i - scroll) * ROW_H, LIST_W - 12, i == selected);
+        for (int i = scroll; i < count && i < scroll + VISIBLE_ROWS; i++) {
+            int rowY = listY + 6 + (i - scroll) * ROW_H;
+            if (isNotesTab()) {
+                if (i == selected) UiSkin.plaque(g2, listX + 6, rowY, LIST_W - 12, 30, null, UiSkin.GLOW);
+                g2.setFont(rowFont); g2.setColor(i == selected ? UiSkin.TEXT : UiSkin.TEXT_DIM);
+                g2.drawString(trim(g2.getFontMetrics(), gp.narrative.get("document." + documents().get(i) + ".title"), LIST_W - 40), listX + 18, rowY + 20);
+            } else drawRow(g2, quests.get(i), listX + 6, rowY, LIST_W - 12, i == selected);
         }
-        if (scroll + VISIBLE_ROWS < quests.size()) {
+        if (scroll + VISIBLE_ROWS < count) {
             UiSkin.PixelFont.draw(g2, "...", listX + LIST_W / 2 - 8, listY + HEIGHT - 96, 2, UiSkin.TEXT_DIM);
         }
 
-        if (!quests.isEmpty()) {
+        if (isNotesTab()) {
+            g2.setFont(textFont); g2.setColor(UiSkin.TEXT);
+            wrap(g2, count == 0 ? "Documents you discover will appear here." : "Press ENTER to read the selected note. ESC returns here after reading.", listX + LIST_W + 22, listY + 28, WIDTH - LIST_W - 64, 22);
+        } else if (!quests.isEmpty()) {
             drawDetails(g2, quests.get(selected), listX + LIST_W + 22, listY + 4, WIDTH - LIST_W - 64);
         }
 
-        drawHints(g2, "A/D  TAB", "W/S  MOVE", "J  CLOSE");
+        drawHints(g2, "A/D  TABS", "W/S  MOVE", isNotesTab() ? "ENTER  READ" : gp.controls.keyName(Action.NOTES) + "  NOTES", "ESC  CLOSE");
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, oldAa);
         g2.setFont(oldFont);
         g2.setColor(oldColor);

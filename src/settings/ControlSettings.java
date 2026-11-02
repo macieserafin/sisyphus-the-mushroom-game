@@ -36,7 +36,9 @@ public class ControlSettings {
         MODE_A("Weapon mode (Q)", KeyEvent.VK_Q),
         MODE_B("Weapon mode (E)", KeyEvent.VK_E),
         JOURNAL("Quest journal", KeyEvent.VK_J),
-        MAP("World map", KeyEvent.VK_G),
+        MAP("World map", KeyEvent.VK_M),
+        INVENTORY("Inventory", KeyEvent.VK_I),
+        NOTES("Notes", KeyEvent.VK_N),
         MINIMAP_ZOOM_IN("Minimap zoom in", KeyEvent.VK_EQUALS),
         MINIMAP_ZOOM_OUT("Minimap zoom out", KeyEvent.VK_MINUS);
 
@@ -51,6 +53,7 @@ public class ControlSettings {
 
     private static final String MODE_KEYS_KEY = "modeKeys";
     private static final String BINDING_PREFIX = "key.";
+    public static final int MUTE_KEY = KeyEvent.VK_F8;
 
     private final Settings settings;
     private final Map<Action, Integer> bindings = new EnumMap<>(Action.class);
@@ -86,7 +89,7 @@ public class ControlSettings {
 
     public static boolean isReserved(int code) {
         return code == KeyEvent.VK_ESCAPE || code == KeyEvent.VK_ENTER || code == KeyEvent.VK_TAB
-                || code == KeyEvent.VK_M || code == KeyEvent.VK_I || code == KeyEvent.VK_1 || code == KeyEvent.VK_2
+                || code == KeyEvent.VK_1 || code == KeyEvent.VK_2
                 || (code >= KeyEvent.VK_F1 && code <= KeyEvent.VK_F12) || code == KeyEvent.VK_UNDEFINED;
     }
 
@@ -122,8 +125,27 @@ public class ControlSettings {
     }
 
     private void loadBindings() {
+        if (settings.getInt("controlsVersion", 0) < 1) {
+            if (settings.getInt(BINDING_PREFIX + Action.MAP.name(), KeyEvent.VK_G) == KeyEvent.VK_G) {
+                settings.putInt(BINDING_PREFIX + Action.MAP.name(), KeyEvent.VK_M);
+            }
+            settings.putInt("controlsVersion", 1);
+        }
         for (Action action : Action.values()) {
             bindings.put(action, settings.getInt(BINDING_PREFIX + action.name(), action.defaultKey));
+        }
+        for (Action added : new Action[]{Action.INVENTORY, Action.NOTES}) {
+            if (!settings.getString(BINDING_PREFIX + added.name(), "").isBlank()) continue;
+            boolean collision = bindings.entrySet().stream().anyMatch(entry -> entry.getKey() != added && entry.getValue() == key(added));
+            if (collision) {
+                for (int candidate = KeyEvent.VK_A; candidate <= KeyEvent.VK_Z; candidate++) {
+                    if (!bindings.containsValue(candidate)) {
+                        bindings.put(added, candidate);
+                        settings.putInt(BINDING_PREFIX + added.name(), candidate);
+                        break;
+                    }
+                }
+            }
         }
         // a hand-edited or damaged file must not leave two actions on one key or a reserved key in use
         boolean valid = true;

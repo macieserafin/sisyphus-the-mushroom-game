@@ -35,7 +35,12 @@ public final class SpriteSheet {
     private final Point[][] shoulders;
     private final Map<String, Color> armColors = new HashMap<>();
 
+    private Properties properties = new Properties();
+
+    public String property(String key, String fallback) { return properties.getProperty(key, fallback).trim(); }
+
     private SpriteSheet(String name, Properties props, BufferedImage image) {
+        properties = props;
         this.name = name;
         frameWidth = intProp(props, "frameWidth");
         frameHeight = intProp(props, "frameHeight");

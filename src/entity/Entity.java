@@ -204,7 +204,7 @@ public class Entity {
         facePlayer();
     }
 
-    protected void facePlayer() {
+    public void facePlayer() {
         Direction8 towardPlayer = Direction8.cardinalFromVector(gp.player.worldX - worldX, gp.player.worldY - worldY);
         if (towardPlayer == null) {
             return;

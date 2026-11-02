@@ -72,6 +72,7 @@ public final class Campaign {
         gp.player.updateCamera();
     }
     public boolean started() { return started; }
+    public void debugStart() { started = true; sageMet = true; floor = 1; }
     public int floor() { return floor; }
     public boolean anchorOpen() { return anchorOpen; }
     public boolean bossCleared() { return bossCleared; }
@@ -106,7 +107,11 @@ public final class Campaign {
         if (started && inArena() && gp.player.alive && rewardStage > 0) {
             if (rewardTicks > 0) rewardTicks--;
             if (rewardTicks == 0) {
-                if (rewardStage == 1) { rewardStage = 2; rewardTicks = 90; }
+                if (rewardStage == 1) {
+                    if (gp.narrative.enabled() && !gp.narrative.state.has("scene.kingFall")) { if (!gp.narrative.play("kingFall")) gp.narrative.state.set("scene.kingFall"); return; }
+                    gp.player.beginScriptedHold();
+                    rewardStage = 2; rewardTicks = 90;
+                }
                 else if (rewardStage == 2) {
                     rewardStage = 3;
                     gp.relics.grant(Relics.Item.CROWN);
@@ -129,9 +134,9 @@ public final class Campaign {
     public void prepareDeparture() { sageMet=true; }
     public boolean beginFloor() {
         if(gp.forest.isPreview()) { gp.ui.showMessage("Developer preview active: end preview in F1 before entering the forest"); return false; }
-        if(gp.narrative.enabled() && !gp.narrative.state.has("departure.ready")) { say("sage.gate", "Old Aldous"); return false; }
+        if(gp.narrative.enabled() && !gp.narrative.state.has("departure.ready")) { say("forest.gate", "You"); return false; }
         if (started) return false;
-        if (!sageMet) { say("sage.gate", "Old Aldous"); return false; }
+        if (!sageMet) { say("sage.gate", "Aldous"); return false; }
         int departureX = gp.player.worldX, departureY = gp.player.worldY;
         gp.player.setWorldPosition(VillageLayout.SPAWN_COL * gp.tileSize, VillageLayout.SPAWN_ROW * gp.tileSize);
         boolean saved = gp.saves.checkpoint();
@@ -170,12 +175,14 @@ public final class Campaign {
         }
         gp.playSoundEffect(Sound.ANCHOR_BIND);
         gp.effects.ring(gp.player.worldX + 24, gp.player.worldY + 36, 75, 25, new Color(0x91C6AD), false);
+        if(gp.narrative.enabled()) { if(first&&started)gp.blinkTransition(()->gp.levelManager.loadHub()); return true; }
         gp.ui.showMessage("Return point bound. Progress saved. Village connection open");
         if(first&&started)gp.blinkTransition(()->{gp.levelManager.loadHub();say("forest.anchor.arrival","");});
         return true;
     }
 
     public void ensureReturnPortal() {
+        if (gp.narrative.enabled()) return;
         if (inForest() && anchorOpen() && gp.entities.objects().stream().noneMatch(o -> o.persistenceId.equals("Portal:145:7")))
             gp.entities.addObject(new Portal(TransitionTarget.hub()), 145, 7);
     }
@@ -183,6 +190,7 @@ public final class Campaign {
     public void bossDefeated() {
         bossCleared = true; clearCombat(); gp.enemyShots.clear(); gp.bulletManager.clearBullets();
         gp.forest.bossSample();
+        if (started && gp.narrative.enabled()) gp.chapterOne.placeCoreRemains();
         if (started) {
             rewardStage = 1; rewardTicks = 120;
             gp.keyH.clearGameplayInput(); gp.player.beginScriptedHold();
@@ -217,7 +225,7 @@ public final class Campaign {
 
     public void requestDescent() {
         if(gp.forest.isPreview()){gp.ui.showMessage(ChapterText.get("forest.preview"));return;}
-        if (!rewardClaimed || !gp.forest.reported()) { say("forest.report.required", ""); return; }
+        if (!rewardClaimed || !gp.forest.reported()) { say("forest.report.required", gp.narrative.enabled() ? "You" : ""); return; }
         if (inCombat()) { gp.ui.showMessage("In combat: passage locked"); return; }
         gp.choiceMenu.open(ChapterText.get("forest.descent.title"), List.of(
                 new ChoiceMenu.Option("Stay on floor 1", ChapterText.get("descent.warning"), () -> {}),
@@ -241,14 +249,14 @@ public final class Campaign {
     public void talkSage() {
         sageMet = true;
         if(bossCleared&&gp.forest.sample()&&!gp.forest.reported()){
-            if(gp.forest.report()){signExplained=true;gp.questLog.complete(QuestLog.HOME);say("forest.research.report","Old Aldous");gp.saves.saveProgress();}return;
+            if(gp.forest.report()){signExplained=true;gp.questLog.complete(QuestLog.HOME);say("forest.research.report","Aldous");gp.saves.saveProgress();}return;
         }
         if(anchorOpen&&!gp.forest.anchorTalk()){
-            if(gp.forest.talkAnchor())say("forest.anchor.explain","Old Aldous");return;
+            if(gp.forest.talkAnchor())say("forest.anchor.explain","Aldous");return;
         }
         if (signFound) { signExplained = true; gp.questLog.complete(QuestLog.HOME); }
         gp.questLog.complete(QuestLog.VILLAGE);
-        say(signFound ? "sage.sign" : "sage.mission", "Old Aldous");
+        say(signFound ? "sage.sign" : "sage.mission", "Aldous");
     }
 
     public void talkWarrior() {
@@ -333,6 +341,7 @@ public final class Campaign {
             gp.gameState = GameState.PLAYING;
             gp.keyH.clearGameplayInput();
             if (rebirth) {
+                if (gp.narrative.enabled()) gp.narrative.event("defeated.once");
                 rebirthTicks = REBIRTH_TICKS;
                 gp.playSoundEffect(Sound.AWAKEN);
                 gp.player.beginRebirth();

@@ -89,9 +89,6 @@ public class GamePanel extends JPanel implements Runnable {
     public GameSaves saves;
 
     public KeyHandler keyH = new KeyHandler(this);
-    Sound music = new Sound();
-    Sound cutsceneMusic = new Sound();
-    private int currentMusic = -1;
     private boolean restartAfterDeathPending = false;
     private boolean tutorialRespawnPending = false;
     private volatile boolean prologueSkipRequested = false;
@@ -170,7 +167,9 @@ public class GamePanel extends JPanel implements Runnable {
     public final level.Exploration exploration = new level.Exploration();
     public final world.render.SceneCamera sceneCamera = new world.render.SceneCamera(this);
     public final ui.NarrativeView narrativeView = new ui.NarrativeView(this);
+    public final ui.TitleCard titleCard = new ui.TitleCard(this);
     public final story.NarrativeDirector narrative = new story.NarrativeDirector(this);
+    public final level.ChapterOne chapterOne = new level.ChapterOne(this);
     public final ui.WorldMapMenu worldMap = new ui.WorldMapMenu(this);
 
     public final AudioDirector audioDirector = new AudioDirector(this);
@@ -184,6 +183,7 @@ public class GamePanel extends JPanel implements Runnable {
         this.setFocusable(true);
         // Let TAB reach the key handler instead of moving keyboard focus.
         this.setFocusTraversalKeysEnabled(false);
+        se.bind(audioDirector.mixer());
         saves = new GameSaves(this);
         wallet.setOnChange(saves::requestProgressSave);
         progression.setOnChange(saves::requestProgressSave);
@@ -194,6 +194,7 @@ public class GamePanel extends JPanel implements Runnable {
     public void setupGame(){
         gameState = GameState.MENU;
         applyAudioSettings();
+        audioDirector.start();
         titleMenu.refresh();
 
     }
@@ -231,9 +232,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void applyAudioSettings() {
-        music.setVolume(audio.musicGain());
-        cutsceneMusic.setVolume(audio.musicGain());
-        se.setVolume(audio.effectsGain());
+        audioDirector.update(0);
     }
 
     public void startNewGame() {
@@ -255,6 +254,10 @@ public class GamePanel extends JPanel implements Runnable {
 
     @Override
     public void run() {
+        try { runLoop(); } finally { audioDirector.close(); }
+    }
+
+    private void runLoop() {
         final long tickNanos = 1_000_000_000L / FPS;
         final int maxCatchUpTicks = 5;
         long nextTick = System.nanoTime();
@@ -320,7 +323,10 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
-        audioDirector.update();
+        try { updateWorld(); } finally { audioDirector.update(); }
+    }
+
+    private void updateWorld() {
         saves.tick();
         if (blinkTravel != null) {
             ui.update(); effects.update();
@@ -337,6 +343,8 @@ public class GamePanel extends JPanel implements Runnable {
         }
         if (gameState == GameState.MOD_MENU) return;
         if (narrativeView.modal()) { ui.update();narrativeView.tick(); return; }
+        if (narrativeView.reading() && !narrative.busy()) { ui.update();narrativeView.tick(); return; }
+        if (gameState != GameState.MENU) { narrativeView.tick(); titleCard.update(); }
         if (gameState == GameState.MAP) return;
         if (gameState == GameState.CHOICE) { choiceMenu.update(); return; }
         if (gameState == GameState.MOD_MENU) return;
@@ -396,6 +404,7 @@ public class GamePanel extends JPanel implements Runnable {
         storySequenceManager.update();
         sceneCamera.tick();
         narrative.tick();
+        chapterOne.tick();
         if (narrativeView.modal()) return;
 
         if (storySequenceManager.isActive() || narrative.busy()) {
@@ -548,10 +557,14 @@ public class GamePanel extends JPanel implements Runnable {
         int shakeX = effects.shakeX();
         int shakeY = effects.shakeY();
 
+        Graphics2D screenGraphics=g2;
+        g2=(Graphics2D)g2.create();
+        sceneCamera.frameRoom(g2);
         g2.translate(shakeX, shakeY);
         tileM.draw(g2);
         effects.drawGround(g2);
 
+        narrative.stage.draw(g2);
         for(SuperObject object : entities.objects()) {
             object.draw(g2, this);
         }
@@ -581,7 +594,8 @@ public class GamePanel extends JPanel implements Runnable {
             enemy.drawOverlay(g2);
         }
         effects.drawOver(g2);
-        g2.translate(-shakeX, -shakeY);
+        g2.dispose();
+        g2=screenGraphics;
         effects.drawScreen(g2);
         drawMapTransition(g2);
 
@@ -648,7 +662,7 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void playMusic(int i) {
         // The live scene chooses the track; legacy callers remain valid.
-        currentMusic = i;
+        audioDirector.update(0);
     }
 
     public void pauseGame() {
@@ -676,10 +690,7 @@ public class GamePanel extends JPanel implements Runnable {
         saves.deactivate();
         storySequenceManager.cancel();
         dialogueManager.clear();
-        music.stop();
-        cutsceneMusic.stop();
         se.stopAllEffects();
-        currentMusic = -1;
 
         storyFlags = new StoryFlags();
         prologueTutorialManager = new PrologueTutorialManager(this);
@@ -700,8 +711,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void pauseMusic(int i) {
-        music.stop();
-        currentMusic = -1;
+        audioDirector.update(0);
     }
 
     public void playAreaMusic() {
@@ -709,10 +719,7 @@ public class GamePanel extends JPanel implements Runnable {
             return;
         }
 
-        int track = levelManager.getActiveBoss() != null ? Sound.BOSS_MUSIC : Sound.BACKGROUND;
-        if (track != currentMusic) {
-            playMusic(track);
-        }
+        audioDirector.update(0);
     }
 
     public Sound soundEffects() {
@@ -720,9 +727,6 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void playSoundEffect(int i) {
-        if (gameState == GameState.CUTSCENE) {
-            return;
-        }
         se.playEffect(i);
     }
 
@@ -733,8 +737,6 @@ public class GamePanel extends JPanel implements Runnable {
     public void enterCutsceneMode() {
         ui.resetVisualNovelScene();
         keyH.clearGameplayInput();
-        music.stop();
-        currentMusic = -1;
         se.stopAllEffects();
         gameState = GameState.CUTSCENE;
 
@@ -743,7 +745,6 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void exitCutsceneMode(GameState nextState) {
         keyH.clearGameplayInput();
-        cutsceneMusic.stop();
         gameState = nextState == null || nextState == GameState.CUTSCENE
                 ? GameState.PLAYING
                 : nextState;
@@ -768,7 +769,6 @@ public class GamePanel extends JPanel implements Runnable {
         }
         storySequenceManager.cancel();
         dialogueManager.clear();
-        cutsceneMusic.stop();
         storyFlags.completeIntroCutscene();
         storyFlags.completePrologueTutorial();
         storyFlags.startPrologueBytEncounter();
@@ -865,7 +865,6 @@ public class GamePanel extends JPanel implements Runnable {
     public void debugTeleport(DebugDestination destination) {
         storySequenceManager.cancel();
         dialogueManager.clear();
-        cutsceneMusic.stop();
         villageAwakeningPending = false;
         restartAfterDeathPending = false;
         tutorialRespawnPending = false;

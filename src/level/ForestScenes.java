@@ -45,7 +45,7 @@ public final class ForestScenes {
         }catch(IOException e){throw new IllegalStateException(e);}return total;
     }
     public static void tick(GamePanel gp){
-        if(!gp.campaign.inForest()||!gp.campaign.started()||gp.forest.isPreview()||gp.campaign.anchorOpen()||gp.campaign.inCombat())return;
+        if(gp.narrative.enabled()||!gp.campaign.inForest()||!gp.campaign.started()||gp.forest.isPreview()||gp.campaign.anchorOpen()||gp.campaign.inCombat())return;
         if(gp.player.worldY<=9*gp.tileSize&&gp.player.worldX>=143*gp.tileSize)gp.campaign.bindAnchor();
     }
     public static void drawTargets(Graphics2D g,GamePanel gp){

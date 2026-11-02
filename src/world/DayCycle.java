@@ -2,6 +2,7 @@ package world;
 
 /** Continuous outdoor phases. Dawn 04–08, dusk 17–21; no discontinuity at midnight. */
 public record DayCycle(float night,float dawn,float dusk) {
+    public static final int SUNRISE_SECONDS = 6 * 60 * 60;
     public static DayCycle at(long seconds) {
         double hour=Math.floorMod(seconds,86400)/3600.0;
         float night=hour<12?1-smooth((hour-4)/4):smooth((hour-17)/4);

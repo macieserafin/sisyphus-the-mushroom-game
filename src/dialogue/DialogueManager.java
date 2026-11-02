@@ -153,9 +153,9 @@ public class DialogueManager {
             return;
         }
 
-        gp.audioDirector.dialogueEffect(audio.Sound.DIALOGUE_NEXT);
         DialogueLine nextLine = queue.poll();
         if (nextLine != null) {
+            gp.audioDirector.dialogueEffect(audio.Sound.DIALOGUE_NEXT);
             beginLine(nextLine);
             return;
         }
@@ -209,7 +209,8 @@ public class DialogueManager {
     }
 
     private void beginLine(DialogueLine line) {
-        gp.audioDirector.dialogueEffect(audio.Sound.DIALOGUE_OPEN);
+        if (line != null && (currentLine == null || currentLine.mode() != line.mode()))
+            gp.audioDirector.dialogueEffect(audio.Sound.DIALOGUE_OPEN);
         currentLine = line;
         ambientFramesLeft = line == null ? 0 : line.durationFrames();
         visibleCharacters = line == null || line.text().isEmpty() ? 0 : 1;

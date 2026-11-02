@@ -11,8 +11,6 @@ import entity.npc.NPC;
 import entity.npc.NPC_Villager;
 import main.GamePanel;
 import progression.Shop;
-import object.Boots;
-import object.Chest;
 import object.Door;
 import object.HouseDoor;
 import object.Inspectable;
@@ -51,8 +49,8 @@ public class AssetSetter {
             spawnObject(new HouseDoor("wood", LOCKED_HOME_MESSAGES[i % LOCKED_HOME_MESSAGES.length]), home.doorCol(), home.doorRow());
         }
 
-        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.REST), 31, 21);
-        if (gp.campaign.anchorOpen()) spawnObject(new Portal(TransitionTarget.runFloor()), 31, 25);
+        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.VILLAGE_ANCHOR), 31, 21);
+        if (gp.campaign.anchorOpen() && !gp.narrative.enabled()) spawnObject(new Portal(TransitionTarget.runFloor()), 31, 25);
         if (gp.campaign.recruited() && gp.campaign.anchorOpen()) {
             spawnNPC(new entity.npc.NPC_Wanderer(gp), 43, 37);
             if (gp.campaign.built()) {
@@ -64,6 +62,7 @@ public class AssetSetter {
             spawnObject(new Inspectable(readable.tile, readable.lines), readable.col, readable.row);
         }
         VillageScenes.addLobby(gp);
+        spawnObject(new object.ChapterObject(object.ChapterObject.Kind.BENCH), 34, 27);
 
         spawnObject(new Portal(TransitionTarget.runFloor()), VillageLayout.GATE_OPENING_COL, VillageLayout.PORTAL_ROW);
         spawnObject(new Portal(TransitionTarget.runFloor()), VillageLayout.GATE_OPENING_COL + 1, VillageLayout.PORTAL_ROW);
@@ -106,7 +105,7 @@ public class AssetSetter {
     }
 
     public NPC spawnAwakeningSage() {
-        NPC sage = NPC_Villager.silent(gp, "Old Aldous", "sage").facing("left");
+        NPC sage = NPC_Villager.silent(gp, "Aldous", "sage").facing("left");
         return spawnNPC(sage, VillageLayout.SPAWN_COL + 1, VillageLayout.SPAWN_ROW);
     }
 
@@ -161,7 +160,7 @@ public class AssetSetter {
                 spawnNPC(mycologist, 5, 5);
                 break;
             case SAGE:
-                NPC sage = new NPC_Villager(gp, "Old Aldous", "sage", new Color(200, 205, 220), true) {
+                NPC sage = new NPC_Villager(gp, "Aldous", "sage", new Color(200, 205, 220), true) {
                     @Override public void talk() { if(gp.narrative.enabled())super.talk(); else gp.campaign.talkSage(); }
                 }
                         .sells(Shop.sage(gp))
@@ -177,6 +176,7 @@ public class AssetSetter {
                 spawnNPC(sage, 7, 4);
                 if(gp.narrative.enabled()) {
                     spawnObject(new Inspectable("papers_floor",story.ChapterText.lines("sage.new.notes").toArray(String[]::new)),8,4);
+                    spawnObject(new object.ChapterObject(object.ChapterObject.Kind.BED),12,4);
                 } else for (VillageLayout.Readable note : Interior.SAGE_NOTES) {
                     spawnObject(new Inspectable(note.tile, note.lines), note.col, note.row);
                 }
@@ -198,12 +198,8 @@ public class AssetSetter {
 
 
         if (!gp.narrative.enabled() && !gp.campaign.recruited()) spawnNPC(new entity.npc.NPC_Wanderer(gp), 107, 30);
-        spawnObject(new Boots(), 96, 77);
         spawnObject(new Key(), 104, 46);
         spawnObject(new Door(), 90, 28);
-        spawnObject(new Chest(), 80, 26);
-        spawnObject(new Chest(), 60, 27);  // forest lake
-        spawnObject(new Chest(), 90, 94);  // ruined quarry
         spawnObject(new Portal(TransitionTarget.bossArena()), 146, 5);
         spawnObject(new Portal(TransitionTarget.bossArena()), 147, 5);
     }

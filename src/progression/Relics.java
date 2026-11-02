@@ -52,9 +52,13 @@ public final class Relics {
     public void open() {
         if (gp.campaign.inCombat()) { gp.ui.showMessage("In combat: equipment locked"); return; }
         List<ChoiceMenu.Option> rows = new ArrayList<>();
+        if (gp.forest.iron() > 0) rows.add(new ChoiceMenu.Option(
+                ChapterText.get("forest.iron.label") + " x" + gp.forest.iron(),
+                ChapterText.get("item.IRON.description"), () -> open()));
         for (Item item : Item.values()) if (owns(item)) rows.add(new ChoiceMenu.Option(
                 (active(item) ? "[x] " : "[ ] ") + item.title(), item.description(), () -> { toggle(item); open(); }));
         rows.add(new ChoiceMenu.Option("Back", "2 special slots / 5 other slots. Items combine across both categories.", () -> {}));
-        gp.choiceMenu.open("Equipment  [I]", rows, true);
+        gp.choiceMenu.open("Inventory  [" + gp.controls.keyName(settings.ControlSettings.Action.INVENTORY) + "]", rows, true,
+                gp.controls.key(settings.ControlSettings.Action.INVENTORY));
     }
 }

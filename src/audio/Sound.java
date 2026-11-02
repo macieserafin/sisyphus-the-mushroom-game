@@ -1,12 +1,5 @@
 package audio;
 
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-import javax.sound.sampled.FloatControl;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
-import java.io.IOException;
 import java.net.URL;
 
 public class Sound {
@@ -99,19 +92,11 @@ public class Sound {
             "hit_2", "hit_3", "enemy_shot", "byt_fire", "slime_alert", "slime_lunge", "king_land", "boss_slam",
             "boss_roar", "boss_death"};
 
-    // the same effect is not restarted more often than this (a ring of shots or a shotgun blast is one sound)
-    private static final long MIN_REPEAT_NANOS = 45_000_000L;
-
-    private static final int EFFECT_VOICES = 12;
-
-    Clip clip;
-    URL[] soundURL = new URL[128];
-    private final Clip[][] effectClips = new Clip[128][EFFECT_VOICES];
-    private final int[] nextEffectVoice = new int[128];
-    private final boolean[] effectLoadFailed = new boolean[128];
-    private final long[] lastEffectStart = new long[128];
-    private float volume = 1f;
-
+    private final URL[] soundURL = new URL[128];
+    private PcmMixer mixer;
+    private boolean ownsMixer;
+    private int selected=-1;
+    private float volume=1;
     public Sound() {
         soundURL[BACKGROUND] = getClass().getResource("/sounds/music_forest.wav");
         soundURL[GUNSHOT] = getClass().getResource("/sounds/gunshot.wav");
@@ -140,178 +125,20 @@ public class Sound {
 
     }
 
-    public boolean hasResource(int i) {
-        return i >= 0 && i < soundURL.length && soundURL[i] != null;
-    }
 
-    public String effectName(int id) {
-        URL url = id >= 0 && id < soundURL.length ? soundURL[id] : null;
-        if (url == null) return Integer.toString(id);
-        String path = url.getPath();
-        return path.substring(path.lastIndexOf('/') + 1).replace(".wav", "").replace('_', ' ');
-    }
-
-    public synchronized void setFile(int i) {
-        if (java.awt.GraphicsEnvironment.isHeadless()) return;
-        closeClip();
-
-        if (i < 0 || i >= soundURL.length) {
-            System.err.println("Audio resource index out of range: " + i);
-            return;
-        }
-
-        URL resource = soundURL[i];
-        if (resource == null) {
-            System.err.println("Missing audio resource at index " + i);
-            return;
-        }
-
-        try (AudioInputStream ais = AudioSystem.getAudioInputStream(resource)) {
-            clip = AudioSystem.getClip();
-            clip.open(ais);
-            applyVolume(clip);
-        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | IllegalArgumentException | SecurityException e) {
-            System.err.println("Could not load audio resource at index " + i + " from " + resource + ": " + e.getMessage());
-            closeClip();
-        }
-    }
-
-    public synchronized void play() {
-        if (clip == null) {
-            System.err.println("Cannot play audio: no clip loaded.");
-            return;
-        }
-        clip.setFramePosition(0);
-        clip.start();
-
-    }
-
-    public synchronized void loop() {
-        if (java.awt.GraphicsEnvironment.isHeadless()) return;
-        if (clip == null) {
-            System.err.println("Cannot loop audio: no clip loaded.");
-            return;
-        }
-        clip.loop(Clip.LOOP_CONTINUOUSLY);
-
-    }
-    public synchronized void stop() {
-        if (clip == null) {
-            return;
-        }
-        clip.stop();
-
-    }
-
-    public void playEffect(int i) {
-        if (java.awt.GraphicsEnvironment.isHeadless()) return;
-        if (i >= 0 && i < lastEffectStart.length) {
-            long now = System.nanoTime();
-            if (now - lastEffectStart[i] < MIN_REPEAT_NANOS) {
-                return;
-            }
-            lastEffectStart[i] = now;
-        }
-        Clip effect = getEffectClipForPlayback(i);
-        if (effect == null) {
-            return;
-        }
-
-        effect.stop();
-        effect.setFramePosition(0);
-        effect.start();
-    }
-
-    public synchronized void setVolume(float volume) {
-        this.volume = Math.max(0f, Math.min(1f, volume));
-        applyVolume(clip);
-        for (Clip[] voices : effectClips) {
-            for (Clip effect : voices) {
-                applyVolume(effect);
-            }
-        }
-    }
-
-    private void applyVolume(Clip target) {
-        if (target == null || !target.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
-            return;
-        }
-        FloatControl gain = (FloatControl) target.getControl(FloatControl.Type.MASTER_GAIN);
-        float decibels = volume <= 0.001f ? gain.getMinimum() : (float) (20.0 * Math.log10(volume));
-        gain.setValue(Math.max(gain.getMinimum(), Math.min(gain.getMaximum(), decibels)));
-    }
-
-    public void stopAllEffects() {
-        for (int soundIndex = 0; soundIndex < effectClips.length; soundIndex++) {
-            for (int voice = 0; voice < effectClips[soundIndex].length; voice++) {
-                Clip effect = effectClips[soundIndex][voice];
-                if (effect != null) {
-                    effect.stop();
-                    effect.setFramePosition(0);
-                }
-            }
-        }
-    }
-
-    private Clip getEffectClipForPlayback(int i) {
-        if (i < 0 || i >= soundURL.length) {
-            System.err.println("Audio effect index out of range: " + i);
-            return null;
-        }
-        if (effectLoadFailed[i]) {
-            return null;
-        }
-
-        for (int offset = 0; offset < EFFECT_VOICES; offset++) {
-            int voice = (nextEffectVoice[i] + offset) % EFFECT_VOICES;
-            Clip effect = getEffectClip(i, voice);
-            if (effect != null && !effect.isRunning()) {
-                nextEffectVoice[i] = (voice + 1) % EFFECT_VOICES;
-                return effect;
-            }
-        }
-
-        return null;
-    }
-
-    private Clip getEffectClip(int i, int voice) {
-        if (effectClips[i][voice] != null) {
-            return effectClips[i][voice];
-        }
-
-        URL resource = soundURL[i];
-        if (resource == null) {
-            System.err.println("Missing audio effect at index " + i);
-            effectLoadFailed[i] = true;
-            return null;
-        }
-
-        try (AudioInputStream ais = AudioSystem.getAudioInputStream(resource)) {
-            Clip effect = AudioSystem.getClip();
-            effect.open(ais);
-            applyVolume(effect);
-            effectClips[i][voice] = effect;
-            return effect;
-        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
-            System.err.println("Could not load audio effect at index " + i + ", voice " + voice + " from " + resource + ": " + e.getMessage());
-            effectLoadFailed[i] = true;
-            return null;
-        }
-    }
-
-    public synchronized boolean hasLoadedClip() { return clip != null; }
-
-    public synchronized double playbackSeconds() {
-        return clip == null ? 0 : clip.getMicrosecondPosition() / 1_000_000.0;
-    }
-
-    public void close() { closeClip(); }
-
-    private synchronized void closeClip() {
-        if (clip != null) {
-            clip.stop();
-            clip.close();
-            clip = null;
-        }
-    }
+    public URL resource(int id){return id>=0&&id<soundURL.length?soundURL[id]:null;}
+    public boolean hasResource(int id){return resource(id)!=null;}
+    public String effectName(int id){URL url=resource(id);if(url==null)return Integer.toString(id);String p=url.getPath();return p.substring(p.lastIndexOf('/')+1).replace(".wav","").replace('_',' ');}
+    public void bind(PcmMixer mixer){this.mixer=mixer;}
+    private PcmMixer mixer(){if(mixer==null){mixer=new PcmMixer(this,java.awt.GraphicsEnvironment.isHeadless());ownsMixer=true;mixer.start();}return mixer;}
+    public void setFile(int id){selected=id;mixer().prepare(id);}
+    public void play(){if(selected>=0)mixer().effect(selected,volume);}
+    public void loop(){if(selected>=0)mixer().music(selected,.02);}
+    public void stop(){if(mixer!=null)mixer.music(-2,.01);}
+    public void playEffect(int id){mixer().effect(id,volume);}
+    public void setVolume(float value){volume=Math.max(0,Math.min(1,value));}
+    public void stopAllEffects(){if(mixer!=null)mixer.clearEffects();}
+    public boolean hasLoadedClip(){return selected>=0&&hasResource(selected);}
+    public double playbackSeconds(){return 0;}
+    public void close(){if(ownsMixer&&mixer!=null)mixer.close();}
 }

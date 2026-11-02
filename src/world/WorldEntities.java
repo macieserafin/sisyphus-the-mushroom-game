@@ -78,6 +78,7 @@ public class WorldEntities {
     }
 
     public void removeObject(SuperObject object) {
+        if (objects.contains(object) && object.persistenceId.startsWith("placed:")) gp.narrative.state.set("collected." + object.persistenceId);
         if(gp.saves!=null&&gp.campaign.started()&&!gp.campaign.restoring())gp.saves.requestProgressSave();
         if (!objects.remove(object)) {
             System.err.println("Object removal requested for object not in level: " + object);

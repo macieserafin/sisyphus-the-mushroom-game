@@ -16,6 +16,11 @@ public final class EllisNotebook extends SuperObject {
     }
     @Override public boolean isInteractable(){return true;}
     @Override public boolean onPlayerInteract(GamePanel gp,Player player) {
+        if(gp.narrative.enabled()) {
+            if(gp.campaign.inCombat()){gp.ui.showMessage(ChapterText.get("forest.combat"));return true;}
+            gp.narrative.play("satchel");
+            return true;
+        }
         if(!gp.village.findNotebook())return true;
         gp.playSoundEffect(audio.Sound.PAPER);
         gp.entities.removeObject(this);

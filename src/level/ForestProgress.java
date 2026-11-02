@@ -7,11 +7,12 @@ import story.ChapterText;
 import java.util.*;
 
 public final class ForestProgress {
+    public static final int WITCH_KILL_TARGET=30;
     private final GamePanel gp;
     private final Set<String> mined=new HashSet<>(),dojoDead=new HashSet<>();
     private boolean smithAsked,smithDone,witchAsked,witchDone,dojoAsked,dojoDone;
     private boolean documents,supplies,shortcut,anchorTalk,sample,reported;
-    private int iron,slime;
+    private int iron,slimeKills;
     private Properties preview;
     private boolean pendingSave;
     public ForestProgress(GamePanel gp){this.gp=gp;}
@@ -23,7 +24,7 @@ public final class ForestProgress {
     public boolean supplies(){return supplies;}
     public boolean mined(String id){return mined.contains(id);}
     public int iron(){return iron;}
-    public int slime(){return slime;}
+    public int slimeKills(){return slimeKills;}
     public int dojoCount(){return dojoDead.size();}
     public boolean dojoTarget(String id){return dojoAsked&&!dojoDone&&!dojoDead.contains(id)&&id.startsWith("forest1.dojo.");}
     public boolean trainingOpen(){return dojoDone||java.util.Arrays.stream(progression.Skill.values()).anyMatch(gp.progression::hasSkill);}
@@ -36,8 +37,16 @@ public final class ForestProgress {
     public int marker(String service){
         boolean asked=switch(service){case "smith"->smithAsked;case "witch"->witchAsked;default->dojoAsked;};
         boolean done=switch(service){case "smith"->smithDone;case "witch"->witchDone;default->dojoDone;};
-        boolean ready=switch(service){case "smith"->iron>=4;case "witch"->slime>=5;default->dojoDead.size()>=6;};
+        boolean ready=switch(service){case "smith"->iron>=4;case "witch"->slimeKills>=WITCH_KILL_TARGET;default->dojoDead.size()>=6;};
         return done?0:!asked?1:ready?3:2;
+    }
+    public boolean residueActive(){return witchAsked&&!witchDone&&slimeKills>0;}
+    public void studyWithoutSave(){documents=true;syncQuests();}
+    public boolean materialsReady(String service){return switch(service){case "smith"->iron>=4;case "witch"->slimeKills>=WITCH_KILL_TARGET;default->dojoDead.size()>=6;};}
+    public void acceptWithoutSave(String service){switch(service){case "smith"->smithAsked=true;case "witch"->witchAsked=true;default->dojoAsked=true;}syncQuests();}
+    public void turnInWithoutSave(String service){
+        if(marker(service)!=3)throw new IllegalStateException("Service "+service+" is not ready");
+        switch(service){case "smith"->{smithDone=true;iron-=4;}case "witch"->{witchDone=true;}default->dojoDone=true;}syncQuests();
     }
     public void quest(String service){
         if(gp.campaign.inCombat()){say("forest.combat");return;}
@@ -47,7 +56,7 @@ public final class ForestProgress {
             gp.narrative.dialogue("service."+service+"."+status,
                     new dialogue.DialogueSpeaker("",null,new java.awt.Color(0x91C6AD)),ChapterText.lines(key),()->{
                 if(status==1) {switch(service){case "smith"->smithAsked=true;case "witch"->witchAsked=true;default->dojoAsked=true;}}
-                if(status==3) {switch(service){case "smith"->{smithDone=true;iron-=4;}case "witch"->{witchDone=true;slime-=5;}default->dojoDone=true;}}
+                if(status==3) {switch(service){case "smith"->{smithDone=true;iron-=4;}case "witch"->{witchDone=true;}default->dojoDone=true;}}
                 gp.narrative.event("talk."+service);syncQuests();
             });
             return;
@@ -56,7 +65,7 @@ public final class ForestProgress {
         if(status==1){
             if(change(()->{switch(service){case "smith"->smithAsked=true;case "witch"->witchAsked=true;default->dojoAsked=true;}}))say("forest."+service+".request");
         }else if(status==3){
-            if(change(()->{switch(service){case "smith"->{smithDone=true;iron-=4;}case "witch"->{witchDone=true;slime-=5;}default->dojoDone=true;}}))say("forest."+service+".complete");
+            if(change(()->{switch(service){case "smith"->{smithDone=true;iron-=4;}case "witch"->{witchDone=true;}default->dojoDone=true;}}))say("forest."+service+".complete");
         }else say("forest."+service+".pending");
     }
     public boolean change(Runnable action){
@@ -66,18 +75,43 @@ public final class ForestProgress {
         if(gp.saves.saveProgress())return true;
         gp.questLog.load(before);load(before);say("forest.save.failed");return false;
     }
+    public void mine(String id,int targetX,int targetY){
+        if(gp.narrative.enabled()){
+            if(mined(id)){gp.ui.showMessage(ChapterText.get("forest.ore.empty"));return;}
+            if(!smithAsked){gp.campaign.say("forest.ore.tool","You");return;}
+            gp.player.startMining(targetX,targetY,()->{
+                if(mined(id))return;
+                if(!change(()->{mined.add(id);iron+=2;}))return;
+                gp.ui.showMessage(ChapterText.get(iron>=4&&!smithDone?"forest.ore.enough":"forest.ore.collected"));
+                if(!gp.narrative.state.has("scene.ironFirst"))gp.narrative.play("ironFirst");
+            });
+            return;
+        }
+        mine(id);
+    }
     public void mine(String id){
         if(mined(id)){say("forest.ore.empty");return;}
         if(!smithAsked){say("forest.ore.tool");return;}
         if(change(()->{mined.add(id);iron+=2;})){gp.playSoundEffect(audio.Sound.MINE);gp.effects.burst(gp.player.worldX+24,gp.player.worldY+24,12,2,world.render.EffectsManager.SPARK);say("forest.ore.collected");}
     }
-    public void readDocuments(){if(documents){say("forest.research.repeat");return;}if(change(()->documents=true)){gp.playSoundEffect(audio.Sound.PAPER);say("forest.research.read");}}
+    public void readDocuments(){
+        if(gp.narrative.enabled()){
+            if(!documents){gp.narrative.play("station");return;}
+            String after=gp.campaign.bossCleared()?"tableDone":"tableAfter";
+            if(gp.narrative.state.has("doc.stationMargin")){gp.narrative.play(after);return;}
+            gp.choiceMenu.open(ChapterText.get("forest.object.documents"),java.util.List.of(
+                    new ui.ChoiceMenu.Option(gp.narrative.get("ui.margin.read"),"",()->gp.narrative.play("margin")),
+                    new ui.ChoiceMenu.Option(gp.narrative.get("ui.margin.leave"),"",()->gp.narrative.play(after))),true);
+            return;
+        }
+        if(documents){say("forest.research.repeat");return;}if(change(()->documents=true)){gp.playSoundEffect(audio.Sound.PAPER);say("forest.research.read");}}
     public void takeSupplies(){
+        if(gp.narrative.enabled()){gp.narrative.play("supplies");return;}
         if(supplies){say("forest.supplies.empty");return;}
         int hp=gp.player.health,shield=gp.player.shield();
         if(change(()->{supplies=true;gp.player.debugRestoreVitals();})){gp.playSoundEffect(audio.Sound.SUPPLIES);say("forest.supplies.take");}else gp.player.restoreVitals(hp,shield);
     }
-    public void openShortcut(){if(shortcut)return;if(gp.player.worldY+gp.player.solidArea.y<25*gp.tileSize){say("forest.log.wrong");return;}if(change(()->shortcut=true)){gp.playSoundEffect(audio.Sound.SHORTCUT);say("forest.log.open");}}
+    public void openShortcut(){if(shortcut)return;if(gp.player.worldY+gp.player.solidArea.y<25*gp.tileSize){gp.campaign.say("forest.log.wrong",gp.narrative.enabled()?"You":"");return;}if(change(()->shortcut=true)){gp.playSoundEffect(audio.Sound.SHORTCUT);gp.effects.burst(103*gp.tileSize,25*gp.tileSize,18,1.6,world.render.EffectsManager.DUST);if(gp.narrative.enabled())gp.campaign.say("forest.log.open","You");else say("forest.log.open");}}
     public void explainWithoutSave() { anchorTalk=true;syncQuests(); }
     public void reportWithoutSave() { sample=true;reported=true;syncQuests(); }
     public boolean talkAnchor(){return change(()->anchorTalk=true);}
@@ -85,8 +119,12 @@ public final class ForestProgress {
     public void bossSample(){sample=true;syncQuests();}
     public void enemyKilled(Enemy enemy){
         if(!gp.campaign.started()||!gp.campaign.inForest()||enemy.persistenceId.isEmpty())return;
-        if(enemy.persistenceId.startsWith("forest1.dojo."))dojoDead.add(enemy.persistenceId);
-        if(enemy instanceof entity.enemy.Enemy_Slime)slime++;
+        if(enemy.persistenceId.startsWith("forest1.dojo.")&&dojoDead.add(enemy.persistenceId)&&gp.narrative.enabled()&&dojoAsked&&!dojoDone&&dojoDead.size()==6)
+            gp.ui.showMessage(ChapterText.get("forest.dojo.cleared"));
+        if(enemy instanceof entity.enemy.Enemy_Slime){
+            slimeKills++;
+            if(gp.narrative.enabled()&&witchAsked&&!witchDone)gp.ui.showMessage(ChapterText.get(slimeKills>=WITCH_KILL_TARGET?"forest.slime.enough":"forest.slime.collected"));
+        }
         pendingSave=true;syncQuests();
     }
     public void flushPending(){if(pendingSave&&gp.player.alive&&!isPreview()&&gp.saves.saveProgress())pendingSave=false;}
@@ -101,16 +139,30 @@ public final class ForestProgress {
             case "supplies"->supplies=!supplies;
             case "shortcut"->shortcut=!shortcut;
             case "ore"->{mined.clear();iron=0;smithAsked=true;}
+            case "witch"->debugWitch(0);
+            case "witchAlmost"->debugWitch(WITCH_KILL_TARGET-1);
+            case "witchReady"->debugWitch(WITCH_KILL_TARGET);
             case "dojo"->{dojoAsked=true;dojoDead.clear();dojoDone=false;}
             case "dojoDone"->{dojoAsked=true;for(int i=1;i<=6;i++)dojoDead.add("forest1.dojo."+i);dojoDone=true;}
             case "sample"->sample=true;
+            case "documentsOff"->documents=false;
+            case "unreported"->{reported=false;sample=true;}
             default->throw new IllegalArgumentException(key);
         }syncQuests();
     }
+    public void debugResetServices(){beginPreview();smithAsked=witchAsked=dojoAsked=smithDone=witchDone=dojoDone=false;syncQuests();}
+    private void debugWitch(int kills){
+        witchAsked=true;witchDone=false;slimeKills=kills;
+        gp.narrative.state.remove("service.witch.done");
+        gp.narrative.state.remove("scene.witch.turnin");
+        gp.questLog.debugRestart("forest_witch");
+        gp.narrative.refresh();
+    }
+    public void debugAddIron(int amount){iron+=amount;syncQuests();}
     public void debugPrepareChapter(boolean afterBoss){documents=anchorTalk=true;sample=reported=afterBoss;syncQuests();}
     public String journalStatus(String id){return switch(id){
         case "forest_smith"->ChapterText.get("forest.iron.label")+": "+iron+" / 4";
-        case "forest_witch"->ChapterText.get("forest.slime.label")+": "+slime+" / 5";
+        case "forest_witch"->ChapterText.get("forest.slime.label")+": "+Math.min(slimeKills,WITCH_KILL_TARGET)+" / "+WITCH_KILL_TARGET;
         case "forest_dojo"->ChapterText.get("forest.dojo.label")+": "+dojoDead.size()+" / 6";
         case "core_research"->ChapterText.get(reported?"forest.report.label":sample?"forest.sample.label":"forest.hypothesis.label");
         default->"";};}
@@ -118,14 +170,16 @@ public final class ForestProgress {
         boolean[] flags={smithAsked,smithDone,witchAsked,witchDone,dojoAsked,dojoDone,documents,supplies,shortcut,anchorTalk,sample,reported};
         String[] names={"smithAsked","smithDone","witchAsked","witchDone","dojoAsked","dojoDone","documents","supplies","shortcut","anchorTalk","sample","reported"};
         for(int i=0;i<names.length;i++)p.setProperty("forest."+names[i],""+flags[i]);
-        p.setProperty("forest.iron",""+iron);p.setProperty("forest.slime",""+slime);
+        p.setProperty("forest.iron",""+iron);p.setProperty("forest.slimeKills",""+slimeKills);
         p.setProperty("forest.mined",String.join(",",new TreeSet<>(mined)));p.setProperty("forest.dojoDead",String.join(",",new TreeSet<>(dojoDead)));
     }
     public void load(Properties p){
         preview=null;pendingSave=false;smithAsked=Values.bool(p,"forest.smithAsked");smithDone=Values.bool(p,"forest.smithDone");witchAsked=Values.bool(p,"forest.witchAsked");witchDone=Values.bool(p,"forest.witchDone");
         dojoAsked=Values.bool(p,"forest.dojoAsked");dojoDone=Values.bool(p,"forest.dojoDone");documents=Values.bool(p,"forest.documents");supplies=Values.bool(p,"forest.supplies");shortcut=Values.bool(p,"forest.shortcut");
         anchorTalk=Values.bool(p,"forest.anchorTalk")||!p.containsKey("forest.anchorTalk")&&Values.bool(p,"campaign.anchor");sample=Values.bool(p,"forest.sample")||Values.bool(p,"campaign.boss");reported=Values.bool(p,"forest.reported")||Values.bool(p,"campaign.signExplained");
-        iron=Math.max(0,Values.integer(p,"forest.iron",0));slime=Math.max(0,Values.integer(p,"forest.slime",p.containsKey("forest.slime")?0:ForestScenes.legacyResidue(p)));mined.clear();dojoDead.clear();
+        iron=Math.max(0,Values.integer(p,"forest.iron",0));
+        slimeKills=Math.max(0,Values.integer(p,"forest.slimeKills",
+                p.containsKey("forest.slime")?Values.integer(p,"forest.slime",0)+(witchDone?5:0):ForestScenes.legacyResidue(p)));mined.clear();dojoDead.clear();
         for(String id:p.getProperty("forest.mined","").split(","))if(!id.isBlank())mined.add(id);
         for(String id:p.getProperty("forest.dojoDead","").split(","))if(!id.isBlank())dojoDead.add(id);
         // Existing saves that already passed the anchor do not acquire a new historical gate.

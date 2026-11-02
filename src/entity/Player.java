@@ -66,8 +66,8 @@ public class Player extends Entity {
     private static final int SHIELD_REGEN_DELAY = 240;
     private static final int SHIELD_REGEN_TICKS = 180;
     private static final Color[] SHIELD_SHARDS = {new Color(0xE8FAFF), new Color(0x9AD8F0), new Color(0x2A6A9A)};
-    // the first hit within this window after switching modes is a swap strike (+50%)
     private static final int SWAP_BONUS_TICKS = 30;
+    private static final int SWAP_COOLDOWN_TICKS = 3 * 60;
     private static final double SWAP_BONUS = 1.5;
     private static final int DASH_TICKS = 9;
     private static final double DASH_SPEED = 13.0;
@@ -124,6 +124,7 @@ public class Player extends Entity {
     private boolean spaceHeldLastFrame;
     private final Set<Enemy> rollHitEnemies = new HashSet<>();
     private int swapBonusTicks;
+    private int swapCooldownTicks;
     private CombatState pendingMode;
     private int maxShield = BASE_MAX_SHIELD;
     private int shield = BASE_MAX_SHIELD;
@@ -201,6 +202,8 @@ public class Player extends Entity {
         hurtInvincibleCounter = 0;
         hurtKnockbackCounter = 0;
         pendingMode = null;
+        swapBonusTicks = 0;
+        swapCooldownTicks = 0;
         rollTicks = 0;
         dashTicks = 0;
         shield = maxShield;
@@ -277,10 +280,16 @@ public class Player extends Entity {
         }
         int cameraX = cameraOrigin(followX, gp.tileM.getWorldCols() * gp.tileSize, gp.screenWidth);
         int cameraY = cameraOrigin(followY, gp.tileM.getWorldRows() * gp.tileSize, visibleHeight);
+        if(gp.sceneCamera!=null && gp.sceneCamera.fitsScreen()) {
+            cameraX=cameraOrigin(0,gp.tileM.getWorldCols()*gp.tileSize,gp.screenWidth);
+            cameraY=cameraOrigin(0,gp.tileM.getWorldRows()*gp.tileSize,gp.screenHeight);
+        }
         screenX = worldX - cameraX;
         screenY = worldY - cameraY;
         if (gp.sceneCamera != null) gp.sceneCamera.apply();
     }
+
+    public int cameraDialogueInset() { return (int)Math.round(coveredByDialogue); }
 
     private static int follow(int current, int wanted, int slack) {
         if (wanted - current > slack) {
@@ -332,6 +341,53 @@ public class Player extends Entity {
     }
     public void scriptedPose(String sheet,int frame) {
         animator.holdPose(PlayerAnimator.State.IDLE,SpriteSheet.loadOptional(sheet),frame,facing);
+    }
+    public void clearScriptedPose() { animator.clearPose(); }
+    private int mineTicks = -1, mineTargetX, mineTargetY;
+    private Runnable mineDone;
+    private String mineMap = "";
+    private java.awt.image.BufferedImage pickaxe;
+    public boolean mining() { return mineTicks >= 0; }
+    public void startMining(int targetX, int targetY, Runnable done) {
+        if (mining() || !alive || scriptedHold || SpriteSheet.loadOptional("player/anim/player_mine") == null) return;
+        facing = Direction8.fromVector(targetX - (worldX + gp.tileSize / 2.0), targetY - (worldY + gp.tileSize / 2.0), facing, 0);
+        velX = 0; velY = 0; moving = false; meleeAttacking = false;
+        mineTicks = 0; mineDone = done; mineTargetX = targetX; mineTargetY = targetY; mineMap = gp.tileM.currentMapPath();
+    }
+    public void cancelMining() { if (mineTicks >= 0) { mineTicks = -1; mineDone = null; animator.clearPose(); } }
+    private void updateMining() {
+        SpriteSheet sheet = SpriteSheet.loadOptional("player/anim/player_mine");
+        if (sheet == null || !gp.tileM.currentMapPath().equals(mineMap) || hurtFlashTicks > 0 || hurtKnockbackCounter > 0) { cancelMining(); return; }
+        int swing = sheet.frameCount * sheet.frameTicks, contact = Integer.parseInt(sheet.property("contactFrame", "4"));
+        int frameIndex = mineTicks % swing / sheet.frameTicks;
+        animator.holdPose(PlayerAnimator.State.IDLE, sheet, frameIndex, facing);
+        if (mineTicks % swing == contact * sheet.frameTicks) {
+            gp.playSoundEffect(audio.Sound.MINE);
+            gp.effects.burst(mineTargetX, mineTargetY, 8, 2.2, world.render.EffectsManager.SPARK);
+            gp.effects.burst(mineTargetX, mineTargetY, 5, 1.4, world.render.EffectsManager.DUST);
+            if (mineTicks / swing == 1) { Runnable done = mineDone; mineDone = null; if (done != null) done.run(); }
+        }
+        if (++mineTicks >= swing * 2) { mineTicks = -1; animator.clearPose(); }
+    }
+    private void drawPickaxe(Graphics2D g2, SpriteSheet.Frame frame, int footX, int footY) {
+        if (!mining() || frame.sheet == null || !frame.sheet.name.endsWith("player_mine")) return;
+        if (pickaxe == null) {
+            try (var in = getClass().getResourceAsStream("/objects/pickaxe.png")) { pickaxe = javax.imageio.ImageIO.read(in); }
+            catch (java.io.IOException | RuntimeException e) { return; }
+        }
+        Direction8 east = facing.mirroredToEast();
+        String[] tool = frame.sheet.property("tool." + east.name() + "." + frame.index, "").split(",");
+        if (tool.length < 3) return;
+        int scale = gp.scale, side = frame.mirrored ? -1 : 1;
+        double hx = footX + (Integer.parseInt(tool[0]) - frame.sheet.anchorX + 0.5) * scale * side;
+        double hy = footY + (Integer.parseInt(tool[1]) - frame.sheet.anchorY + 0.5) * scale;
+        java.awt.geom.AffineTransform old = g2.getTransform();
+        g2.translate(hx, hy);
+        g2.scale(side, 1);
+        g2.rotate(Math.toRadians(Integer.parseInt(tool[2].trim()) + 52));
+        g2.scale(scale, scale);
+        g2.drawImage(pickaxe, -4, -13, null);
+        g2.setTransform(old);
     }
     public void beginScriptedHold() {
         scriptedHold = true;
@@ -411,6 +467,13 @@ public class Player extends Entity {
             return;
         }
 
+        if (mining()) {
+            velX = 0;
+            velY = 0;
+            moving = false;
+            updateMining();
+            return;
+        }
         if (scriptedHold) {
             velX = 0;
             velY = 0;
@@ -491,7 +554,7 @@ public class Player extends Entity {
         }
         combatState = target;
         gp.playSoundEffect(Sound.SWAP);
-        swapBonusTicks = SWAP_BONUS_TICKS;
+        swapBonusTicks = swapCooldownTicks == 0 ? SWAP_BONUS_TICKS : 0;
         gp.effects.ring(worldX + gp.tileSize / 2.0, worldY + gp.tileSize / 2.0, 30, 10,
                 combatState == CombatState.MELEE ? new Color(0xF2C46A) : new Color(0x9AD8F0), false);
         meleeAttackInputHeldLastFrame = false;
@@ -668,10 +731,11 @@ public class Player extends Entity {
 
     // Damage multiplier for a hit the player just landed: the first one right after a mode switch is a swap strike.
     public double consumeSwapBonus() {
-        if (swapBonusTicks <= 0) {
+        if (swapBonusTicks <= 0 || swapCooldownTicks > 0) {
             return 1.0;
         }
         swapBonusTicks = 0;
+        swapCooldownTicks = SWAP_COOLDOWN_TICKS;
         return SWAP_BONUS;
     }
 
@@ -712,7 +776,12 @@ public class Player extends Entity {
         return 1.0 - dashCooldown / (double) DASH_COOLDOWN_TICKS;
     }
 
+    public double swapReadiness() { return 1.0 - swapCooldownTicks / (double) SWAP_COOLDOWN_TICKS; }
+    public double swapCooldownSeconds() { return swapCooldownTicks / 60.0; }
+    public void debugResetSwapCooldown() { swapCooldownTicks=0; swapBonusTicks=0; pendingMode=null; }
+
     private void tickTimers() {
+        if (swapCooldownTicks > 0) swapCooldownTicks--;
         if (shotCooldownCounter > 0) {
             shotCooldownCounter--;
         }
@@ -1261,7 +1330,10 @@ public class Player extends Entity {
         if (weaponBehind) {
             drawWeapon(g2, frame, footX, footY, extraWidth, extraHeight);
         }
+        boolean toolBehind = facing.mirroredToEast() == Direction8.N || facing.mirroredToEast() == Direction8.NE;
+        if (toolBehind) drawPickaxe(g2, frame, footX, footY);
         frame.draw(g2, footX, footY, gp.scale, extraWidth, extraHeight);
+        if (!toolBehind) drawPickaxe(g2, frame, footX, footY);
         if (hurtFlashTicks > 0) {
             float flash = hurtFlashTicks > HURT_FLASH_TICKS / 2 ? 1f : 0.55f;
             g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, flash * alpha));

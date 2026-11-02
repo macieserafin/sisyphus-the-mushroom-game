@@ -49,7 +49,8 @@ public class Hud {
         Color oldColor = g2.getColor();
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        drawStatus(g2, MARGIN, MARGIN);
+        boolean room=gp.sceneCamera.fitsScreen();
+        if(room)drawRoomStatus(g2);else drawStatus(g2, MARGIN, MARGIN);
         if(gp.campaign.started()||gp.storyFlags.isPrologueBytEncounterCompleted()) {
             int clockX=gp.screenWidth/2-76;
             UiSkin.frame(g2,clockX,12,152,36);
@@ -57,7 +58,7 @@ public class Hud {
             String time="DAY "+(gp.narrative.state.ticks()/86400+1)+"  "+gp.narrative.state.time();
             g2.drawString(time,clockX+(152-g2.getFontMetrics().stringWidth(time))/2,35);
         }
-        shadowText(g2, gp.campaign.inCombat() ? "COMBAT - equipment / anchors / portals locked" : "Safe - [I] Equipment",
+        shadowText(g2, gp.campaign.inCombat() ? "COMBAT - equipment / anchors / portals locked" : "Safe - [" + gp.controls.keyName(settings.ControlSettings.Action.INVENTORY) + "] Inventory  [" + gp.controls.keyName(settings.ControlSettings.Action.MAP) + "] Map  [" + gp.controls.keyName(settings.ControlSettings.Action.NOTES) + "] Notes",
                 16, gp.screenHeight - 14, smallFont, gp.campaign.inCombat() ? UiSkin.TEXT_RED : UiSkin.TEXT_DIM);
         if (gp.campaign.started()) shadowText(g2, "Floor " + (gp.campaign.inForest()?1:gp.campaign.floor()) + (gp.campaign.bossCleared() ? " - boss cleared" : ""),
                 16, gp.screenHeight - 32, smallFont, UiSkin.GOLD);
@@ -67,14 +68,43 @@ public class Hud {
             break;
         }
 
-        int rightX = gp.screenWidth - MARGIN - RIGHT_PANEL_WIDTH;
-        int rightBottom = drawMinimap(g2, rightX, MARGIN + 14);
-        drawQuests(g2, rightX + RIGHT_PANEL_WIDTH - QUEST_PANEL_WIDTH, rightBottom + 26);
+        if(!room) {
+            int rightX = gp.screenWidth - MARGIN - RIGHT_PANEL_WIDTH;
+            int rightBottom = drawMinimap(g2, rightX, MARGIN + 14);
+            drawQuests(g2, rightX + RIGHT_PANEL_WIDTH - QUEST_PANEL_WIDTH, rightBottom + 26);
+        }
+        drawSwapCooldown(g2);
 
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, oldTextAa);
         g2.setStroke(oldStroke);
         g2.setFont(oldFont);
         g2.setColor(oldColor);
+    }
+
+    private void drawSwapCooldown(Graphics2D g) {
+        int w=144,h=38,x=gp.screenWidth-MARGIN-w,y=gp.screenHeight-MARGIN-h;
+        boolean locked=!gp.prologueTutorialManager.canSwitchCombatMode();
+        double ready=gp.player.swapReadiness();
+        UiSkin.inset(g,x,y,w,h);
+        g.setFont(smallFont);g.setColor(locked?UiSkin.TEXT_DIM:ready>=1?UiSkin.GOLD:UiSkin.TEXT);
+        g.drawString("SWAP DMG",x+8,y+15);
+        String status=locked?"LOCKED":ready>=1?"READY":String.format(java.util.Locale.ROOT,"%.1fs",gp.player.swapCooldownSeconds());
+        g.drawString(status,x+w-8-g.getFontMetrics().stringWidth(status),y+15);
+        g.setColor(new Color(0x171319));g.fillRect(x+8,y+23,w-16,6);
+        g.setColor(locked?UiSkin.TEXT_DIM:ready>=1?UiSkin.GOLD:new Color(0x91C6AD));
+        g.fillRect(x+8,y+23,(int)Math.round((w-16)*(locked?0:ready)),6);
+    }
+
+    private void drawRoomStatus(Graphics2D g) {
+        int x=MARGIN+8;
+        for(int i=0;i<gp.player.maxHealth;i++) {
+            UiSkin.heart(g,x,14,i<gp.player.health);x+=UiSkin.HEART_W+3;
+        }
+        x=gp.screenWidth-MARGIN-gp.player.maxShield()*(UiSkin.SHIELD_W+3);
+        for(int i=0;i<gp.player.maxShield();i++) {
+            double fill=i<gp.player.shield()?1:i==gp.player.shield()?gp.player.shieldRegenProgress():0;
+            UiSkin.shield(g,x,14,fill);x+=UiSkin.SHIELD_W+3;
+        }
     }
 
     private void drawStatus(Graphics2D g2, int x, int y) {
@@ -240,7 +270,7 @@ public class Hud {
         }
 
         mapGraphics.setColor(UiSkin.GOLD);
-        for(var marker:gp.narrative.markers())if(marker.map().equals(gp.tileM.currentMapPath()))
+        for(var marker:gp.narrative.mainQuestMarkers())if(marker.map().equals(gp.tileM.currentMapPath()))
             drawDot(mapGraphics,mapX,mapY,marker.x()*gp.tileSize+24,marker.y()*gp.tileSize+24,worldToMap,4);
         int px = gp.player.worldX + gp.tileSize / 2;
         int py = gp.player.worldY + gp.tileSize / 2;
@@ -343,7 +373,7 @@ public class Hud {
         g2.setFont(questTextFont);
         g2.setColor(UiSkin.TEXT_DIM);
         String more = active.size() > shown ? "+" + (active.size() - shown) + " more   " : "";
-        g2.drawString(more + "[J] Journal", textX, y + height - 12);
+        g2.drawString(more + "[" + gp.controls.keyName(settings.ControlSettings.Action.JOURNAL) + "] Journal", textX, y + height - 12);
     }
 
     private String trim(FontMetrics fm, String text, int width) {

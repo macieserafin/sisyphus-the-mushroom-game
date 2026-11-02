@@ -21,6 +21,7 @@ public final class NPC_Ellis extends NPC_Villager {
     }
 
     @Override public void speak() {
+        if(gp.narrative.enabled()){gp.narrative.interact(this,this::talk,null);return;}
         if(gp.village.ellisSettled()){super.talk();return;}
         gp.choiceMenu.open(ChapterText.get("ellis.name"),List.of(
                 new ChoiceMenu.Option(ChapterText.get("interaction.talk"),ChapterText.get("ellis.talk.hint"),()->say("ellis.forest.talk")),
@@ -51,7 +52,7 @@ public final class NPC_Ellis extends NPC_Villager {
 
     @Override public void draw(Graphics graphics) {
         super.draw(graphics);
-        if(gp.village.ellisSettled())return;
+        if(gp.village.ellisSettled()||gp.narrative.enabled())return;
         Graphics2D g=(Graphics2D)graphics.create();
         Color color=gp.village.notebookFound()||!gp.village.ellisAsked()?ui.UiSkin.GOLD:ui.UiSkin.TEXT_DIM;
         ui.UiSkin.PixelFont.draw(g,gp.village.ellisAsked()?"?":"!",

@@ -41,6 +41,7 @@ public final class MapMemory {
         for (Enemy e : new ArrayList<>(gp.entities.enemies())) {
             String saved = p.getProperty("enemy." + e.persistenceId);
             if (saved == null) {
+                if(e.persistenceId.startsWith("placed:"))continue;
                 if(e.newInWorldVersion&&Values.integer(p,"version",1)<2)continue;
                 gp.entities.removeEnemy(e); continue;
             }
@@ -54,7 +55,7 @@ public final class MapMemory {
             catch (RuntimeException ex) { throw new IllegalStateException("Invalid enemy snapshot", ex); }
         }
         for (SuperObject o : new ArrayList<>(gp.entities.objects())) {
-            if (!o.persistenceId.isEmpty() && !Values.bool(p, "object." + o.persistenceId)) gp.entities.removeObject(o);
+            if (!o.persistenceId.isEmpty() && !o.persistenceId.startsWith("placed:") && !Values.bool(p, "object." + o.persistenceId)) gp.entities.removeObject(o);
         }
         for (int i = 0, count = Math.min(2000, Math.max(0, Values.integer(p, "drops", 0))); i < count; i++) {
             String prefix = "drop." + i + ".";
@@ -64,7 +65,6 @@ public final class MapMemory {
             SuperObject o = switch (state.getProperty("type", "")) {
                 case "MushroomPickup" -> new MushroomPickup(x, y, Math.max(0, Values.integer(state, "value", 0)));
                 case "HeartPickup" -> new HeartPickup(x, y);
-                case "PowerUp" -> new PowerUp(PowerUp.Kind.valueOf(state.getProperty("kind")), x, y);
                 default -> null;
             };
             if (o != null) { o.restoreSnapshot(state); gp.entities.addFreeObject(o); }

@@ -64,13 +64,17 @@ public class SkillTreeMenu {
     }
 
     public void open(NPC trainer) {
-        if(!gp.forest.trainingOpen()){gp.campaign.say("forest.dojo.pending","");return;}
+        if(!gp.forest.trainingOpen()){if(gp.narrative.enabled())gp.campaign.say("skills.locked","Kuro");else gp.campaign.say("forest.dojo.pending","");return;}
         this.trainer = trainer;
         selected = 1;
         feedback = "";
         pressedKeys.clear();
         gp.keyH.clearGameplayInput();
         gp.gameState = GameState.SKILLS;
+        if (gp.narrative.enabled()) {
+            if (!gp.narrative.state.has("skills.firstOpen")) { gp.narrative.event("skills.firstOpen"); feedback = story.ChapterText.get("skills.first"); }
+            else if (gp.progression.skillPoints() == 0) feedback = story.ChapterText.get("skills.noPoints");
+        }
     }
 
     public Skill selectedSkill() {
@@ -95,7 +99,7 @@ public class SkillTreeMenu {
             case KeyEvent.VK_UP, KeyEvent.VK_W -> move(0, -1);
             case KeyEvent.VK_DOWN, KeyEvent.VK_S -> move(0, 1);
             case KeyEvent.VK_ENTER, KeyEvent.VK_SPACE -> learn(NODES.get(selected));
-            case KeyEvent.VK_ESCAPE -> gp.shopMenu.openTrainer(trainer, true);
+            case KeyEvent.VK_ESCAPE -> { if(gp.narrative.enabled())trainer.speak(); else gp.shopMenu.openTrainer(trainer,true); }
             default -> {
             }
         }

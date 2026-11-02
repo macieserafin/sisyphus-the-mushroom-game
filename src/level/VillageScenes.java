@@ -20,10 +20,14 @@ public final class VillageScenes {
     }
 
     public static void addLobby(GamePanel gp) {
-        if (gp.village.ellisSettled()) gp.entities.addNPC(new NPC_Ellis(gp),VillageLayout.ELLIS_COL,VillageLayout.ELLIS_ROW);
+        if (gp.village.ellisSettled()) {
+            boolean working = gp.narrative.enabled() && !gp.narrative.state.has("ellis.bench");
+            var ellis = gp.entities.addNPC(new NPC_Ellis(gp),working ? 36 : VillageLayout.ELLIS_COL,working ? 27 : VillageLayout.ELLIS_ROW);
+            if (working) ellis.scriptedFace(ellis.worldX - 1, ellis.worldY);
+        }
         for (int x : new int[]{6,9,12}) {
             gp.entities.addObject(new Inspectable(ChapterText.get("care.grave.name"),
-                    ChapterText.lines("care.grave").toArray(String[]::new)),x,14);
+                    ChapterText.lines("care.grave").toArray(String[]::new)).story("cemetery"),x,14);
         }
     }
 

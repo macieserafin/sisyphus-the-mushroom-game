@@ -260,7 +260,7 @@ public class OptionsMenu {
                     drawVolume(g2, gp.audio.effectsPercent(), right, rowY - 1, active);
                     break;
                 case MUTE:
-                    g2.drawString("Mute", x + 33, textY);
+                    g2.drawString("Mute (F8)", x + 33, textY);
                     drawValue(g2, "< " + (gp.audio.isMuted() ? "On" : "Off") + " >", right, textY, active);
                     break;
                 case CONTROLS:
@@ -297,7 +297,9 @@ public class OptionsMenu {
     private void drawKeys(Graphics2D g2, int y) {
         int width = 402;
         int rowH = 23;
-        int height = 30 + KEY_ROWS * rowH + 40;
+        int visibleRows = Math.min(KEY_ROWS, (gp.screenHeight - 150) / rowH);
+        int firstRow = Math.max(0, Math.min(keySelected - visibleRows / 2, KEY_ROWS - visibleRows));
+        int height = 30 + visibleRows * rowH + 40;
         int x = gp.screenWidth / 2 - width / 2;
         y = Math.min(y, gp.screenHeight - height - 56);
         UiSkin.frame(g2, x, y, width, height);
@@ -305,8 +307,8 @@ public class OptionsMenu {
 
         Action[] actions = Action.values();
         g2.setFont(keyFont);
-        for (int i = 0; i < KEY_ROWS; i++) {
-            int rowY = y + 22 + i * rowH;
+        for (int i = firstRow; i < firstRow + visibleRows; i++) {
+            int rowY = y + 22 + (i - firstRow) * rowH;
             boolean active = i == keySelected;
             if (active) {
                 UiSkin.plaque(g2, x + 18, rowY, width - 36, rowH - 2, null, UiSkin.GLOW);

@@ -26,7 +26,7 @@ public final class VillageProgress {
         previewSettled = null;
         ellisSettled = Values.bool(data, "village.ellis.settled");
         notebookFound = ellisSettled || Values.bool(data, "village.ellis.notebook");
-        ellisAsked = notebookFound || Values.bool(data, "village.ellis.asked");
+        ellisAsked = ellisSettled || Values.bool(data, "village.ellis.asked") || notebookFound && !data.containsKey("village.ellis.asked");
         syncQuest();
     }
 
@@ -51,8 +51,13 @@ public final class VillageProgress {
     public boolean askEllis() { return persist(true,notebookFound,ellisSettled); }
     public void askEllisWithoutSave() { ellisAsked=true;syncQuest(); }
     public void settleEllisWithoutSave() { if(notebookFound){ellisAsked=ellisSettled=true;previewSettled=null;syncQuest();} }
-    public boolean findNotebook() { return persist(true,true,ellisSettled); }
+    public void findNotebookWithoutSave() { notebookFound = true; previewSettled = null; syncQuest(); }
+    public boolean findNotebook() { return persist(ellisAsked,true,ellisSettled); }
     public boolean settleEllis() { return notebookFound && persist(true,true,true); }
+
+    public void debugEllisState(boolean asked, boolean found, boolean settled) {
+        ellisAsked = asked; notebookFound = found; ellisSettled = settled; previewSettled = null; syncQuest();
+    }
 
     public void debugEllis(boolean settled) {
         previewSettled=settled;

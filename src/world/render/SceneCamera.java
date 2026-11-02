@@ -13,12 +13,30 @@ public final class SceneCamera {
     public SceneCamera(GamePanel gp) { this.gp = gp; }
     public boolean active() { return active; }
     public boolean moving() { return active && elapsed < duration; }
+    public boolean fitsScreen() {
+        int w=gp.tileM.getWorldCols()*gp.tileSize, h=gp.tileM.getWorldRows()*gp.tileSize;
+        return w>0 && h>0 && w<=gp.screenWidth && h<=gp.screenHeight;
+    }
+    public double roomScale() {
+        if(!fitsScreen())return 1;
+        return Math.min(1,Math.min((gp.screenWidth-24.0)/(gp.tileM.getWorldCols()*gp.tileSize),
+                (gp.screenHeight-roomTop()-roomBottom()-24.0)/(gp.tileM.getWorldRows()*gp.tileSize)));
+    }
+    private int roomTop() { return Math.max(0,60-gp.player.cameraDialogueInset()); }
+    private int roomBottom() { return Math.max(48,gp.player.cameraDialogueInset()); }
+    public void frameRoom(java.awt.Graphics2D g) {
+        if(!fitsScreen())return;
+        double scale=roomScale();
+        g.translate(gp.screenWidth*(1-scale)/2,(gp.screenHeight-roomBottom()+roomTop()-gp.screenHeight*scale)/2);
+        g.scale(scale,scale);
+    }
     public void move(int centerX, int centerY, int frames) {
         if (!active) { x = gp.player.worldX - gp.player.screenX; y = gp.player.worldY - gp.player.screenY; }
         map = gp.tileM.currentMapPath(); active = true;
         fromX = x; fromY = y;
         toX = clamp(centerX - gp.screenWidth / 2.0, gp.tileM.getWorldCols() * gp.tileSize, gp.screenWidth);
-        toY = clamp(centerY - gp.screenHeight / 2.0, gp.tileM.getWorldRows() * gp.tileSize, gp.screenHeight);
+        int visibleHeight=gp.screenHeight-gp.ui.dialogueReserve();
+        toY = clamp(centerY - visibleHeight / 2.0, gp.tileM.getWorldRows() * gp.tileSize, visibleHeight);
         duration = gp.visuals.reduceMotion() ? 1 : Math.max(1, frames); elapsed = 0;
     }
     private double clamp(double n, int world, int view) { return world < view ? -(view - world) / 2.0 : Math.max(0, Math.min(n, world - view)); }
@@ -31,7 +49,10 @@ public final class SceneCamera {
         }
     }
     public void apply() {
-        if (active) { gp.player.screenX = gp.player.worldX - (int)Math.round(x); gp.player.screenY = gp.player.worldY - (int)Math.round(y); }
+        if (!active || fitsScreen()) return;
+        int px = (int) Math.round(x), py = (int) Math.round(y);
+        if (moving()) { int grid = Math.max(1, gp.scale); px = Math.round(px / (float) grid) * grid; py = Math.round(py / (float) grid) * grid; }
+        gp.player.screenX = gp.player.worldX - px; gp.player.screenY = gp.player.worldY - py;
     }
     public void reset() { active = false; }
     public void returnToPlayer(int frames) {

@@ -29,6 +29,7 @@ public class ShopMenu {
     private Shop shop;
     private boolean trainer;
     private boolean browsing;
+    private boolean returnToNpc;
     private int selected;
     private String feedback = "";
     private boolean feedbackBad;
@@ -42,6 +43,7 @@ public class ShopMenu {
         this.shop = shop;
         trainer = false;
         browsing = false;
+        returnToNpc = false;
         selected = 0;
         feedback = "";
         pressedKeys.clear();
@@ -57,6 +59,12 @@ public class ShopMenu {
 
     public boolean isBrowsing() {
         return browsing;
+    }
+
+    public void openBrowsing(NPC npc, Shop shop) {
+        open(npc, shop);
+        browsing = true;
+        returnToNpc = true;
     }
 
     public void keyPressed(int code) {
@@ -115,13 +123,20 @@ public class ShopMenu {
             return;
         }
         int price = offer.price();
+        java.util.Properties before = gp.saves.snapshot();
         if (!gp.wallet.spend(price)) {
             say("Not enough mushrooms. You need " + price + ".", true);
             return;
         }
         offer.buy();
-        if(gp.campaign.started())gp.saves.saveProgress();
         gp.questLog.complete(story.QuestLog.SHOPPING);
+        if (!gp.forest.isPreview() && (gp.campaign.started() || gp.narrative.enabled()) && !gp.saves.saveProgress()) {
+            gp.saves.restoreSnapshot(before);
+            gp.gameState = GameState.SHOP;
+            pressedKeys.clear();
+            say("Could not save the purchase. Nothing was spent. Try again.", true);
+            return;
+        }
         say("Bought " + offer.name + ".", false);
         gp.playSoundEffect(Sound.PURCHASE);
     }
@@ -136,6 +151,7 @@ public class ShopMenu {
 
     private void back() {
         if (browsing) {
+            if (returnToNpc) { close(); npc.speak(); return; }
             browsing = false;
             selected = SHOP;
             feedback = "";

@@ -445,6 +445,7 @@ public class Enemy extends Entity {
             return;
         }
         deathHandled = true;
+        if(persistenceId.startsWith("placed:"))gp.narrative.state.set("collected."+persistenceId);
         gp.forest.enemyKilled(this);
         Rectangle box = getWorldHitBox();
         if (experienceValue > 0 && gp.levelManager.isRunActive() && gp.progression.level() < Progression.MAX_LEVEL) {

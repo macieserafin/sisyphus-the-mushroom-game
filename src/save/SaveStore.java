@@ -23,6 +23,11 @@ import java.util.zip.CRC32;
 // kept as <name>.bak and used when the main file turns out to be damaged. Without a folder (in-memory) nothing touches
 // the disk: tests and the demo use that.
 public final class SaveStore {
+    private static final ThreadLocal<SaveStore> CONSTRUCTION_STORE = new ThreadLocal<>();
+    public static <T> T withStore(SaveStore store, java.util.function.Supplier<T> create) {
+        SaveStore previous=CONSTRUCTION_STORE.get();CONSTRUCTION_STORE.set(store);
+        try{return create.get();}finally{if(previous==null)CONSTRUCTION_STORE.remove();else CONSTRUCTION_STORE.set(previous);}
+    }
     public static final int SLOTS = 3;
 
     private static final String FORMAT_KEY = "format";
@@ -47,6 +52,7 @@ public final class SaveStore {
 
     // -Dsisyphus.saveDir=memory keeps everything in memory, any other value is used as the folder.
     public static SaveStore createDefault() {
+        if(CONSTRUCTION_STORE.get()!=null)return CONSTRUCTION_STORE.get();
         String property = System.getProperty("sisyphus.saveDir");
         if ("memory".equals(property)) {
             return inMemory();

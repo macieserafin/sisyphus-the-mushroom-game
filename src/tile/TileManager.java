@@ -87,6 +87,7 @@ public class TileManager {
             worldCols = cols;
             worldRows = rows;
             currentMapPath = filePath;
+            level.PlacedEntities.apply(gp, level.PlacedEntities.load(filePath));
         } catch (IOException | RuntimeException e) {
             throw new IllegalStateException("Could not load map '" + filePath + "': " + e.getMessage(), e);
         }
@@ -94,6 +95,21 @@ public class TileManager {
 
     public String currentMapPath() {
         return currentMapPath;
+    }
+
+    public void loadMapData(String path, int[][] ground, int[][] objects) {
+        int rows=ground.length,cols=rows==0?0:ground[0].length;
+        if(rows==0||cols==0||objects.length!=rows)throw new IllegalArgumentException("Empty or mismatched layers");
+        int[][] nextGround=new int[cols][rows],nextObjects=new int[cols][rows];
+        for(int y=0;y<rows;y++) {
+            if(ground[y].length!=cols||objects[y].length!=cols)throw new IllegalArgumentException("Mismatched layers");
+            for(int x=0;x<cols;x++) {
+                int a=ground[y][x],b=objects[y][x];
+                if(a<0||a>=tile.length||b< -1||b>=tile.length)throw new IllegalArgumentException("Unknown tile");
+                nextGround[x][y]=a;nextObjects[x][y]=b;
+            }
+        }
+        mapTileNum=nextGround;objectTileNum=nextObjects;worldCols=cols;worldRows=rows;currentMapPath=path;
     }
 
     public int getWorldCols() {
