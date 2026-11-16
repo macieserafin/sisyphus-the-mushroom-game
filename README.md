@@ -18,13 +18,14 @@
 
 **Fall in the forest, wake up in the village, go back in stronger.**
 
-[Trailer](#-trailer) &middot; [Features](#-features) &middot; [Roadmap](#-roadmap) &middot; [Under the hood](#-under-the-hood) &middot; [Build](#-build-and-run) &middot; [Author](#-author)
+[**▶ Play the demo**](#-play-the-demo) &middot; [Trailer](#-trailer) &middot; [Features](#-features) &middot; [Roadmap](#-roadmap) &middot; [Under the hood](#-under-the-hood) &middot; [Build](#-build-and-run) &middot; [Author](#-author)
 
 </div>
 
 <details>
   <summary>Table of contents</summary>
   <ol>
+    <li><a href="#-play-the-demo">Play the demo</a></li>
     <li><a href="#-trailer">Trailer</a></li>
     <li><a href="#-about-the-game">About the game</a></li>
     <li><a href="#-features">Features</a></li>
@@ -35,6 +36,41 @@
     <li><a href="#-author">Author</a></li>
   </ol>
 </details>
+
+## 🎮 Play the demo
+
+<div align="center">
+
+[![Download the demo](https://img.shields.io/badge/%E2%AC%87%20Download%20the%20demo-SisyphusTheMushroom--Demo.jar-2ea44f?style=for-the-badge)](https://github.com/macieserafin/sisyphus-the-mushroom-game/releases/latest/download/SisyphusTheMushroom-Demo.jar)
+
+*Windows, macOS and Linux &middot; about 166 MB &middot; needs Java 21 or newer*
+
+</div>
+
+A short demo with a guided tutorial and a timed fight against the Slime King.
+
+1. Install **Java 21 or newer** (free): [Adoptium Temurin 21](https://adoptium.net/temurin/releases/?version=21).
+2. Download the `.jar` file with the button above.
+3. Double-click it, or run it from a terminal:
+
+```sh
+java -jar SisyphusTheMushroom-Demo.jar
+```
+
+| Action | Key |
+|---|---|
+| Move | `W` `A` `S` `D` |
+| Attack direction | Arrow keys |
+| Roll / dash | `Space` |
+| Sprint | `Shift` |
+| Switch weapon mode | `Q` / `E` |
+| Skip the tutorial | `Tab` |
+| Mute | `F8` |
+
+> [!NOTE]
+> Saves and settings stay on your computer. All releases are listed on the [releases page](https://github.com/macieserafin/sisyphus-the-mushroom-game/releases). The demo contains the game's art and music, which stay under the [assets license](ASSETS-LICENSE.md).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## 🎬 Trailer
 
@@ -193,7 +229,7 @@ flowchart LR
 ## 🚀 Build and run
 
 > [!IMPORTANT]
-> This repository contains only the source code. The artwork, music, maps and story scripts are not published, so the game cannot be built from this repository alone. Playable builds will be released through the beta and Steam.
+> This repository contains only the source code. The artwork, music, maps and story scripts are not published, so the game cannot be built from this repository alone. To play, use the [demo](#-play-the-demo); full builds will come with the beta and Steam.
 
 The code expects Java 21 and the project layout described above. If you want to read the code, start with `src/main/`, then follow the packages in the table.
 
