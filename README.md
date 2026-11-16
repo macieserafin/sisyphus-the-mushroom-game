@@ -201,7 +201,9 @@ The code expects Java 21 and the project layout described above. If you want to 
 
 ## 📝 License
 
-The source code is published for reading and evaluation. **All rights reserved**: copying, redistribution and commercial use require written permission. The game's art, music, maps and story are not part of this repository and are not licensed.
+The **source code** is released under the [MIT License](LICENSE).
+
+All game assets (graphics, music, sound effects, fonts, maps and story) and the screenshots and clips in `media/` are Copyright (c) 2026 Maciej Serafin, **all rights reserved**. They are not covered by the MIT license; see [ASSETS-LICENSE.md](ASSETS-LICENSE.md).
 
 ## 👤 Author
 
