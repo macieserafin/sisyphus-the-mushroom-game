@@ -31,7 +31,7 @@ public class TitleMenu {
         }
     }
 
-    private static final String BACKGROUND = "backgrounds/vn_mushroom_forest.png";
+    private static final String BACKGROUND = "backgrounds/title_forest.png";
 
     private final GamePanel gp;
     private final ConcurrentLinkedQueue<Integer> pressedKeys = new ConcurrentLinkedQueue<>();
@@ -161,18 +161,32 @@ public class TitleMenu {
                 : new String[]{"W/S  MOVE", "ENTER  SELECT"};
         int totalW = 0;
         for (String hint : hints) {
-            totalW += hintWidth(hint) + 12;
+            totalW += hintWidth(g2, hint) + 12;
         }
         int x = (w - totalW + 12) / 2;
         for (String hint : hints) {
-            UiSkin.plaque(g2, x, h - 42, hintWidth(hint), 27, hint, UiSkin.DIM);
-            x += hintWidth(hint) + 12;
+            int hw = hintWidth(g2, hint);
+            UiSkin.plaque(g2, x, h - 42, hw, 27, null, UiSkin.DIM);
+            label(g2, hint, x + hw / 2, h - 42 + 13, 17, Font.PLAIN, UiSkin.TEXT_DIM);
+            x += hw + 12;
         }
     }
 
-    private static int hintWidth(String hint) {
-        int width = UiSkin.PixelFont.width(hint, 2) + 30;
+    protected static int hintWidth(Graphics2D g2, String hint) {
+        int width = g2.getFontMetrics(UiFonts.of(Font.PLAIN, 17)).stringWidth(hint) + 30;
         return width + (UiSkin.P - width % UiSkin.P) % UiSkin.P;
+    }
+
+    protected static void label(Graphics2D g2, String text, int cx, int cy, int size, int style, Color color) {
+        Font font = UiFonts.of(style, size);
+        g2.setFont(font);
+        FontMetrics fm = g2.getFontMetrics();
+        int x = cx - fm.stringWidth(text) / 2;
+        int y = cy + (fm.getAscent() - fm.getDescent()) / 2;
+        g2.setColor(new Color(0, 0, 0, 170));
+        g2.drawString(text, x + 1, y + 1);
+        g2.setColor(color);
+        g2.drawString(text, x, y);
     }
 
     private void drawTitle(Graphics2D g2) {
@@ -203,7 +217,8 @@ public class TitleMenu {
             Item item = items.get(i);
             boolean active = i == selected;
             int x = left + (active ? 12 : 0);
-            UiSkin.plaque(g2, x + badge - 15, y + 8, plaqueW, 33, item.label, active ? UiSkin.GLOW : UiSkin.DIM);
+            UiSkin.plaque(g2, x + badge - 15, y + 8, plaqueW, 33, null, active ? UiSkin.GLOW : UiSkin.DIM);
+            label(g2, item.label, x + badge - 15 + plaqueW / 2, y + 8 + 16, 24, Font.BOLD, active ? UiSkin.CREAM : UiSkin.TEXT_DIM);
             UiSkin.badge(g2, x, y, badge, active ? UiSkin.RED : UiSkin.DIM);
             UiSkin.icon(g2, item.icon, x + badge / 2 + (item == Item.CONTINUE ? 2 : 0), y + badge / 2, 3, active);
             y += 56;

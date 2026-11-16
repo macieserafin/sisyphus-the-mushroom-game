@@ -155,12 +155,12 @@ public class Hud {
         String label = "LV " + progression.level() + "   |   " + progression.skillPoints() + " SP";
         shadowText(g2, label, x, y + 12, smallFont, UiSkin.GOLD);
         int width = 171;
-        UiSkin.inset(g2, x, y + 18, width, 10);
+        UiSkin.inset(g2, x, y + 16, width, 24);
         double progress = maxLevel ? 1 : (double) progression.experience() / progression.experienceToNextLevel();
         g2.setColor(SIDE_QUEST_COLOR);
-        g2.fillRect(x + 3, y + 21, (int) ((width - 6) * progress), 4);
+        g2.fillRect(x + 6, y + 26, (int) ((width - 12) * progress), 4);
         String xp = maxLevel ? "MAX LEVEL" : progression.experience() + " / " + progression.experienceToNextLevel() + " XP";
-        shadowText(g2, xp, x, y + 42, smallFont, UiSkin.TEXT_DIM);
+        shadowText(g2, xp, x, y + 56, smallFont, UiSkin.TEXT_DIM);
     }
 
     private void drawMushrooms(Graphics2D g2, int x, int y) {
@@ -350,7 +350,7 @@ public class Hud {
         List<QuestLog.Quest> active = gp.questLog.active();
         int shown = Math.min(QUESTS_SHOWN, active.size());
         int lineH = 18;
-        int height = 30 + Math.max(1, shown) * lineH + 20;
+        int height = 30 + Math.max(1, shown) * lineH + 30;
         UiSkin.frame(g2, x, y, QUEST_PANEL_WIDTH, height);
         UiSkin.header(g2, x + QUEST_PANEL_WIDTH / 2, y - 14, "QUESTS");
 
@@ -373,7 +373,7 @@ public class Hud {
         g2.setFont(questTextFont);
         g2.setColor(UiSkin.TEXT_DIM);
         String more = active.size() > shown ? "+" + (active.size() - shown) + " more   " : "";
-        g2.drawString(more + "[" + gp.controls.keyName(settings.ControlSettings.Action.JOURNAL) + "] Journal", textX, y + height - 12);
+        g2.drawString(more + "[" + gp.controls.keyName(settings.ControlSettings.Action.JOURNAL) + "] Journal", textX, y + height - 20);
     }
 
     private String trim(FontMetrics fm, String text, int width) {
